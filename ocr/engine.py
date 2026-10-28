@@ -48,15 +48,27 @@ def engine_version():
 
 def _fix_orientation(img):
     """Use Tesseract's orientation detection to undo 90/180/270° rotations."""
-    try:
-        osd = _tesseract().image_to_osd(img, config="--psm 0 -c min_characters_to_try=10")
-        match = re.search(r"Rotate: (\d+)", osd)
-        angle = int(match.group(1)) if match else 0
-        conf = float(re.search(r"Orientation confidence: ([\d.]+)", osd).group(1))
-    except Exception:
+    # Ten characters can produce an unreliable orientation even on a full
+    # invoice. Start with Tesseract's normal sample size; retry a smaller
+    # sample for sparse pages without lowering the confidence safeguard.
+    for min_characters in (50, 10):
+        try:
+            osd = _tesseract().image_to_osd(
+                img, config=f"--psm 0 -c min_characters_to_try={min_characters}"
+            )
+            angle_match = re.search(r"Rotate: (\d+)", osd)
+            confidence_match = re.search(r"Orientation confidence: ([\d.]+)", osd)
+            if not angle_match or not confidence_match:
+                continue
+            angle = int(angle_match.group(1))
+            conf = float(confidence_match.group(1))
+        except Exception:
+            continue
+        if angle not in (0, 90, 180, 270) or conf < 1.5:
+            continue
+        if angle:
+            return img.rotate(-angle, expand=True, fillcolor="white"), angle
         return img, 0
-    if angle and conf >= 1.5:
-        return img.rotate(-angle, expand=True, fillcolor="white"), angle
     return img, 0
 
 
