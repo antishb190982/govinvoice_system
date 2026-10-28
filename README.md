@@ -143,6 +143,21 @@ Run the tests (102 tests; the OCR tests need Tesseract):
 6. Back up PostgreSQL (`pg_dump`) **and** the `/data` volume. Keep `.env` in the secrets vault: without
    `FIELD_ENCRYPTION_KEYS`, encrypted data can't be read.
 
+### Updating to a new version
+
+After pulling new code, always run both of these, then restart the application:
+
+```bash
+pip install -r requirements.txt
+```
+
+```bash
+python manage.py migrate
+```
+
+Docker does both on `docker compose up -d --build`. If an update is deployed without `migrate`, the app shows a
+"Database update needed" page (HTTP 503) instead of failing after sign-in.
+
 ### Operations
 
 * `python manage.py verify_audit_chain` exits non-zero if any audit entry was altered or removed. Schedule it.

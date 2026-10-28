@@ -65,6 +65,7 @@ MIDDLEWARE = [
     "integrations.middleware.RuntimeConfigMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "core.middleware.SecurityHeadersMiddleware",
+    "core.middleware.PendingMigrationsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
