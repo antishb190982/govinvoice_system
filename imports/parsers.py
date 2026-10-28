@@ -6,26 +6,37 @@ import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-FIELDS = ["account_number", "invoice_number", "issue_date", "due_date", "period_start", "period_end",
-          "amount_net", "amount_tax", "amount_total", "consumption", "previous_reading", "current_reading",
-          "currency", "provider"]
+FIELDS = ["account_number", "service_number", "invoice_number", "issue_date", "due_date", "period_start",
+          "period_end", "amount_net", "amount_tax", "amount_total", "arrears", "consumption", "previous_reading",
+          "current_reading", "currency", "provider"]
+# Read from files but not stored as such: a billing month like "September 2026"
+# or "01/09/2026 - 30/09/2026" that fills period_start / period_end.
+EXTRA_FIELDS = ["period"]
 DATE_FIELDS = {"issue_date", "due_date", "period_start", "period_end"}
-DECIMAL_FIELDS = {"amount_net", "amount_tax", "amount_total", "consumption", "previous_reading", "current_reading"}
+DECIMAL_FIELDS = {"amount_net", "amount_tax", "amount_total", "arrears", "consumption", "previous_reading",
+                  "current_reading"}
 REQUIRED = {"account_number", "invoice_number", "issue_date", "due_date", "amount_total"}
 
 ALIASES = {
-    "account_number": ["account", "account no", "account number", "acct", "contract", "contract no",
-                       "customer account", "service number", "subscriber no", "premise no", "meter account"],
-    "invoice_number": ["invoice", "invoice no", "invoice number", "bill no", "bill number", "document no",
-                       "inv no", "reference", "bill ref"],
-    "issue_date": ["issue date", "invoice date", "bill date", "date", "billing date", "document date"],
-    "due_date": ["due date", "payment due", "pay by", "due", "last payment date"],
+    "account_number": ["account no id", "account", "account no", "account number", "acct", "contract", "contract no",
+                       "contract acct", "contract account", "billing account", "bill acc", "bill account",
+                       "customer account", "subscriber no", "premise no", "meter account"],
+    "service_number": ["telephone number", "telephone no", "line number", "phone number", "service number",
+                       "meter no", "meter number", "msisdn"],
+    "invoice_number": ["bill number", "invoice", "invoice no", "invoice number", "bill no", "document no",
+                       "inv no", "reference", "bill ref", "serial no"],
+    "issue_date": ["issue date", "invoice date", "bill date", "bill issued on", "date", "billing date", "document date"],
+    "due_date": ["due date", "payment due", "pay by", "due", "last payment date", "last date for payment"],
     "period_start": ["period start", "from", "from date", "period from", "start date"],
     "period_end": ["period end", "to", "to date", "period to", "end date"],
     "amount_net": ["net", "net amount", "amount excl vat", "subtotal", "amount before tax"],
-    "amount_tax": ["vat", "tax", "vat amount", "tax amount"],
-    "amount_total": ["total", "amount", "total amount", "amount due", "total due", "net payable",
-                     "invoice amount", "gross", "amount incl vat", "total payable"],
+    "amount_tax": ["current vat bill", "vat", "tax", "vat amount", "tax amount", "value added tax"],
+    "amount_total": ["current amount bill incl vat", "current amount bill", "current bill", "current amount payable",
+                     "total", "amount", "total amount", "amount due", "current amount due", "total due",
+                     "net payable", "invoice amount", "gross", "amount incl vat", "total payable"],
+    "arrears": ["arrears", "outstanding", "outstanding amount", "outstanding amt", "balance brought forward",
+                "previous balance", "balance from previous charges"],
+    "period": ["period", "billing period", "billing month", "month", "consumption period"],
     "consumption": ["consumption", "units", "usage", "kwh", "quantity", "volume", "m3"],
     "previous_reading": ["previous reading", "prev reading", "opening reading"],
     "current_reading": ["current reading", "present reading", "closing reading"],
@@ -33,8 +44,40 @@ ALIASES = {
     "provider": ["provider", "supplier", "company"],
 }
 
-DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d/%m/%y", "%d %b %Y", "%d-%b-%Y",
-                "%d %B %Y", "%b %d, %Y", "%Y/%m/%d"]
+DATE_FORMATS = ["%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y", "%d/%m/%y", "%d.%m.%y", "%d-%m-%y", "%d %b %Y",
+                "%d-%b-%Y", "%d %B %Y", "%b %d, %Y", "%Y/%m/%d"]
+MONTH_RE = re.compile(r"^\s*([A-Za-zéû]+)\.?\s+(\d{4})\s*$")
+FRENCH_MONTHS = {"janvier": 1, "février": 2, "fevrier": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6, "juillet": 7,
+                 "août": 8, "aout": 8, "septembre": 9, "octobre": 10, "novembre": 11, "décembre": 12, "decembre": 12}
+
+
+def parse_period(value):
+    """'September 2026' → (1 Sep, 30 Sep); '01/09/2026 - 30/09/2026' → both dates; else (None, None)."""
+    import calendar
+
+    if value in (None, ""):
+        return None, None
+    text = str(value).strip()
+    m = MONTH_RE.match(text)
+    if m:
+        name, year = m.group(1).lower(), int(m.group(2))
+        month = FRENCH_MONTHS.get(name)
+        if month is None:
+            for fmt in ("%B", "%b"):
+                try:
+                    month = datetime.strptime(name.capitalize(), fmt).month
+                    break
+                except ValueError:
+                    continue
+        if month:
+            return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1])
+    parts = re.split(r"\s+(?:-|–|to|au|à)\s+|\s*-\s*(?=\d{1,2}[/.])", text)
+    if len(parts) == 2:
+        try:
+            return parse_date(parts[0]), parse_date(parts[1])
+        except ValueError:
+            pass
+    return None, None
 
 
 def _norm(text):
@@ -47,9 +90,9 @@ def match_headers(headers, column_map=None):
     normalised = [_norm(h) for h in headers]
     if column_map:
         for field, header in column_map.items():
-            if field in FIELDS and _norm(header) in normalised:
+            if field in FIELDS + EXTRA_FIELDS and _norm(header) in normalised:
                 mapping[field] = normalised.index(_norm(header))
-    for field in FIELDS:
+    for field in FIELDS + EXTRA_FIELDS:
         if field in mapping:
             continue
         for alias in ALIASES[field]:
@@ -117,9 +160,18 @@ def normalise(raw, date_format=None, decimal_comma=False):
         except ValueError as exc:
             errors.append(f"{field.replace('_', ' ')}: {exc}")
             data[field] = None
+    if raw.get("period") and not (data.get("period_start") and data.get("period_end")):
+        start, end = parse_period(raw["period"])
+        if start:
+            data["period_start"], data["period_end"] = data.get("period_start") or start.isoformat(), \
+                data.get("period_end") or end.isoformat()
+        else:
+            errors.append(f"period: unrecognised “{raw['period']}”")
     for field in REQUIRED:
         if not data.get(field) and not any(e.startswith(field.replace("_", " ")) for e in errors):
             errors.append(f"{field.replace('_', ' ')} is missing")
+    if data.get("account_number"):
+        data["account_number"] = data["account_number"].strip()
     if data.get("amount_total") and Decimal(data["amount_total"]) < 0:
         errors.append("amount total is negative (credit notes are not imported)")
     return data, errors
@@ -129,11 +181,13 @@ def read_table(content, kind, sheet_name=""):
     """Return rows (lists of cell values) from CSV/XLSX/XLS bytes."""
     if kind == "csv":
         text = content.decode("utf-8-sig", errors="replace")
-        try:
-            dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t|")
-        except csv.Error:
-            dialect = csv.excel
-        return [row for row in csv.reader(io.StringIO(text), dialect)]
+        # Count candidate delimiters in the header line; the sniffer is unreliable on
+        # exports with trailing separators and padded headers (e.g. Mauritius Telecom).
+        first = next((ln for ln in text.splitlines() if ln.strip()), "")
+        delimiter = max(",;\t|", key=first.count) if first else ","
+        if not first.count(delimiter):
+            delimiter = ","
+        return [[c.strip() for c in row] for row in csv.reader(io.StringIO(text), delimiter=delimiter)]
     if kind == "xlsx":
         from openpyxl import load_workbook
 
@@ -183,6 +237,7 @@ def spreadsheet_rows(content, kind, template=None):
         if not any(c not in (None, "") for c in row):
             continue
         raw = {f: (row[i] if i < len(row) else None) for f, i in mapping.items()}
+        raw = {k: (v.strip() if isinstance(v, str) else v) for k, v in raw.items()}
         if _norm(raw.get("account_number")) in {"total", "grand total"}:
             continue
         out.append((offset, {k: (v.isoformat() if isinstance(v, (date, datetime)) else v) for k, v in raw.items()}))

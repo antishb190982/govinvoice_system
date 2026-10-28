@@ -34,6 +34,10 @@ class Provider(models.Model):
     short_code = models.CharField(max_length=20, unique=True)
     utility_type = models.CharField(max_length=20, choices=UtilityType.choices)
     tax_number = models.CharField(max_length=60, blank=True)
+    invoice_number_pattern = models.CharField(
+        max_length=200, blank=True,
+        help_text=r"Regular expression for this provider's bill numbers, e.g. ^FINV\d{8}-\d{4}[A-Z]$. "
+                  "Used to recognise the provider in files that do not name it.")
     identifiers = models.TextField(blank=True, help_text="Other names printed on its invoices (one per line, any "
                                                           "language), used to recognise scanned invoices")
     contact_email = models.EmailField(blank=True)

@@ -23,7 +23,7 @@ from signatures.services import active_identity, check_pin, sign_pdf
 
 def eligible_invoices(org_unit, currency, cutoff_date):
     return Invoice.objects.filter(
-        status=Invoice.Status.APPROVED, currency=currency, due_date__lte=cutoff_date,
+        status=Invoice.Status.APPROVED, currency=currency, due_date__lte=cutoff_date, amount_total__gt=0,
         org_unit__path__startswith=org_unit.path,
     ).select_related("provider", "service_account", "org_unit").order_by("due_date")
 

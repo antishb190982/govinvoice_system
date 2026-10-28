@@ -44,6 +44,7 @@ def invoice_json(inv, detail=False):
         "amount_net": _amt(inv.amount_net, inv.currency), "amount_tax": _amt(inv.amount_tax, inv.currency),
         "amount_total": _amt(inv.amount_total, inv.currency),
         "consumption": str(inv.consumption) if inv.consumption is not None else None,
+        "arrears": _amt(inv.arrears, inv.currency),
         "consumption_unit": inv.consumption_unit, "flags": inv.flags, "paid_at": inv.paid_at,
         "payment_reference": inv.payment_reference or None,
     }

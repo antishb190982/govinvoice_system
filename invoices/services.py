@@ -92,6 +92,10 @@ def detect_flags(invoice):
 
     if invoice.due_date and timezone.now() > approval_deadline(invoice.due_date):
         flags.add(Flag.LATE_ARRIVAL)
+    if invoice.amount_total == 0:
+        flags.add(Flag.NOTHING_TO_PAY)
+    if invoice.arrears and invoice.arrears > 0:
+        flags.add(Flag.ARREARS)
     return sorted(flags)
 
 

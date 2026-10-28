@@ -181,11 +181,17 @@ def account_form(request, pk=None):
     if not user_has_any_role(request.user, [Role.UNIT_ADMIN]):
         raise PermissionDenied
     form = AccountForm(request.POST or None, instance=account, user=request.user,
-                       initial={"provider": request.GET.get("provider")})
+                       initial={"provider": request.GET.get("provider"),
+                                "account_number": request.GET.get("account_number", "")[:60],
+                                "meter_number": request.GET.get("meter_number", "")[:60]})
     if request.method == "POST" and form.is_valid():
         changed = form.changed_data
         account = form.save()
         AuditEvent.record("service_account.saved", obj=account, data={"fields": changed})
         messages.success(request, "Service account saved.")
+        nxt = request.GET.get("next", "")
+        if nxt.startswith("/imports/"):
+            messages.info(request, "Re-check the import rows (Fix → Re-check, or Analyse again) to pick up the new account.")
+            return redirect(nxt)
         return redirect("providers:account", pk=account.pk)
     return render(request, "providers/account_form.html", {"form": form, "account": account})

@@ -127,6 +127,15 @@ def batch_commit(request, pk):
 
 @login_required
 @require_POST
+def batch_recheck(request, pk):
+    batch = _get_batch(request, pk)
+    changed = services.recheck(batch, request.user)
+    messages.success(request, f"Rows re-checked ({changed} changed).")
+    return redirect("imports:batch", pk=batch.pk)
+
+
+@login_required
+@require_POST
 def batch_discard(request, pk):
     batch = _get_batch(request, pk)
     if batch.status == ImportBatch.Status.STAGED:

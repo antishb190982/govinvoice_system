@@ -105,3 +105,99 @@ def as_scanned_pdf(img):
     buf = io.BytesIO()
     img.convert("RGB").save(buf, "PDF", resolution=200)
     return buf.getvalue()
+
+
+# --- Look-alikes of real Mauritian bills (fictitious customer data) -----------------------
+
+def _pdf_lines(lines, size=(595.275, 822.047)):
+    """Text-layer PDF: [(x, y_from_top, text, font_size, bold)]."""
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=size)
+    for x, y, text, fs, bold in lines:
+        c.setFont("Helvetica-Bold" if bold else "Helvetica", fs)
+        c.drawString(x, size[1] - y, text)
+    c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+def mt_statement_pdf(bill="FINV05123456-2609A", bill_acc="5500123", cust_acc="38000111", line="4650001",
+                     issued="04/10/2026", due="03/11/2026", period=("01/09/2026", "30/09/2026"),
+                     net="1,200.00", vat="180.00", total="1,380.00", arrears="0.00", name="MINISTRY OF TEST"):
+    """Mauritius Telecom 'Statement of account' layout (Apache FOP text layer)."""
+    month = "September 2026"
+    total_due = total if arrears in ("0.00", "") else f"{float(total.replace(',', '')) + float(arrears.replace(',', '')):,.2f}"
+    rows = [
+        (45, 60, "Statement of account", 14, True),
+        (45, 104, "VAT Reg. No.: VAT20070778", 8, False),
+        (45, 112, "BRN.: C06006834", 8, False), (340, 112, f"Bill issued on:{issued}", 8, False),
+        (45, 125, name, 8, True), (340, 125, f"Month:{month}", 8, False),
+        (45, 138, "GOVERNMENT HOUSE", 8, False), (340, 138, f"Period:{period[0]} - {period[1]}", 8, False),
+        (340, 151, f"Cust. Acc./Bill. Acc.:{cust_acc} / {bill_acc}", 8, False),
+        (45, 151, "PORT LOUIS", 8, False), (340, 163, f"Line number:{line}", 8, False),
+        (340, 176, f"Bill Number:{bill}", 8, False),
+        (45, 190, "Mauritius Telecom Ltd, Edith Cavell Street, Port Louis", 7, False),
+        (45, 203, f"VAT INVOICE Serial No: {bill}", 8, True), (340, 203, "Balance on previous bill: 0.00", 8, False),
+        (340, 215, "Additional charges: 0.00", 8, False),
+        (340, 227, "Payments received/credit adjustments: 0.00", 8, False),
+        (340, 239, f"Amount still due as at: {issued} {arrears}", 8, False),
+        (45, 263, "Charges for the period", 9, True), (442, 263, "VAT %", 8, False),
+        (45, 295, "Access Charge 01/10/2026 31/10/2026 15 1,200.00", 8, False),
+        (200, 514, f"TOTAL AMOUNT FOR THE PERIOD (before VAT): {net}", 8, True),
+        (200, 532, f"Value Added Tax: {vat}", 8, True),
+        (200, 550, f"TOTAL AMOUNT INCLUSIVE OF VAT: {total}", 8, True),
+        (45, 572, f"Last date for payment is {due}", 8, True),
+        (45, 700, "PAYMENT VOUCHER", 10, True),
+        (45, 719, f"Month: {month}", 8, False), (340, 719, f"Bill issued on: {issued}", 8, False),
+        (45, 732, f"Name of customer: {name}", 8, False), (340, 732, f"Bill Number: {bill}", 8, False),
+        (45, 746, f"Cust. Acc./Bill. Acc.: {cust_acc} / {bill_acc}", 8, False), (340, 746, f"Arrears: {arrears}", 8, False),
+        (45, 759, f"Line number: {line}", 8, False), (340, 759, f"Current bill: {total}", 8, False),
+        (340, 773, f"Total amount due: {total_due}", 9, True),
+    ]
+    return _pdf_lines(rows)
+
+
+def ceb_ebill_pdf(invoice="250012345678", contract="000118900001", meter="11600001", issued="12.10.2026",
+                  due="11.11.2026", period=("22.08.26", "22.09.26"), cur="22,865", prev="22,699", units="166",
+                  current="1,146.00", arrears="0.00"):
+    """Central Electricity Board e-Bill layout."""
+    total = f"{float(current.replace(',', '')) + float(arrears.replace(',', '')):,.2f}"
+    rows = [
+        (40, 40, "Central Electricity Board", 12, True),
+        (40, 52, "CORPORATE OFFICE, P.O BOX 134", 7, False),
+        (40, 74, "VAT REG NO: VAT22000591 | BRN : F07000041", 7, False),
+        (40, 92, f"Invoice No. {invoice} Date {issued} Name MINISTRY OF TEST", 8, False),
+        (40, 104, "Business Partner 0001400001 MRU 741D12A AddressGOVERNMENT HOUSE PORT LOUIS", 8, False),
+        (40, 116, f"Contract Acct. {contract} Tariff 215", 8, False),
+        (40, 140, "METER READING DATA", 8, True),
+        (40, 152, f"Meter No. Current Rdg. Previous Rdg. Units Consumption Period {period[0]} to {period[1]}", 7, False),
+        (40, 162, "22.09.26 22.08.26 Last 3 Consumptions (kWh) 306 / 207 / 197", 7, False),
+        (40, 172, f"#{meter} {cur} {prev} {units} Next Planned Rdg. Date 20.11.2026", 7, False),
+        (40, 192, f"Total units consumed(kWh) {units}", 8, False),
+        (40, 210, "STATEMENT OF ACCOUNT Amount (Rs) MESSAGES", 8, True),
+        (40, 222, "Previous charges as at 14.09.2026 1,366.00", 8, False),
+        (40, 234, "Less Payments 1,366.00", 8, False),
+        (40, 246, f"Balance from previous charges as at {due}", 8, False),
+        (40, 256, f"(A) {arrears}", 8, False),
+        (40, 268, "New Charges", 8, True),
+        (40, 280, "Consumption Charges 976.00", 8, False),
+        (40, 292, "Meter rental 20.00", 8, False),
+        (40, 304, f"Current amount payable by {due} (B) {current}", 8, True),
+        (40, 318, f"Total Amount Due (A+B) {total}", 8, True),
+        (40, 400, f"Contract Acct. {contract}Current Amt {current}", 8, False),
+        (40, 412, f"Due Date {due} TOTAL AMOUNT DUE{total}", 8, True),
+    ]
+    return _pdf_lines(rows, size=(595, 842))
+
+
+def mt_summary_csv(rows):
+    """Mauritius Telecom 'summary' export: semicolon-separated with a trailing separator."""
+    head = ("Account No ID;Billing Name;Telephone number;Bill number;Issue Date; Period;Due Date;"
+            "Current Amount Bill (incl VAT);Current VAT Bill;Current Amount Due;Arrears;Grand Total;Payment mode"
+            + " " * 40)
+    lines = [head]
+    for r in rows:
+        lines.append(";".join(r) + ";")
+    return ("\n".join(lines) + "\n").encode()

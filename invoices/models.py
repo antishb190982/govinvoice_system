@@ -49,6 +49,8 @@ class Invoice(models.Model):
     amount_net = models.DecimalField(**MONEY, default=Decimal("0"))
     amount_tax = models.DecimalField(**MONEY, default=Decimal("0"))
     amount_total = models.DecimalField(**MONEY)
+    arrears = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True,
+                                  help_text="Unpaid balance from earlier bills printed on this one (not part of the total)")
     consumption = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True)
     consumption_unit = models.CharField(max_length=10, blank=True)
     previous_reading = models.DecimalField(max_digits=16, decimal_places=3, null=True, blank=True)
@@ -117,6 +119,7 @@ class Invoice(models.Model):
             "amount_tax": str(self.amount_tax),
             "amount_total": str(self.amount_total),
             "consumption": str(self.consumption) if self.consumption is not None else None,
+            "arrears": str(self.arrears) if self.arrears is not None else None,
             "document_sha256": self.document_sha256,
         }
 
@@ -133,6 +136,8 @@ class Flag:
     SAME_DOCUMENT = "same_document"
     LATE_ARRIVAL = "late_arrival"
     OVERDUE = "overdue"
+    NOTHING_TO_PAY = "nothing_to_pay"
+    ARREARS = "arrears"
 
     LABELS = {
         AMOUNT_SPIKE: "Amount well above this account's recent average",
@@ -144,6 +149,8 @@ class Flag:
         SAME_DOCUMENT: "The same file was already attached to another invoice",
         LATE_ARRIVAL: "Received too close to the due date for the normal approval SLA",
         OVERDUE: "Past due date and not paid",
+        NOTHING_TO_PAY: "Zero amount – closed without payment once approved",
+        ARREARS: "The bill shows an unpaid balance from earlier bills",
     }
     SEVERE = {TOTAL_MISMATCH, POSSIBLE_DUPLICATE, SAME_DOCUMENT, READING_MISMATCH}
 

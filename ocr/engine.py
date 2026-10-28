@@ -113,12 +113,37 @@ def ocr_words(gray):
         if not text or conf < 0:
             continue
         x, y, bw, bh = data["left"][i], data["top"][i], data["width"][i], data["height"][i]
-        words.append({
+        words += split_glued({
             "t": text, "c": round(conf, 1),
             "b": [round(x / w, 5), round(y / h, 5), round((x + bw) / w, 5), round((y + bh) / h, 5)],
             "l": f"{data['block_num'][i]}.{data['par_num'][i]}.{data['line_num'][i]}",
         })
     return words
+
+
+GLUE_PATTERNS = [
+    # "Number:FINV04616866-2609A" -> "Number:" + "FINV04616866-2609A" (but keep 12:30 times)
+    re.compile(r"^(?P<a>[^\W\d][\w.()/-]*?:)(?P<b>\S+)$"),
+    # "DUE1,146.00" -> "DUE" + "1,146.00" (an amount glued to an upper-case word)
+    re.compile(r"^(?P<a>[A-Z]{2,}\.?)(?P<b>-?\d[\d,]*\.\d{1,3})$"),
+    # "000118902086Current" -> "000118902086" + "Current" (a number glued to a capitalised word)
+    re.compile(r"^(?P<a>[#]?\d[\d,.]*\d)(?P<b>[A-Z][a-z]{2,}\S*)$"),
+]
+
+
+def split_glued(word):
+    """Split a word whose label and value were printed without a space; boxes split by character share."""
+    for pattern in GLUE_PATTERNS:
+        m = pattern.match(word["t"])
+        if not m or not m.group("a") or not m.group("b"):
+            continue
+        a, b = m.group("a"), m.group("b")
+        x0, y0, x1, y1 = word["b"]
+        cut = x0 + (x1 - x0) * len(a) / len(word["t"])
+        first = {**word, "t": a, "b": [x0, y0, round(cut, 5), y1]}
+        second = {**word, "t": b, "b": [round(cut, 5), y0, x1, y1]}
+        return split_glued(first) + split_glued(second)
+    return [word]
 
 
 def text_layer_words(pdf_page):
@@ -131,9 +156,9 @@ def text_layer_words(pdf_page):
         if last_top is None or abs(r["top"] - last_top) > 3:
             line_id += 1
             last_top = r["top"]
-        words.append({"t": normalise_digits(r["text"]), "c": 100.0,
-                      "b": [round(r["x0"] / w, 5), round(r["top"] / h, 5), round(r["x1"] / w, 5),
-                            round(r["bottom"] / h, 5)], "l": f"t.{line_id}"})
+        words += split_glued({"t": normalise_digits(r["text"]), "c": 100.0,
+                              "b": [round(r["x0"] / w, 5), round(r["top"] / h, 5), round(r["x1"] / w, 5),
+                                    round(r["bottom"] / h, 5)], "l": f"t.{line_id}"})
     return words
 
 

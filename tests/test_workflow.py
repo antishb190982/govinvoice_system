@@ -134,7 +134,9 @@ def test_late_invoice_is_expedited_and_flagged(signers, policy, make_invoice):
     engine.submit(inv, signers["clerk"])
     task = pending(inv)
     assert task.expedited
-    assert task.due_at - task.activated_at <= timedelta(hours=engine.EXPEDITED_HOURS)
+    from core.worktime import working_hours_between
+
+    assert working_hours_between(task.activated_at, task.due_at) <= engine.EXPEDITED_HOURS + 0.01
 
 
 def test_breach_escalates_to_escalation_role(signers, policy, make_invoice, tree):

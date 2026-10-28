@@ -24,13 +24,15 @@ def _template_for(provider, kind):
 
 
 def _resolve_provider(data, default):
+    from providers.services import provider_from_invoice_number
+
     code = data.get("provider")
     if code:
         found = Provider.objects.filter(short_code__iexact=code).first() or \
             Provider.objects.filter(name__iexact=code).first()
         if found:
             return found
-    return default
+    return default or provider_from_invoice_number(data.get("invoice_number"))
 
 
 def validate_row(row, user, default_provider, template=None):
@@ -40,21 +42,32 @@ def validate_row(row, user, default_provider, template=None):
     account = None
     if provider is None:
         errors.append("provider not identified – choose one when uploading")
-    elif data.get("account_number"):
-        account = ServiceAccount.objects.filter(provider=provider, account_number__iexact=data["account_number"],
-                                                is_active=True).select_related("org_unit").first()
+    elif data.get("account_number") or data.get("service_number"):
+        from providers.services import find_account
+
+        account = find_account(provider, data.get("account_number"), data.get("service_number"))
         if account is None:
-            errors.append(f"account {data['account_number']} is not registered for {provider.short_code}")
+            number = data.get("account_number") or data.get("service_number")
+            errors.append(f"account {number} is not registered for {provider.short_code}")
+            data["unregistered_account"] = number
         elif not has_role(user, account.org_unit, [Role.CLERK, Role.UNIT_ADMIN]):
             errors.append(f"you may not record invoices for {account.org_unit.code}")
+        else:
+            data["account_number"] = account.account_number
     if provider and data.get("invoice_number") and Invoice.objects.filter(
             provider=provider, invoice_number__iexact=data["invoice_number"]).exists():
         errors.append(f"invoice {data['invoice_number']} is already recorded")
     if data.get("issue_date") and data.get("due_date") and data["due_date"] < data["issue_date"]:
         errors.append("due date is before issue date")
+    notes = []
     if data.get("due_date") and date.fromisoformat(data["due_date"]) < timezone.localdate():
-        # Not an error – it must still be paid – but it is surfaced prominently.
-        data["warning"] = "already past due"
+        notes.append("already past due")  # not an error – it must still be paid
+    if data.get("amount_total") is not None and data.get("amount_total") != "" and Decimal(data["amount_total"]) == 0:
+        notes.append("nothing to pay")
+    if data.get("arrears") and Decimal(data["arrears"]) > 0:
+        notes.append(f"arrears {Decimal(data['arrears']):,.2f} from earlier bills")
+    if notes:
+        data["warning"] = "; ".join(notes)
     if provider:
         data["provider_id"] = provider.pk
         data["provider_code"] = provider.short_code
@@ -207,6 +220,25 @@ def confirm_row(row, user, values, learn=True):
     return row, learned
 
 
+def recheck(batch, user):
+    """Validate staged rows again, e.g. after the missing service accounts were registered."""
+    if batch.status != ImportBatch.Status.STAGED or batch.uploaded_by_id != user.pk:
+        raise PermissionDenied
+    count = 0
+    for row in batch.rows.exclude(status__in=[ImportRow.Status.COMMITTED, ImportRow.Status.ANALYSING]):
+        if row.ocr_document and not row.raw:
+            continue  # unreadable document: nothing to validate
+        errors_before = list(row.errors)
+        validate_row(row, user, batch.provider, batch.template)
+        if row.source_sha256 and Invoice.objects.filter(document_sha256=row.source_sha256).exists():
+            row.errors = row.errors + ["this exact document is already attached to an invoice"]
+            row.status = ImportRow.Status.INVALID
+        row.save()
+        count += row.errors != errors_before
+    _mark_batch_duplicates(batch)
+    return count
+
+
 def update_row(row, user, values):
     """Correct a staged row from the review screen, then re-validate it."""
     if row.batch.status != ImportBatch.Status.STAGED or row.batch.uploaded_by_id != user.pk:
@@ -238,14 +270,17 @@ def commit(batch, user):
             continue
         d = row.data
         account = ServiceAccount.objects.get(pk=d["service_account_id"])
+        total = Decimal(d["amount_total"])
+        tax = Decimal(d["amount_tax"]) if d.get("amount_tax") else Decimal("0")
+        # Statements often give only the total incl. VAT and the VAT: derive the net.
+        net = Decimal(d["amount_net"]) if d.get("amount_net") else (total - tax if d.get("amount_tax") else Decimal("0"))
         inv = Invoice(
             service_account=account, invoice_number=d["invoice_number"],
             issue_date=date.fromisoformat(d["issue_date"]), due_date=date.fromisoformat(d["due_date"]),
             period_start=date.fromisoformat(d["period_start"]) if d.get("period_start") else None,
             period_end=date.fromisoformat(d["period_end"]) if d.get("period_end") else None,
-            amount_net=Decimal(d["amount_net"]) if d.get("amount_net") else Decimal("0"),
-            amount_tax=Decimal(d["amount_tax"]) if d.get("amount_tax") else Decimal("0"),
-            amount_total=Decimal(d["amount_total"]),
+            amount_net=net, amount_tax=tax, amount_total=total,
+            arrears=Decimal(d["arrears"]) if d.get("arrears") else None,
             consumption=Decimal(d["consumption"]) if d.get("consumption") else None,
             previous_reading=Decimal(d["previous_reading"]) if d.get("previous_reading") else None,
             current_reading=Decimal(d["current_reading"]) if d.get("current_reading") else None,

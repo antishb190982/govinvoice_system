@@ -7,6 +7,7 @@ from providers.models import Provider
 FIELD_CHOICES = [
     ("provider", "Utility provider"),
     ("account_number", "Account number"),
+    ("service_number", "Line / meter number"),
     ("invoice_number", "Invoice number"),
     ("issue_date", "Issue date"),
     ("due_date", "Due date"),
@@ -14,7 +15,8 @@ FIELD_CHOICES = [
     ("period_end", "Period end"),
     ("amount_net", "Net amount"),
     ("amount_tax", "Tax / VAT"),
-    ("amount_total", "Total payable"),
+    ("amount_total", "Total payable (this bill)"),
+    ("arrears", "Arrears from earlier bills"),
     ("consumption", "Consumption"),
     ("previous_reading", "Previous reading"),
     ("current_reading", "Current reading"),
@@ -83,6 +85,9 @@ class OcrTemplate(models.Model):
 
     provider = models.OneToOneField(Provider, on_delete=models.CASCADE, related_name="ocr_template")
     zones = models.JSONField(default=dict)
+    # Optional regular expressions run over the page text, first group = value,
+    # e.g. {"amount_total": "TOTAL AMOUNT INCLUSIVE OF VAT:?\\s*([\\d,.]+)"}.
+    patterns = models.JSONField(default=dict, blank=True)
     sample = models.ForeignKey(OcrDocument, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     learned_from = models.PositiveIntegerField(default=0, help_text="Confirmed documents this template learned from")
     is_active = models.BooleanField(default=True)

@@ -29,38 +29,57 @@ LABELS = {
                        "contract no", "customer no", "customer number", "customer account", "subscriber no",
                        "service no", "service number", "consumer no", "premise no", "meter account",
                        "رقم الحساب", "رقم المشترك", "رقم العقد", "رقم الاشتراك",
-                       "numéro de compte", "n° de compte", "no de compte", "compte client", "numéro client", "n° client", "réf client"],
-    "invoice_number": ["invoice no", "invoice number", "invoice #", "tax invoice no", "bill no", "bill number",
+                       "numéro de compte", "n° de compte", "no de compte", "compte client", "numéro client", "n° client", "réf client",
+                       "contract acct", "bill acc", "bill account", "billing account", "account no id"],
+    "service_number": ["line number", "telephone number", "phone number", "meter no", "meter number", "msisdn",
+                       "numéro de ligne", "n° compteur"],
+    "invoice_number": ["invoice no", "invoice number", "invoice #", "tax invoice no", "bill no", "bill number", "serial no",
                        "bill ref", "document no", "inv no", "رقم الفاتورة", "numéro de facture", "n° de facture", "no facture", "facture n°"],
     "issue_date": ["invoice date", "bill date", "issue date", "date of issue", "billing date", "document date",
+                   "bill issued on", "issued on", "date",
                    "تاريخ الفاتورة", "تاريخ الإصدار", "date de facture", "date de facturation", "date d émission"],
-    "due_date": ["due date", "payment due date", "payment due", "pay by", "last date for payment",
+    "due_date": ["due date", "payment due date", "payment due", "pay by", "payable by", "last date for payment",
                  "last payment date", "due on", "تاريخ الاستحقاق", "آخر موعد للدفع",
                  "date d échéance", "date limite de paiement", "à payer avant le", "payable avant le"],
     "period": ["billing period", "service period", "period", "consumption period", "فترة الفاتورة", "الفترة", "période de facturation", "période"],
-    "amount_total": ["total amount due", "amount due", "total due", "net payable", "total payable",
+    "amount_total": ["total amount inclusive of vat", "current amount payable", "current bill", "current amt",
+                     "current amount", "total amount due", "amount due", "total due", "net payable", "total payable",
                      "amount payable", "grand total", "balance due", "total amount", "invoice total",
                      "المبلغ المستحق", "الإجمالي", "المبلغ الإجمالي", "المجموع",
                      "montant dû", "montant à payer", "total à payer", "net à payer", "total ttc", "montant total"],
     "amount_tax": ["vat", "vat amount", "value added tax", "tax amount", "tax", "ضريبة القيمة المضافة", "الضريبة", "tva", "montant tva"],
-    "amount_net": ["amount before tax", "amount before vat", "subtotal", "sub total", "sub-total", "net amount",
-                   "amount excl vat", "taxable amount", "charges", "المبلغ قبل الضريبة", "montant ht", "total ht", "hors taxes"],
-    "consumption": ["consumption", "units consumed", "total consumption", "usage", "units", "الاستهلاك", "consommation"],
-    "previous_reading": ["previous reading", "prev reading", "opening reading", "last reading", "القراءة السابقة", "ancien index", "index précédent"],
-    "current_reading": ["current reading", "present reading", "closing reading", "القراءة الحالية", "nouvel index", "index actuel"],
+    "amount_net": ["total amount for the period before vat", "amount for the period before vat", "amount before tax",
+                   "amount before vat", "subtotal", "sub total", "sub-total", "net amount",
+                   "amount excl vat", "taxable amount", "المبلغ قبل الضريبة", "montant ht", "total ht", "hors taxes"],
+    "consumption": ["total units consumed", "consumption", "units consumed", "total consumption", "usage", "units",
+                    "الاستهلاك", "consommation"],
+    "arrears": ["arrears", "outstanding amt", "outstanding amount", "amount still due", "balance from previous charges",
+                "previous balance", "balance brought forward", "arriérés", "solde antérieur"],
+    "previous_reading": ["previous reading", "prev reading", "previous rdg", "opening reading", "last reading",
+                         "القراءة السابقة", "ancien index", "index précédent"],
+    "current_reading": ["current reading", "current rdg", "present reading", "closing reading", "القراءة الحالية",
+                        "nouvel index", "index actuel"],
 }
 # Stronger labels win ties between candidates of the same field.
-LABEL_STRENGTH = {"amount_total": {"total amount due": 1.0, "amount due": 0.97, "net payable": 0.97,
-                                   "total payable": 0.97, "amount payable": 0.95, "balance due": 0.93,
-                                   "grand total": 0.92, "total due": 0.95, "total amount": 0.85,
-                                   "invoice total": 0.85, "المبلغ المستحق": 0.97, "الإجمالي": 0.85,
-                                   "المبلغ الإجمالي": 0.9, "المجموع": 0.8, "montant dû": 0.97, "net à payer": 0.97,
-                                   "total à payer": 0.97, "montant à payer": 0.95, "total ttc": 0.93,
+# Stronger labels win between candidates of the same field. Totals that include
+# arrears ("Total amount due (A+B)") rank below the amount of this bill.
+LABEL_STRENGTH = {"amount_total": {"total amount inclusive of vat": 1.0, "current amount payable": 1.0,
+                                   "current bill": 0.99, "current amt": 0.97, "current amount": 0.9,
+                                   "net payable": 0.97, "total payable": 0.96, "total amount due": 0.93,
+                                   "amount due": 0.9, "amount payable": 0.93, "balance due": 0.85,
+                                   "grand total": 0.85, "total due": 0.9, "total amount": 0.8,
+                                   "invoice total": 0.85, "المبلغ المستحق": 0.95, "الإجمالي": 0.85,
+                                   "المبلغ الإجمالي": 0.9, "المجموع": 0.8, "montant dû": 0.95, "net à payer": 0.97,
+                                   "total à payer": 0.96, "montant à payer": 0.95, "total ttc": 0.95,
                                    "montant total": 0.85},
-                  "account_number": {"account": 0.75, "units": 0.6}}
-TYPES = {"account_number": "id", "invoice_number": "id", "issue_date": "date", "due_date": "date",
+                  "account_number": {"account": 0.75, "bill acc": 0.97, "contract acct": 0.99, "account no id": 0.99},
+                  "issue_date": {"date": 0.7, "bill issued on": 0.99},
+                  "arrears": {"arrears": 1.0, "outstanding amt": 0.95, "amount still due": 0.9}}
+FILLER = {"is", "on", "by", "as", "at", "le", "du", "de", "the", "of", "(a)", "(b)", "(a+b)", "(rs)", "rs", "(kwh)",
+          "kwh", "no", "no.", "nr", "n°"}
+TYPES = {"account_number": "id", "service_number": "id", "invoice_number": "id", "issue_date": "date", "due_date": "date",
          "period_start": "date", "period_end": "date", "amount_total": "amount", "amount_tax": "amount",
-         "amount_net": "amount", "consumption": "number", "previous_reading": "number",
+         "amount_net": "amount", "arrears": "amount", "consumption": "number", "previous_reading": "number",
          "current_reading": "number", "currency": "currency"}
 REQUIRED = ("provider", "account_number", "invoice_number", "issue_date", "due_date", "amount_total")
 CURRENCIES = {"MUR", "RS", "OMR", "AED", "SAR", "ZAR", "INR", "USD", "EUR", "GBP"}
@@ -87,19 +106,26 @@ def compact_id(value):
 
 
 def ocr_equivalent(a, b):
-    """Equality tolerant to typical OCR character confusions."""
-    a, b = compact_id(a), compact_id(b)
-    return a == b or a.translate(OCR_CONFUSIONS) == b.translate(OCR_CONFUSIONS)
+    """Equality tolerant to typical OCR character confusions and to leading zeros
+    on numeric account numbers (000118902086 = 118902086)."""
+    a, b = compact_id(a).lstrip("#"), compact_id(b).lstrip("#")
+    if a.isdigit() and b.isdigit():
+        a, b = a.lstrip("0"), b.lstrip("0")
+    return bool(a) and (a == b or a.translate(OCR_CONFUSIONS) == b.translate(OCR_CONFUSIONS))
 
 
 # --- Typed parsing ------------------------------------------------------------------
 
 PERCENT_RE = re.compile(r"\(?\s*\d+(?:[.,]\d+)?\s*%\s*\)?")
+LETTER_REF_RE = re.compile(r"\(\s*[A-Z](?:\s*\+\s*[A-Z])*\s*\)")
 SEPARATORS = {":", "-", "=", "–", "—", "#", "|"}
 
 
 def parse_amount(text, decimal_comma=False):
-    text = PERCENT_RE.sub(" ", normalise_digits(text))
+    text = normalise_digits(text)
+    # Dates ("payable by 11.11.2026"), percentages and "(A+B)" references are not amounts.
+    text = DATE_RE.sub(" ", text)
+    text = LETTER_REF_RE.sub(" ", PERCENT_RE.sub(" ", text))
     for token in AMOUNT_RE.findall(text.replace(" ", " ")):
         neg = token.startswith("(") and token.endswith(")") or token.startswith("-")
         raw = token.strip("()-").strip()
@@ -204,6 +230,10 @@ def _starts_like_value(words, field):
         t = w["t"].strip()
         if not t or t in SEPARATORS or "%" in t or t.rstrip(":").upper() in CURRENCIES | set(CURRENCY_ALIASES):
             continue
+        if t.lower().rstrip(":") in FILLER or LETTER_REF_RE.fullmatch(t):
+            continue
+        if TYPES[field] in ("amount", "number") and DATE_RE.fullmatch(t):
+            continue  # "as at 11.11.2026 0.00", "payable by 11.11.2026 (B) 1,146.00"
         t = t.strip(":#")
         if not t:
             continue
@@ -361,6 +391,13 @@ def identify_provider(pages, providers, hint=None):
         if any(any(ocr_equivalent(t, a) for t in tokens) for a in accounts if len(compact_id(a)) >= 4):
             score += 0.45
             evidence.append("registered account number")
+        if provider.invoice_number_pattern:
+            try:
+                if any(re.search(provider.invoice_number_pattern, w["t"]) for p in pages for w in p["words"]):
+                    score += 0.3
+                    evidence.append("bill number format")
+            except re.error:
+                pass
         if provider.short_code and compact_id(provider.short_code) in tokens:
             score += 0.15
             evidence.append("provider code")
@@ -381,10 +418,12 @@ def identify_provider(pages, providers, hint=None):
 
 
 def registry_account(pages, provider):
-    """Find a registered account number of this provider anywhere in the text."""
-    accounts = list(provider.accounts.filter(is_active=True).values_list("account_number", flat=True)[:5000])
-    if not accounts:
+    """Find a registered account (or its line / meter number) of this provider anywhere in the text."""
+    rows = list(provider.accounts.filter(is_active=True).values_list("account_number", "meter_number")[:5000])
+    if not rows:
         return None
+    accounts = [a for a, _ in rows]
+    by_meter = {compact_id(m).lstrip("#"): a for a, m in rows if m and len(compact_id(m)) >= 5}
     for page in pages:
         words = page["words"]
         for i, w in enumerate(words):
@@ -397,6 +436,10 @@ def registry_account(pages, provider):
                         c = _cand(acct, text, group, page["index"], 0.99 if exact else 0.9, "registry",
                                   "registered account of the provider" + ("" if exact else " (OCR-corrected)"))
                         return c
+                key = compact_id(text).lstrip("#")
+                if span == 1 and key in by_meter:
+                    return _cand(by_meter[key], text, group, page["index"], 0.95, "registry",
+                                 "line / meter number of a registered account")
     return None
 
 
@@ -443,6 +486,65 @@ def pattern_candidate(pages, field, decimal_comma=False):
     return None
 
 
+def page_text(page):
+    return "\n".join(line["text"] for line in lines_of(page))
+
+
+def _locate_raw(page, raw):
+    """Box of the words that print `raw` (a regex match), for highlighting."""
+    target = compact_id(raw)
+    words = page["words"]
+    for i in range(len(words)):
+        for span in (1, 2, 3, 4):
+            group = words[i:i + span]
+            joined = compact_id("".join(w["t"] for w in group))
+            if joined == target or (span == 1 and target and target in joined and len(target) >= 4):
+                return group
+            if len(joined) > len(target) + 2:
+                break
+    return []
+
+
+def pattern_candidates(pages, provider, template):
+    """Values from the provider's built-in profile and the admin-defined template patterns."""
+    from ocr import profiles
+
+    texts = [page_text(p) for p in pages]
+    profile = profiles.for_text("\n".join(texts), provider)
+    patterns = dict(profile["patterns"]) if profile else {}
+    if template is not None and template.is_active and getattr(template, "patterns", None):
+        patterns.update({k: v for k, v in template.patterns.items() if v})
+    out = {}
+    for field, pattern in patterns.items():
+        try:
+            regex = re.compile(pattern, re.IGNORECASE)
+        except re.error:
+            continue
+        for page, text in zip(pages, texts):
+            m = regex.search(text)
+            if not m:
+                continue
+            if field == "period":
+                for name, group in (("period_start", 1), ("period_end", 2)):
+                    if m.lastindex and m.lastindex >= group:
+                        value, raw = parse_date_text(m.group(group))
+                        if value:
+                            out[name] = _cand(value, raw, _locate_raw(page, m.group(group)), page["index"], 0.98,
+                                              "profile", "provider layout pattern")
+                break
+            raw = m.group(1) if m.lastindex else m.group(0)
+            value, parsed_raw = parse_typed(field, raw)
+            if field in ("amount_total", "amount_tax", "amount_net", "arrears") and value is None:
+                value, parsed_raw = parse_amount(raw)  # allow negative/credit lines here
+            if value is None:
+                continue
+            words = _locate_raw(page, raw)
+            out[field] = _cand(value, raw, words, page["index"], 0.98, "profile",
+                               "provider layout pattern" if profile else "template pattern")
+            break
+    return out, profile
+
+
 # --- Orchestration ------------------------------------------------------------------------
 
 def analyse(pages, providers, hint=None, template_lookup=None):
@@ -451,6 +553,14 @@ def analyse(pages, providers, hint=None, template_lookup=None):
     provider, p_conf, p_evidence, p_box, p_warning = identify_provider(pages, providers, hint)
     if p_warning:
         warnings.append(p_warning)
+    if provider is None:
+        from ocr import profiles
+
+        profile = profiles.for_text("\n".join(page_text(p) for p in pages))
+        known = providers.filter(short_code__in=profile["provider_codes"]).first() if profile else None
+        if known:
+            provider, p_conf = known, 0.92
+            p_evidence = p_evidence + [f"layout of {profile['name']}"]
     extraction = {"provider": {"value": provider.short_code if provider else None,
                                "display": provider.name if provider else None, "raw": None,
                                "confidence": round(p_conf, 3), "page": 0, "bbox": p_box,
@@ -458,6 +568,17 @@ def analyse(pages, providers, hint=None, template_lookup=None):
     template = template_lookup(provider) if (template_lookup and provider) else None
     decimal_comma = False
     zoned = template_candidates(pages, template, decimal_comma)
+    patterned, profile = pattern_candidates(pages, provider, template)
+    if profile:
+        import re as _re
+
+        text = "\n".join(page_text(p) for p in pages)
+        printed = any(_re.search(m, text) for m in profile["match"])
+        if provider and provider.short_code in profile["provider_codes"] and printed:
+            # The bill carries this provider's own registration number / name and layout.
+            extraction["provider"]["confidence"] = max(extraction["provider"]["confidence"], 0.97)
+            p_conf = max(p_conf, 0.97)
+        extraction["provider"]["evidence"] += f"; layout recognised: {profile['name']}"
 
     for field in TYPES:
         if field == "currency":
@@ -470,12 +591,8 @@ def analyse(pages, providers, hint=None, template_lookup=None):
             if reg:
                 candidates.append(reg)
         candidates += label_candidates(pages, field, decimal_comma)
-        if field == "amount_total":
-            # Among strong "total" labels the payable amount is usually the largest.
-            strong = [c for c in candidates if c["source"] == "label" and c["confidence"] >= 0.6]
-            if len(strong) > 1:
-                top = max(strong, key=lambda c: (c["value"], c["confidence"]))
-                top["confidence"] = round(min(0.99, top["confidence"] + 0.05), 3)
+        if field in patterned:
+            candidates.append(patterned[field])
         if not candidates and field in ("invoice_number", "issue_date", "due_date", "amount_total"):
             fallback = pattern_candidate(pages, field, decimal_comma)
             if fallback:
@@ -495,6 +612,8 @@ def analyse(pages, providers, hint=None, template_lookup=None):
                 break
 
     currency, raw = parse_currency(" ".join(w["t"] for p in pages for w in p["words"]))
+    if profile and profile.get("currency"):
+        currency, raw = profile["currency"], profile["currency"]
     if currency:
         extraction["currency"] = {"value": currency, "raw": raw, "confidence": 0.8, "page": 0, "bbox": None,
                                   "source": "pattern", "evidence": "currency code on the document"}

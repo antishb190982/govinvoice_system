@@ -44,6 +44,7 @@ type and glass KPI tiles.
 |---|---|
 | **Organisation** | Government → ministry → directorate/department → site. A role on a unit applies to everything beneath it, and delegations can expire. The demo includes the Prime Minister's Office, Ministry of Health and Wellness, Ministry of Education and Human Resource and Ministry of Finance, with real hospitals and school zones. |
 | **OCR & document intelligence** | Born-digital PDFs are read from their text layer; scans and photos (PNG/JPG/TIFF/scanned PDF) go through Tesseract (English + French). Pages are rotated to the right orientation, deskewed, denoised and contrast-corrected first. The analyser **identifies the provider** (header name, aliases, tax number, IBAN, registered account numbers) and then **locates each field**: account, invoice number, dates, billing period, net/VAT/total, consumption and meter readings. It uses English/French labels (value to the right of or below the label), the provider's zone template, and the account registry. Cross-checks (net + VAT = total, readings = consumption, plausible payment terms) adjust confidence. The review screen draws a box around every value on the page image with its confidence. Required fields under the threshold must be **confirmed by a person** before import. Each confirmation **teaches the provider's template**, with zones anchored to the nearby printed label so shifted scans still line up. Admins can also draw zones in the template editor. |
+| **Mauritian bill formats** | Built-in reading profiles for the **Mauritius Telecom statement of account** (VAT20070778) and the **CEB e-Bill** (VAT22000591), plus the **MT summary CSV** export (semicolon-separated, "September 2026" periods). They pick out:<ul><li>the billing account rather than the customer account (MT *Bill. Acc.*, CEB *Contract Acct.*), matched even with leading zeros, or through the line / meter number;</li><li>the amount of *this* bill (MT *Total amount inclusive of VAT*, CEB *Current amount payable (B)*), kept apart from arrears, which are captured and flagged;</li><li>dd.mm.yy dates, billing periods, meter readings and consumption.</li></ul>MT is recognised from its FINV bill-number format even in files that don't name it. Zero-amount bills (e.g. executive discount) are flagged and closed as "nothing to pay" once approved, without a payment. Unregistered accounts get a one-click **Register account** link and **Re-check all rows**. Admins can add patterns for other providers (`OcrTemplate.patterns`), and `manage.py apply_provider_profiles` fills in the VAT numbers and bill-number formats. |
 | **Invoice intake** | Manual entry, Excel/CSV with column recognition, OCR documents, and the provider e-invoicing API. Every invoice keeps its original document and SHA-256 hash. Duplicates are blocked, and the system flags anomalies: spikes against the account's history, total mismatches, wrong readings, overlapping periods, reused documents and late arrivals. |
 | **Approval workflow** | Policies are set by unit, utility and amount band, with steps defining the role, the SLA in working hours, whether a signature is required, and value thresholds (for example, a senior approval above Rs 500,000). Each step's deadline is capped at *must-approve-by*, which is the due date minus the settlement lead days. Late invoices are expedited. Reminders go out at 75% of the time used; on breach the step is escalated and the escalation role may decide it. Steps can be returned or disputed and then resubmitted as a new round. |
 | **Segregation of duties** | Enforced in the workflow engine itself. Whoever records or submits an invoice can't approve it, nobody decides two steps of the same round, and the preparer of a settlement can't authorise it. Changing a provider's bank details needs two administrators. |
@@ -104,7 +105,7 @@ curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/dues?days=3
 curl -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' http://localhost:8000/mcp
 ```
 
-Run the tests (96 tests; the OCR tests need Tesseract):
+Run the tests (102 tests; the OCR tests need Tesseract):
 
 ```bash
 .venv/bin/pytest
@@ -169,7 +170,7 @@ signatures/    internal CA, signing identities, detached and PAdES signatures, v
 settlements/   instructions, PDF, ISO 20022 export
 analytics/     trend queries and analysis page
 integrations/  runtime config, REST API, MCP server, SMTP backend, SMS gateway, admin console
-tests/         96 tests: security, workflow, signatures, settlement, imports, OCR, gateway, console
+tests/         102 tests: security, workflow, signatures, settlement, imports, OCR, MT/CEB formats, gateway, console
 ```
 
 ## Notes

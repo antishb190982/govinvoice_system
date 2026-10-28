@@ -185,6 +185,14 @@ def _decide(task, user, decision, comment, pin):
         nxt = invoice.approval_tasks.filter(round=task.round, status=ApprovalTask.Status.WAITING).order_by("order").first()
         if nxt:
             _activate(nxt, now)
+        elif invoice.amount_total == 0:
+            # Fully discounted / credit-covered bills: verified and approved, nothing to transfer.
+            invoice.status = Invoice.Status.PAID
+            invoice.approved_at = now
+            invoice.paid_at = timezone.localdate()
+            invoice.payment_reference = "NIL – nothing to pay"
+            invoice.save(update_fields=["status", "approved_at", "paid_at", "payment_reference", "updated_at"])
+            AuditEvent.record("invoice.closed_nothing_to_pay", obj=invoice, actor=user)
         else:
             invoice.status = Invoice.Status.APPROVED
             invoice.approved_at = now

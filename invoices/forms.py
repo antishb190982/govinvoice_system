@@ -17,7 +17,7 @@ class InvoiceForm(forms.ModelForm):
     class Meta:
         model = Invoice
         fields = ["service_account", "invoice_number", "issue_date", "due_date", "period_start", "period_end",
-                  "currency", "amount_net", "amount_tax", "amount_total", "previous_reading", "current_reading",
+                  "currency", "amount_net", "amount_tax", "amount_total", "arrears", "previous_reading", "current_reading",
                   "consumption", "notes"]
         widgets = {"issue_date": DATE, "due_date": DATE, "period_start": DATE, "period_end": DATE,
                    "notes": forms.Textarea(attrs={"rows": 3})}

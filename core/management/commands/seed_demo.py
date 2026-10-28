@@ -181,6 +181,7 @@ class Command(BaseCommand):
                 Holiday.objects.get_or_create(date=d, defaults={"name": name})
         self._history(accounts, users, months)
         self._live(accounts, users)
+        call_command("apply_provider_profiles")
         self._scans(users)
         self._integrations(users)
         self.stdout.write(self.style.SUCCESS(

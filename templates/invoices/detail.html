@@ -22,7 +22,8 @@
     <dt>Issued</dt><dd>{{ invoice.issue_date|date:"d M Y" }}</dd>
     <dt>Billing period</dt><dd>{{ invoice.period_start|date:"d M Y"|default:"—" }} – {{ invoice.period_end|date:"d M Y"|default:"—" }}</dd>
     <dt>Net / tax</dt><dd>{{ invoice.amount_net|money:invoice.currency }} + {{ invoice.amount_tax|money }}</dd>
-    <dt>Total payable</dt><dd><strong>{{ invoice.amount_total|money:invoice.currency }}</strong></dd>
+    <dt>Total payable</dt><dd><strong>{{ invoice.amount_total|money:invoice.currency }}</strong>{% if invoice.amount_total == 0 %} <span class="badge badge-info">Nothing to pay</span>{% endif %}</dd>
+    {% if invoice.arrears %}<dt>Arrears shown</dt><dd>{{ invoice.arrears|money:invoice.currency }} <small class="muted">from earlier bills – check they were paid</small></dd>{% endif %}
     <dt>Consumption</dt><dd>{% if invoice.consumption is not None %}{{ invoice.consumption|floatformat:"-3g" }} {{ invoice.consumption_unit }}{% if invoice.previous_reading is not None %} (readings {{ invoice.previous_reading|floatformat:"-3g" }} → {{ invoice.current_reading|floatformat:"-3g" }}){% endif %}{% else %}—{% endif %}</dd>
     <dt>Approve by</dt><dd>{{ invoice.must_approve_by|date:"d M Y H:i" }} <small class="muted">to leave time for settlement before the due date</small></dd>
     {% if projection %}<dt>Projected approval</dt><dd>{{ projection|date:"d M Y H:i" }} {% if projection > invoice.must_approve_by %}<span class="badge badge-danger">Later than required</span>{% else %}<span class="badge badge-ok">On track</span>{% endif %}</dd>{% endif %}
