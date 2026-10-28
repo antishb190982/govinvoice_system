@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block title %}Not permitted{% endblock %}
+{% block content %}<div class="card"><h1>Not permitted</h1><p>Your roles do not allow this action. If you need access, ask your unit administrator.</p><a class="btn" href="{% url 'core:dashboard' %}">Back to dashboard</a></div>{% endblock %}

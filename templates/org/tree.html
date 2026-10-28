@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Ministries &amp; units{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Ministries &amp; units</h1><p>Roles granted on a unit apply to every unit beneath it.</p></div>
+<div class="actions">{% if can.admin %}<a class="btn btn-primary" href="{% url 'org:create' %}">New unit</a>{% endif %}</div></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Unit</th><th>Code</th><th>Type</th><th>Accounts</th><th class="num">Unpaid</th></tr></thead><tbody>
+{% for u in units %}<tr class="{% if not u.is_active %}row-muted{% endif %}"><td><span class="tree-name indent-{{ u.depth }}"><a href="{% url 'org:detail' u.pk %}">{{ u.name }}</a>{% if u.name_local %} <small class="muted">{{ u.name_local }}</small>{% endif %}</span></td>
+<td class="mono">{{ u.code }}</td><td>{{ u.get_kind_display }}</td><td>{{ u.accounts }}</td><td class="num">{{ u.unpaid|money }}</td></tr>
+{% empty %}<tr><td colspan="5" class="empty">No units visible to you.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'accounts:user_list' %}">Users</a></div><h1>{{ title }}</h1></div></div>
+<div class="card"><form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
+<div class="form-grid">{{ form.as_div }}</div>
+<div class="form-actions"><a class="btn" href="{% url 'accounts:user_list' %}">Cancel</a><button class="btn btn-primary" type="submit">Create user</button></div></form></div>
+{% endblock %}

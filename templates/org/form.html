@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block title %}Organisation unit{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'org:tree' %}">Units</a></div><h1>{% if unit %}Edit {{ unit.name }}{% else %}New unit{% endif %}</h1></div></div>
+<div class="card"><form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}<div class="form-grid">{{ form.as_div }}</div>
+<div class="form-actions"><a class="btn" href="{% url 'org:tree' %}">Cancel</a><button class="btn btn-primary" type="submit">Save</button></div></form></div>
+{% endblock %}

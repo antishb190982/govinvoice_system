@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}Verify a signed PDF{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Verify a signed PDF</h1><p>Checks every PAdES signature: integrity, certificate chain against the trusted roots, and whether the document changed after signing.</p></div></div>
+<div class="card"><form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
+<div class="form-grid">{{ form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Verify</button></div></form></div>
+{% if reports %}<div class="card"><h2>Result</h2>
+{% for r in reports %}<div class="sigbox {% if r.ok %}valid{% else %}invalid{% endif %}"><strong>{% if r.ok %}✔ Valid{% else %}✖ Not valid{% endif %} — {{ r.field }}</strong><br>
+Signer: {{ r.signer }}<br>{% if r.error %}{{ r.error }}{% else %}
+Signed: {{ r.signed_at|date:"d M Y H:i"|default:"(not stated)" }}{% if r.timestamped %} · timestamped{% endif %}<br>
+Intact: {{ r.intact|yesno:"yes,no" }} · Cryptographically valid: {{ r.valid|yesno:"yes,no" }} · Trusted chain: {{ r.trusted|yesno:"yes,no" }}<br>
+Coverage: {{ r.coverage }} · Later modifications: {{ r.modifications }}{% endif %}</div>{% endfor %}</div>{% endif %}
+{% endblock %}

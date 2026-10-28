@@ -1,0 +1,11 @@
+{% extends "auth_base.html" %}
+{% block content %}
+<h1>Sign in</h1>
+<p class="muted">Use your government account. A second factor is always required.</p>
+<form method="post" class="form-stack" novalidate>{% csrf_token %}
+  {% include "includes/form_errors.html" %}
+  {{ form.as_div }}
+  <input type="hidden" name="next" value="{{ request.GET.next }}">
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Continue</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,17 @@
+Django==5.2.18
+argon2-cffi==25.1.0
+cryptography==50.0.2
+pyHanko==0.38.0
+pyhanko-certvalidator==0.33.0
+reportlab==5.1.0
+arabic-reshaper==3.0.1
+python-bidi==0.6.12
+openpyxl==3.1.5
+xlrd==2.0.2
+pdfplumber==0.11.10
+PyOTP==2.10.0
+qrcode==8.2
+pillow==13.0.0
+whitenoise==6.12.0
+gunicorn==26.2.0
+psycopg[binary]==3.3.6

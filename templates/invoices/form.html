@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'invoices:list' %}">Invoices</a>{% if invoice %} / <a href="{{ invoice.get_absolute_url }}">{{ invoice.reference }}</a>{% endif %}</div><h1>{{ title }}</h1>
+<p>Copy the figures exactly as printed on the provider's invoice and attach the original.</p></div></div>
+<form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+{% include "includes/form_errors.html" %}
+<div class="card"><h2>Account &amp; document</h2><div class="form-grid">
+  <div class="wide">{{ form.service_account.label_tag }}{{ form.service_account }}{{ form.service_account.errors }}</div>
+  <div>{{ form.invoice_number.label_tag }}{{ form.invoice_number }}{{ form.invoice_number.errors }}</div>
+  <div>{{ form.issue_date.label_tag }}{{ form.issue_date }}{{ form.issue_date.errors }}</div>
+  <div>{{ form.due_date.label_tag }}{{ form.due_date }}{{ form.due_date.errors }}</div>
+  <div>{{ form.period_start.label_tag }}{{ form.period_start }}{{ form.period_start.errors }}</div>
+  <div>{{ form.period_end.label_tag }}{{ form.period_end }}{{ form.period_end.errors }}</div>
+  <div class="wide">{{ form.upload.label_tag }}{{ form.upload }}<span class="helptext">{% if invoice.document %}Current: {{ invoice.document_name }}. Choose a file only to replace it. {% endif %}{{ form.upload.help_text }}</span>{{ form.upload.errors }}</div>
+</div></div>
+<div class="card"><h2>Amounts</h2><div class="form-grid">
+  <div>{{ form.currency.label_tag }}{{ form.currency }}<span class="helptext">{{ form.currency.help_text }}</span>{{ form.currency.errors }}</div>
+  <div>{{ form.amount_net.label_tag }}{{ form.amount_net }}{{ form.amount_net.errors }}</div>
+  <div>{{ form.amount_tax.label_tag }}{{ form.amount_tax }}{{ form.amount_tax.errors }}</div>
+  <div>{{ form.amount_total.label_tag }}{{ form.amount_total }}{{ form.amount_total.errors }}</div>
+</div></div>
+<div class="card"><h2>Consumption <small class="muted">(optional, used for trend analysis and anomaly checks)</small></h2><div class="form-grid">
+  <div>{{ form.previous_reading.label_tag }}{{ form.previous_reading }}{{ form.previous_reading.errors }}</div>
+  <div>{{ form.current_reading.label_tag }}{{ form.current_reading }}{{ form.current_reading.errors }}</div>
+  <div>{{ form.consumption.label_tag }}{{ form.consumption }}{{ form.consumption.errors }}</div>
+  <div class="wide">{{ form.notes.label_tag }}{{ form.notes }}</div>
+</div>
+<div class="form-actions"><a class="btn" href="{% if invoice %}{{ invoice.get_absolute_url }}{% else %}{% url 'invoices:list' %}{% endif %}">Cancel</a><button class="btn btn-primary" type="submit">Save as draft</button></div></div>
+</form>
+{% endblock %}

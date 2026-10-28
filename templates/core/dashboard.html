@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Good day, {{ request.user.full_name|default:request.user.username }}</h1><p>Utility payables across your units · amounts in {{ currency }}</p></div>
+<div class="actions">{% if can.capture %}<a class="btn" href="{% url 'imports:list' %}">Import invoices</a><a class="btn btn-primary" href="{% url 'invoices:create' %}">Record invoice</a>{% endif %}{% if can.settle %}<a class="btn btn-primary" href="{% url 'settlements:new' %}">New settlement instruction</a>{% endif %}</div></div>
+
+<div class="grid cols-4">
+  <a class="card kpi tone-info" href="{% url 'invoices:list' %}?status=open"><div class="label">Outstanding</div><div class="value">{{ kpi.outstanding.t|money }}</div><div class="sub">{{ kpi.outstanding.n }} unpaid invoice{{ kpi.outstanding.n|pluralize }}</div></a>
+  <a class="card kpi tone-warn" href="{% url 'invoices:list' %}?status=open&amp;due_to={{ soon|date:'Y-m-d' }}"><div class="label">Due in {{ DUE_SOON_DAYS|default:7 }} days</div><div class="value">{{ kpi.due_soon.t|money }}</div><div class="sub">{{ kpi.due_soon.n }} invoice{{ kpi.due_soon.n|pluralize }}</div></a>
+  <a class="card kpi tone-danger" href="{% url 'invoices:list' %}?status=open&amp;flagged=on"><div class="label">At risk of late payment</div><div class="value">{{ kpi.at_risk.n }}</div><div class="sub">{{ kpi.at_risk.t|money }} · {{ kpi.overdue.n }} already overdue</div></a>
+  <a class="card kpi {% if kpi.sla_breaches_open %}tone-danger{% else %}tone-ok{% endif %}" href="{% url 'workflow:sla' %}"><div class="label">Approval SLA (30 days)</div><div class="value">{% if kpi.sla_rate is not None %}{{ kpi.sla_rate }}%{% else %}—{% endif %}</div><div class="sub">{{ kpi.sla_breaches_open }} open breaches</div></a>
+</div>
+
+<div class="split mt">
+  <div class="stack">
+    <div class="card"><div class="card-head"><h2>Unpaid amounts by due week</h2><a href="{% url 'invoices:list' %}?status=open&amp;sort=due_date">All unpaid</a></div>
+      <div class="chart short"><canvas data-chart="chart-due" data-stacked="true" data-currency="{{ currency }}" aria-label="Unpaid amounts by due week"></canvas></div>
+      {{ chart_due|json_script:"chart-due" }}</div>
+    <div class="card"><div class="card-head"><h2>Monthly utility spend</h2><a href="{% url 'analytics' %}">Trend analysis</a></div>
+      <div class="chart"><canvas data-chart="chart-monthly" data-stacked="true" data-currency="{{ currency }}" aria-label="Monthly utility spend by type"></canvas></div>
+      {{ chart_monthly|json_script:"chart-monthly" }}</div>
+    <div class="card"><div class="card-head"><h2>Due soon</h2><span class="muted">next {{ DUE_SOON_DAYS|default:7 }} days and overdue</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Due</th><th>Invoice</th><th>Unit</th><th>Status</th><th class="num">Amount</th></tr></thead><tbody>
+      {% for inv in upcoming %}<tr class="{% if inv.due_date|days_until < 0 %}row-danger{% elif inv.due_date|days_until <= 2 %}row-warn{% endif %}">
+        <td class="nowrap">{{ inv.due_date|date:"d M" }}<br><small>{% with d=inv.due_date|days_until %}{% if d < 0 %}{{ d|stringformat:"d"|slice:"1:" }}d overdue{% elif d == 0 %}today{% else %}in {{ d }}d{% endif %}{% endwith %}</small></td>
+        <td><a href="{{ inv.get_absolute_url }}">{{ inv.provider.name }}</a><br><small>{{ inv.reference }} · {{ inv.invoice_number }}</small></td>
+        <td>{{ inv.org_unit.code }}</td><td>{% status_badge inv %}</td><td class="num">{{ inv.amount_total|money }}</td></tr>
+      {% empty %}<tr><td colspan="5" class="empty">Nothing due in the coming days.</td></tr>{% endfor %}</tbody></table></div></div>
+  </div>
+  <div class="stack">
+    {% if can.approve %}<div class="card"><div class="card-head"><h2>Waiting for me</h2><a href="{% url 'workflow:inbox' %}">{{ my_tasks_count }} total</a></div>
+      {% for t in my_tasks %}<div class="card-row"><a href="{% url 'workflow:task' t.pk %}"><strong>{{ t.invoice.provider.name }}</strong></a> {% sla_badge t %}<br>
+      <small class="muted">{{ t.name }} · {{ t.invoice.amount_total|money:t.invoice.currency }} · {{ t.invoice.org_unit.code }}</small></div>{% if not forloop.last %}<hr>{% endif %}
+      {% empty %}<p class="muted">No approvals waiting for you.</p>{% endfor %}</div>{% endif %}
+    <div class="card"><h2>Pipeline</h2><dl class="props">
+      <dt>In approval</dt><dd>{{ kpi.in_approval.n }} · {{ kpi.in_approval.t|money }}</dd>
+      <dt>Approved, not yet instructed</dt><dd>{{ kpi.awaiting_settlement.n }} · {{ kpi.awaiting_settlement.t|money }}</dd>
+      <dt>Overdue</dt><dd>{{ kpi.overdue.n }} · {{ kpi.overdue.t|money }}</dd>
+      <dt>Flagged for review</dt><dd><a href="{% url 'invoices:list' %}?status=open&amp;flagged=on">{{ kpi.flagged }}</a></dd></dl></div>
+    {% if settlements_pending %}<div class="card"><div class="card-head"><h2>Settlement instructions</h2><a href="{% url 'settlements:list' %}">All</a></div>
+      {% for si in settlements_pending %}<p><a href="{{ si.get_absolute_url }}">{{ si.reference }}</a> {% status_badge si %}<br><small class="muted">{{ si.total_amount|money:si.currency }} · pay by {{ si.pay_by|date:"d M" }}</small></p>{% endfor %}</div>{% endif %}
+    {% if notifications %}<div class="card"><div class="card-head"><h2>Alerts</h2><a href="{% url 'core:notifications' %}">All</a></div>
+      {% for n in notifications %}<p><span class="badge badge-{% if n.level == 'critical' %}danger{% elif n.level == 'warning' %}warn{% else %}info{% endif %}">{{ n.get_level_display }}</span> {{ n.title }}<br><small class="muted">{{ n.created_at|timesince }} ago</small></p>{% endfor %}</div>{% endif %}
+  </div>
+</div>
+{% endblock %}

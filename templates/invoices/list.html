@@ -1,0 +1,24 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Invoices{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Invoices</h1><p>All utility invoices in your units.</p></div>
+<div class="actions"><a class="btn" href="?{{ request.GET.urlencode }}&amp;export=csv">Export CSV</a>{% if can.capture %}<a class="btn" href="{% url 'imports:list' %}">Import</a><a class="btn btn-primary" href="{% url 'invoices:create' %}">Record invoice</a>{% endif %}</div></div>
+<div class="card">
+<form method="get" class="filters">
+  {% for f in form %}{% if f.name == "flagged" %}<div class="check">{{ f }} {{ f.label_tag }}</div>{% else %}<div>{{ f.label_tag }}{{ f }}</div>{% endif %}{% endfor %}
+  <div><button class="btn btn-primary" type="submit">Apply</button> <a class="btn btn-ghost" href="{% url 'invoices:list' %}">Reset</a></div>
+</form>
+</div>
+<div class="card">
+<div class="card-head"><h2>{{ page.paginator.count }} invoices</h2><span class="muted">{% for t in totals %}{{ t.total|money:t.currency }}{% if not forloop.last %} · {% endif %}{% endfor %}</span></div>
+<div class="table-wrap"><table><thead><tr>
+<th>{% sort_link "reference" "Reference" %}</th><th>Provider / account</th><th>Unit</th><th>{% sort_link "issue_date" "Issued" %}</th><th>{% sort_link "due_date" "Due" %}</th><th>{% sort_link "status" "Status" %}</th><th>Flags</th><th class="num">{% sort_link "amount_total" "Amount" %}</th></tr></thead><tbody>
+{% for inv in page %}<tr class="{% if inv.is_unpaid and inv.due_date < today %}row-danger{% endif %}">
+<td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a><br><small>{{ inv.invoice_number }}</small></td>
+<td>{{ inv.provider.name }}<br><small>{{ inv.service_account.account_number }} · {{ inv.get_utility_type_display }}</small></td>
+<td>{{ inv.org_unit.code }}</td><td class="nowrap">{{ inv.issue_date|date:"d M Y" }}</td><td class="nowrap">{{ inv.due_date|date:"d M Y" }}</td>
+<td>{% status_badge inv %}</td>
+<td>{% for f in inv.flags %}<span class="chip {% if f|flag_severe %}severe{% endif %}" title="{{ f|flag_label }}">{{ f|cut:"_"|slice:":10" }}</span>{% endfor %}</td>
+<td class="num">{{ inv.amount_total|money:inv.currency }}</td></tr>
+{% empty %}<tr><td colspan="8" class="empty">No invoices match.</td></tr>{% endfor %}</tbody></table></div>
+{% include "includes/pagination.html" %}</div>
+{% endblock %}

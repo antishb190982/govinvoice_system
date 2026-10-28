@@ -1,0 +1,40 @@
+# Production-style stack. Terminate TLS in front of `web` (agency load balancer,
+# nginx or similar) and point it at port 8000; HSTS and secure cookies are on.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: govbills
+      POSTGRES_USER: govbills
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U govbills"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    command: >
+      sh -c "python manage.py migrate --noinput && python manage.py setup_govbills &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile - --forwarded-allow-ips '*'"
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: [appdata:/data]
+    depends_on:
+      db: {condition: service_healthy}
+
+  scheduler:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    command: python manage.py run_scheduler --loop 300
+    volumes: [appdata:/data]
+    depends_on: [web]
+
+volumes:
+  pgdata:
+  appdata:

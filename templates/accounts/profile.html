@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}My profile{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ request.user.full_name }}</h1><p>{{ request.user.job_title }} · {{ request.user.email }}</p></div>
+<div class="actions"><a class="btn" href="{% url 'accounts:password_change' %}">Change password</a><a class="btn" href="{% url 'accounts:recovery_codes' %}">New recovery codes</a><a class="btn" href="{% url 'signatures:mine' %}">Digital signature</a></div></div>
+<div class="grid cols-2">
+<div class="card"><h2>Security</h2>
+<dl class="props">
+  <dt>Username</dt><dd>{{ request.user.username }}</dd>
+  <dt>Two-step verification</dt><dd>{% if request.user.has_two_factor %}<span class="badge badge-ok">Active since {{ request.user.totp_confirmed_at|date:"d M Y" }}</span>{% else %}<span class="badge badge-danger">Not set up</span>{% endif %}</dd>
+  <dt>Recovery codes left</dt><dd>{{ recovery_left }}</dd>
+  <dt>Password changed</dt><dd>{{ request.user.password_changed_at|date:"d M Y H:i"|default:"—" }}</dd>
+  <dt>Last sign-in</dt><dd>{{ request.user.last_login|date:"d M Y H:i" }}</dd>
+</dl></div>
+<div class="card"><h2>My roles</h2>
+{% if request.user.is_superuser %}<p><span class="badge badge-info">System administrator</span></p>{% endif %}
+<table><thead><tr><th>Role</th><th>Unit (and everything below it)</th><th>Until</th></tr></thead><tbody>
+{% for m in memberships %}<tr><td>{{ m.get_role_display }}</td><td>{{ m.org_unit }}</td><td>{{ m.valid_until|default:"—" }}</td></tr>
+{% empty %}<tr><td colspan="3" class="empty">No roles yet. Ask your unit administrator.</td></tr>{% endfor %}
+</tbody></table></div>
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Notifications</h1></div><div class="actions"><form method="post" action="{% url 'core:notifications_read_all' %}">{% csrf_token %}<button class="btn" type="submit">Mark all as read</button></form></div></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th></th><th>Notification</th><th>When</th><th></th></tr></thead><tbody>
+{% for n in page %}<tr class="{% if n.read_at %}row-muted{% endif %}"><td><span class="badge badge-{% if n.level == 'critical' %}danger{% elif n.level == 'warning' %}warn{% else %}info{% endif %}">{{ n.get_level_display }}</span></td>
+<td><strong>{{ n.title }}</strong><br><small>{{ n.body }}</small></td><td class="nowrap">{{ n.created_at|date:"d M H:i" }}</td>
+<td class="right">{% if n.link %}<form method="post" action="{% url 'core:notification_read' n.pk %}" class="inline-form">{% csrf_token %}<button class="btn btn-sm" type="submit">Open</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="4" class="empty">No notifications.</td></tr>{% endfor %}</tbody></table></div>
+{% include "includes/pagination.html" %}</div>
+{% endblock %}

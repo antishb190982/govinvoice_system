@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Approval policies{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Approval policies</h1><p>The most specific active policy applies: deepest unit first, then a matching utility type, then priority. SLAs count working hours only and never run past the invoice's settlement deadline.</p></div>
+{% if can.sysadmin %}<div class="actions"><a class="btn" href="{% url 'admin:workflow_approvalpolicy_changelist' %}">Configure</a></div>{% endif %}</div>
+{% for p in policies %}<div class="card"><div class="card-head"><h2>{{ p.name }}</h2>{% if p.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Inactive</span>{% endif %}</div>
+<p class="muted">{{ p.org_unit }} and below · {{ p.get_utility_type_display|default:"all utilities" }} · amounts {{ p.min_amount|floatformat:"-3g" }} – {{ p.max_amount|floatformat:"-3g"|default:"no limit" }} · priority {{ p.priority }}</p>
+<div class="table-wrap"><table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>SLA</th><th>Signature</th><th>Applies from</th><th>Escalates to</th></tr></thead><tbody>
+{% for s in p.steps.all %}<tr><td>{{ s.order }}</td><td>{{ s.name }}</td><td>{{ s.get_role_display }}</td><td>{{ s.sla_hours }} working h</td><td>{% if s.requires_signature %}<span class="badge badge-info">Required</span>{% else %}—{% endif %}</td><td>{{ s.min_amount|floatformat:"-3g" }}</td><td>{{ s.get_escalation_role_display }}</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% empty %}<div class="card empty">No policies configured.</div>{% endfor %}
+{% endblock %}

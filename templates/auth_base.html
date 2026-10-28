@@ -1,0 +1,22 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Sign in{% endblock %} · GovBills</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+<div class="auth">
+  <div class="auth-card">
+    <div class="brand"><span class="brand-mark">GB</span><span>GovBills<small>Government utility invoice management</small></span></div>
+    <div class="card">
+      {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+      {% block content %}{% endblock %}
+    </div>
+    <p class="muted mt"><small>Authorised use only. Activity is recorded in a tamper-evident audit trail.</small></p>
+  </div>
+</div>
+</body>
+</html>

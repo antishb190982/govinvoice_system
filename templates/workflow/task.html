@@ -1,0 +1,38 @@
+{% extends "base.html" %}{% load gov %}{% block title %}{{ task.name }} · {{ invoice.reference }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'workflow:inbox' %}">My approvals</a> / {{ invoice.reference }}</div>
+<h1>{{ task.name }}</h1><p>{{ invoice.provider.name }} · {{ invoice.amount_total|money:invoice.currency }} · due {{ invoice.due_date|date:"d M Y" }}</p></div>
+<div class="actions">{% sla_badge task %}{% if invoice.document %}<a class="btn" href="{% url 'invoices:document' invoice.pk %}" target="_blank" rel="noopener">Open provider document</a>{% endif %}<a class="btn" href="{{ invoice.get_absolute_url }}">Full record</a></div></div>
+{% if flags %}<div class="callout {% if has_severe %}danger{% else %}warn{% endif %}"><strong>Review these checks before approving</strong>{% for code, label, severe in flags %}<span class="chip {% if severe %}severe{% endif %}">{{ label }}</span>{% endfor %}</div>{% endif %}
+<div class="split">
+<div class="stack">
+<div class="card"><h2>What you are approving</h2><dl class="props">
+  <dt>Provider invoice</dt><dd>{{ invoice.invoice_number }} issued {{ invoice.issue_date|date:"d M Y" }}</dd>
+  <dt>Account</dt><dd>{{ invoice.service_account.account_number }} · {{ invoice.service_account.premises }}</dd>
+  <dt>Unit</dt><dd>{{ invoice.org_unit }}</dd>
+  <dt>Period</dt><dd>{{ invoice.period_start|date:"d M Y"|default:"—" }} – {{ invoice.period_end|date:"d M Y"|default:"—" }}</dd>
+  <dt>Consumption</dt><dd>{% if invoice.consumption is not None %}{{ invoice.consumption|floatformat:"-3g" }} {{ invoice.consumption_unit }}{% else %}—{% endif %}</dd>
+  <dt>Net + tax</dt><dd>{{ invoice.amount_net|money }} + {{ invoice.amount_tax|money }}</dd>
+  <dt>Total</dt><dd><strong>{{ invoice.amount_total|money:invoice.currency }}</strong></dd>
+  <dt>Recorded by</dt><dd>{{ invoice.created_by }}</dd>
+  <dt>Document hash</dt><dd class="mono">{{ invoice.document_sha256|default:"—" }}</dd>
+</dl></div>
+{% if previous %}<div class="card"><h2>Earlier steps</h2><ul class="timeline">{% for p in previous %}<li class="ok"><strong>{{ p.name }}</strong><br><span class="meta">{{ p.decided_by }} · {{ p.decided_at|date:"d M H:i" }}</span>{% if p.comment %}<br>“{{ p.comment }}”{% endif %}</li>{% endfor %}</ul></div>{% endif %}
+</div>
+<div class="card">
+<h2>Your decision</h2>
+<p class="muted"><small>Step due {{ task.due_at|date:"d M Y H:i" }} ({{ task.sla_hours }} working hours{% if task.expedited %}, shortened to meet the due date{% endif %}).</small></p>
+{% if block_reason %}<div class="callout warn"><strong>You cannot decide this step</strong>{{ block_reason }}</div>
+{% else %}
+<form method="post" id="decision-form" data-signature="{% if task.requires_signature %}true{% else %}false{% endif %}" novalidate autocomplete="off">{% csrf_token %}
+  {% include "includes/form_errors.html" %}
+  <div class="radio-cards">{{ form.decision }}</div>{{ form.decision.errors }}
+  <div class="mt">{{ form.comment.label_tag }}{{ form.comment }}<span class="helptext">{{ form.comment.help_text }}</span>{{ form.comment.errors }}</div>
+  {% if task.requires_signature %}<div class="mt" id="pin-row">
+    {% if identity %}{{ form.pin.label_tag }}{{ form.pin }}<span class="helptext">Your approval is digitally signed with certificate {{ identity.serial_number|slice:":12" }}…, binding it to these exact figures and document.</span>
+    {% else %}<div class="callout warn"><strong>Signature required</strong>Set up your digital signature before approving. <a href="{% url 'signatures:mine' %}">Set up now</a></div>{% endif %}
+  </div>{% endif %}
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Record decision</button></div>
+</form>{% endif %}
+</div></div>
+{% endblock %}

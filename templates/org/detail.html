@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}{{ unit.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'org:tree' %}">Units</a>{% for a in ancestors %} / <a href="{% url 'org:detail' a.pk %}">{{ a.code }}</a>{% endfor %}</div>
+<h1>{{ unit.name }}</h1><p>{{ unit.get_kind_display }} · {{ unit.code }}{% if unit.budget_reference %} · budget {{ unit.budget_reference }}{% endif %}</p></div>
+<div class="actions"><a class="btn" href="{% url 'analytics' %}?org_unit={{ unit.pk }}">Trends</a><a class="btn" href="{% url 'invoices:list' %}?org_unit={{ unit.pk }}&amp;status=open">Unpaid invoices</a>
+{% if can_admin %}<a class="btn" href="{% url 'org:edit' unit.pk %}">Edit</a><a class="btn btn-primary" href="{% url 'org:create' %}?parent={{ unit.pk }}">Add sub-unit</a>{% endif %}</div></div>
+<div class="grid cols-2">
+<div class="card"><h2>Sub-units</h2>{% for c in children %}<p><a href="{% url 'org:detail' c.pk %}">{{ c.name }}</a> <small class="muted">{{ c.code }} · {{ c.get_kind_display }}</small></p>{% empty %}<p class="muted">None.</p>{% endfor %}</div>
+<div class="card"><h2>People with roles here</h2><table><tbody>{% for m in memberships %}<tr><td>{{ m.user }}</td><td>{{ m.get_role_display }}</td><td>{{ m.valid_until|default:"" }}</td></tr>{% empty %}<tr><td class="empty">No direct roles (roles may be inherited from parent units).</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<div class="card mt"><h2>Service accounts</h2><div class="table-wrap"><table><thead><tr><th>Provider</th><th>Account</th><th>Premises</th></tr></thead><tbody>
+{% for a in accounts %}<tr><td>{{ a.provider.name }}</td><td><a href="{% url 'providers:account' a.pk %}">{{ a.account_number }}</a></td><td>{{ a.premises }}</td></tr>{% empty %}<tr><td colspan="3" class="empty">No accounts registered directly on this unit.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

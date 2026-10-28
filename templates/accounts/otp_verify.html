@@ -1,0 +1,13 @@
+{% extends "auth_base.html" %}{% block title %}Verify{% endblock %}
+{% block content %}
+<h1>Two-step verification</h1>
+<p class="muted">Enter the 6-digit code from your authenticator app for <strong>{{ request.user.username }}</strong>.</p>
+<form method="post" class="form-stack" novalidate>{% csrf_token %}
+  {% include "includes/form_errors.html" %}
+  {{ form.as_div }}
+  <div class="form-actions">
+    <button class="btn btn-primary" type="submit">Verify</button>
+  </div>
+</form>
+<form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn btn-ghost btn-sm" type="submit">Use another account</button></form>
+{% endblock %}

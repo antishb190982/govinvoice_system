@@ -1,0 +1,7 @@
+{% extends "auth_base.html" %}{% block title %}Recovery codes{% endblock %}
+{% block content %}
+<h1>Save your recovery codes</h1>
+<p>Each code signs you in once if you lose your phone. Store them somewhere safe and offline. They will not be shown again.</p>
+<ul class="codes">{% for c in codes %}<li>{{ c }}</li>{% endfor %}</ul>
+<div class="form-actions"><a class="btn btn-primary" href="{% if first_time and request.user.must_change_password %}{% url 'accounts:password_change' %}{% else %}{% url 'core:dashboard' %}{% endif %}">I have saved them</a></div>
+{% endblock %}

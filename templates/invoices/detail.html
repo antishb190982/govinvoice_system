@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% load gov %}{% block title %}{{ invoice.reference }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'invoices:list' %}">Invoices</a> / {{ invoice.reference }}</div>
+<h1>{{ invoice.provider.name }} · {{ invoice.amount_total|money:invoice.currency }}</h1>
+<p>{% status_badge invoice %} Invoice {{ invoice.invoice_number }} · due <strong>{{ invoice.due_date|date:"d M Y" }}</strong>{% with d=invoice.due_date|days_until %}{% if invoice.is_unpaid %} ({% if d < 0 %}overdue{% elif d == 0 %}today{% else %}in {{ d }} days{% endif %}){% endif %}{% endwith %}</p></div>
+<div class="actions">
+  {% if invoice.document %}<a class="btn" href="{% url 'invoices:document' invoice.pk %}" target="_blank" rel="noopener">View document</a>{% endif %}
+  {% if my_task %}<a class="btn btn-primary" href="{% url 'workflow:task' my_task.pk %}">Decide: {{ my_task.name }}</a>{% endif %}
+  {% if can_capture and invoice.is_editable %}<a class="btn" href="{% url 'invoices:edit' invoice.pk %}">Edit</a>{% endif %}
+  {% if can_capture and invoice.status in "draft returned disputed" %}<form method="post" action="{% url 'invoices:submit' invoice.pk %}" class="inline-form" data-confirm="Submit this invoice for approval?">{% csrf_token %}<button class="btn btn-primary" type="submit">{% if invoice.status == 'draft' %}Submit for approval{% else %}Resubmit{% endif %}</button></form>{% endif %}
+</div></div>
+
+{% if flags %}<div class="callout {% if has_severe %}danger{% else %}warn{% endif %}"><strong>Checks to review</strong>
+{% for code, label, severe in flags %}<span class="chip {% if severe %}severe{% endif %}">{{ label }}</span>{% endfor %}</div>{% endif %}
+
+<div class="split">
+<div class="stack">
+  <div class="card"><h2>Invoice</h2><dl class="props">
+    <dt>Provider</dt><dd><a href="{% url 'providers:detail' invoice.provider_id %}">{{ invoice.provider.name }}</a> · {{ invoice.get_utility_type_display }}</dd>
+    <dt>Service account</dt><dd><a href="{% url 'providers:account' invoice.service_account_id %}">{{ invoice.service_account.account_number }}</a>{% if invoice.service_account.meter_number %} · meter {{ invoice.service_account.meter_number }}{% endif %} · {{ invoice.service_account.premises }}</dd>
+    <dt>Unit</dt><dd><a href="{% url 'org:detail' invoice.org_unit_id %}">{{ invoice.org_unit }}</a></dd>
+    <dt>Issued</dt><dd>{{ invoice.issue_date|date:"d M Y" }}</dd>
+    <dt>Billing period</dt><dd>{{ invoice.period_start|date:"d M Y"|default:"—" }} – {{ invoice.period_end|date:"d M Y"|default:"—" }}</dd>
+    <dt>Net / tax</dt><dd>{{ invoice.amount_net|money:invoice.currency }} + {{ invoice.amount_tax|money }}</dd>
+    <dt>Total payable</dt><dd><strong>{{ invoice.amount_total|money:invoice.currency }}</strong></dd>
+    <dt>Consumption</dt><dd>{% if invoice.consumption is not None %}{{ invoice.consumption|floatformat:"-3g" }} {{ invoice.consumption_unit }}{% if invoice.previous_reading is not None %} (readings {{ invoice.previous_reading|floatformat:"-3g" }} → {{ invoice.current_reading|floatformat:"-3g" }}){% endif %}{% else %}—{% endif %}</dd>
+    <dt>Approve by</dt><dd>{{ invoice.must_approve_by|date:"d M Y H:i" }} <small class="muted">to leave time for settlement before the due date</small></dd>
+    {% if projection %}<dt>Projected approval</dt><dd>{{ projection|date:"d M Y H:i" }} {% if projection > invoice.must_approve_by %}<span class="badge badge-danger">Later than required</span>{% else %}<span class="badge badge-ok">On track</span>{% endif %}</dd>{% endif %}
+    <dt>Source</dt><dd>{{ invoice.get_source_display }}{% if invoice.import_batch_id %} · <a href="{% url 'imports:batch' invoice.import_batch_id %}">import #{{ invoice.import_batch_id }}</a>{% endif %}</dd>
+    <dt>Document</dt><dd>{% if invoice.document %}{{ invoice.document_name }}<br><small class="mono">SHA-256 {{ invoice.document_sha256|slice:":32" }}…</small>{% else %}<span class="badge badge-warn">Missing</span>{% endif %}</dd>
+    <dt>Recorded by</dt><dd>{{ invoice.created_by }} · {{ invoice.created_at|date:"d M Y H:i" }}</dd>
+    {% if settlement_item %}<dt>Settlement</dt><dd><a href="{{ settlement_item.line.instruction.get_absolute_url }}">{{ settlement_item.line.instruction.reference }}</a> {% status_badge settlement_item.line.instruction %}</dd>{% endif %}
+    {% if invoice.paid_at %}<dt>Paid</dt><dd>{{ invoice.paid_at|date:"d M Y" }} · ref {{ invoice.payment_reference }}</dd>{% endif %}
+    {% if invoice.notes %}<dt>Notes</dt><dd>{{ invoice.notes|linebreaksbr }}</dd>{% endif %}
+  </dl></div>
+  <div class="card"><div class="card-head"><h2>This account over 12 months</h2><a href="{% url 'providers:account' invoice.service_account_id %}">Account history</a></div>
+    <div class="chart short"><canvas data-chart="acct-chart" data-dual="true" aria-label="Account amount and consumption by month"></canvas></div>{{ account_chart|json_script:"acct-chart" }}</div>
+  <div class="card" id="comments"><h2>Notes &amp; discussion</h2>
+    {% for c in comments %}<p><strong>{{ c.author }}</strong> <small class="muted">{{ c.created_at|date:"d M H:i" }}</small><br>{{ c.body|linebreaksbr }}</p>{% empty %}<p class="muted">No notes yet.</p>{% endfor %}
+    <form method="post" action="{% url 'invoices:comment' invoice.pk %}">{% csrf_token %}{{ comment_form.body }}<div class="form-actions"><button class="btn btn-sm" type="submit">Add note</button></div></form></div>
+</div>
+<div class="stack">
+  <div class="card"><h2>Approval</h2>
+  {% for round, tasks in rounds %}{% if not forloop.first %}<details class="disclosure mt"><summary>Earlier round {{ round }}</summary>{% else %}{% if rounds|length > 1 %}<p class="muted"><small>Round {{ round }}</small></p>{% endif %}{% endif %}
+    <ul class="timeline">{% for t in tasks %}<li class="{% if t.status == 'approved' %}ok{% elif t.status == 'pending' %}active{% elif t.status in 'returned disputed' %}danger{% endif %}">
+      <strong>{{ t.name }}</strong> {% status_badge t %}<br><span class="meta">{{ t.get_role_display }} · SLA {{ t.sla_hours }} working h{% if t.expedited %} · expedited{% endif %}</span>
+      {% if t.status == 'pending' %}<br><span class="meta">Due {{ t.due_at|date:"d M H:i" }}</span> {% sla_badge t %}{% if t.escalated_at %} <span class="badge badge-danger">Escalated</span>{% endif %}{% endif %}
+      {% if t.decided_at %}<br><span class="meta">{{ t.decided_by }} · {{ t.decided_at|date:"d M Y H:i" }}</span> {% sla_badge t %}{% if t.comment %}<br>“{{ t.comment }}”{% endif %}{% endif %}
+      {% if t.sig %}<div class="sigbox {% if t.sig.valid %}valid{% else %}invalid{% endif %}">{% if t.sig.valid %}✔ Valid digital signature{% else %}✖ Signature check failed{% endif %}<br>
+        <small>{{ t.sig.signer }}<br>{{ t.sig.algorithm }} · cert {{ t.sig.serial|slice:":16" }} · digest {{ t.sig.digest|slice:":16" }}…</small>
+        {% for f in t.sig.findings %}<br><small>{{ f }}</small>{% endfor %}</div>{% endif %}
+    </li>{% endfor %}</ul>
+  {% if not forloop.first %}</details>{% endif %}
+  {% empty %}<p class="muted">Not yet submitted. {% if invoice.status == 'draft' %}Check the figures and submit when the document is attached.{% endif %}</p>{% endfor %}
+  {% if pending_task and not my_task %}<p class="muted"><small>Waiting for: {{ pending_task.get_role_display }}.</small></p>{% endif %}
+  </div>
+  {% if can_capture and invoice.status in "draft returned disputed" %}<div class="card"><h2>Cancel invoice</h2>
+  <form method="post" action="{% url 'invoices:cancel' invoice.pk %}" data-confirm="Cancel this invoice? It will not be paid.">{% csrf_token %}<label for="reason">Reason</label><textarea id="reason" name="reason" rows="2" required></textarea>
+  <div class="form-actions"><button class="btn btn-danger btn-sm" type="submit">Cancel invoice</button></div></form></div>{% endif %}
+  <div class="card"><h2>History</h2><ul class="timeline">{% for e in history %}<li><code>{{ e.action }}</code><br><span class="meta">{{ e.actor_label }} · {{ e.occurred_at|date:"d M Y H:i" }}</span></li>{% endfor %}</ul></div>
+</div></div>
+{% endblock %}

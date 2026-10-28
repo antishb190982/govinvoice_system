@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}New recovery codes{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>New recovery codes</h1><p>Generating new codes invalidates all previous ones.</p></div></div>
+<div class="card auth-card">
+<form method="post" class="form-stack" novalidate>{% csrf_token %}
+  {% include "includes/form_errors.html" %}
+  {{ form.code.label_tag }} {{ form.code }} {{ form.code.errors }}
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Generate</button></div>
+</form></div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Import #{{ batch.pk }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'imports:list' %}">Imports</a> / #{{ batch.pk }}</div><h1>{{ batch.original_name }}</h1>
+<p>{% status_badge batch %} {{ counts.valid }} ready · {{ counts.invalid }} with errors{% if counts.committed %} · {{ counts.committed }} imported{% endif %}</p></div>
+{% if batch.status == 'staged' %}<div class="actions">
+<form method="post" action="{% url 'imports:discard' batch.pk %}" class="inline-form" data-confirm="Discard this import?">{% csrf_token %}<button class="btn btn-danger" type="submit">Discard</button></form>
+<form method="post" action="{% url 'imports:commit' batch.pk %}" class="inline-form" data-confirm="Create draft invoices from the ready rows?">{% csrf_token %}<button class="btn btn-primary" type="submit" {% if not counts.valid %}disabled{% endif %}>Import {{ counts.valid }} ready rows</button></form></div>{% endif %}</div>
+{% if edit_row %}<div class="card"><h2>Correct row {{ edit_row.row_number }}</h2>
+<form method="post" action="{% url 'imports:row' batch.pk edit_row.pk %}" novalidate>{% csrf_token %}<div class="form-grid">{{ row_form.as_div }}</div>
+<div class="form-actions"><a class="btn" href="{% url 'imports:batch' batch.pk %}">Cancel</a><button class="btn btn-primary" type="submit">Re-check row</button></div></form></div>{% endif %}
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Row</th><th>Status</th><th>Account</th><th>Invoice no.</th><th>Issued</th><th>Due</th><th class="num">Total</th><th>Problems</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr class="{% if r.status == 'invalid' %}row-danger{% elif not r.include %}row-muted{% endif %}">
+<td>{{ r.row_number }}{% if r.source_name %}<br><small>{{ r.source_name|truncatechars:24 }}</small>{% endif %}</td><td>{% status_badge r %}</td>
+<td>{{ r.data.provider_code|default:"" }} {{ r.data.account_number|default:"—" }}<br><small>{{ r.data.org_unit_code|default:"" }}</small></td><td>{{ r.data.invoice_number|default:"—" }}</td>
+<td class="nowrap">{{ r.data.issue_date|default:"—" }}</td><td class="nowrap">{{ r.data.due_date|default:"—" }}{% if r.data.warning %}<br><span class="badge badge-warn">{{ r.data.warning }}</span>{% endif %}</td><td class="num">{{ r.data.amount_total|money }}</td>
+<td>{% for e in r.errors %}<div class="errorlist">{{ e }}</div>{% endfor %}{% if r.invoice %}<a href="{{ r.invoice.get_absolute_url }}">{{ r.invoice.reference }}</a>{% endif %}</td>
+<td class="right nowrap">{% if batch.status == 'staged' %}<a class="btn btn-sm" href="?edit={{ r.pk }}">Fix</a>
+<form method="post" action="{% url 'imports:row' batch.pk r.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="toggle" value="1"><button class="btn btn-sm btn-ghost" type="submit">{% if r.include %}Skip{% else %}Include{% endif %}</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="9" class="empty">No rows.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

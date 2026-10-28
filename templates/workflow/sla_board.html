@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% load gov %}{% block title %}SLA monitor{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>SLA monitor</h1><p>Every open approval step in your units. Breached steps are escalated automatically.</p></div></div>
+<div class="card"><div class="card-head"><h2>Open steps ({{ tasks|length }})</h2></div>
+<div class="table-wrap"><table><thead><tr><th>SLA</th><th>Invoice</th><th>Step / role</th><th>Unit</th><th>Waiting since</th><th>Invoice due</th><th class="num">Amount</th></tr></thead><tbody>
+{% for t in tasks %}<tr class="{% if t.is_overdue %}row-danger{% elif t.expedited %}row-warn{% endif %}"><td>{% sla_badge t %}{% if t.escalated_at %}<br><span class="badge badge-danger">Escalated</span>{% endif %}</td>
+<td><a href="{{ t.invoice.get_absolute_url }}">{{ t.invoice.reference }}</a><br><small>{{ t.invoice.provider.name }}</small></td>
+<td>{{ t.name }}<br><small>{{ t.get_role_display }}</small></td><td>{{ t.invoice.org_unit.code }}</td>
+<td class="nowrap">{{ t.activated_at|date:"d M H:i" }}</td><td class="nowrap">{{ t.invoice.due_date|date:"d M Y" }}</td><td class="num">{{ t.invoice.amount_total|money:t.invoice.currency }}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No open steps.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2>Recent decisions</h2><div class="table-wrap"><table><thead><tr><th>Decided</th><th>Invoice</th><th>Step</th><th>By</th><th>Outcome</th><th>SLA</th></tr></thead><tbody>
+{% for t in page %}<tr><td class="nowrap">{{ t.decided_at|date:"d M H:i" }}</td><td><a href="{{ t.invoice.get_absolute_url }}">{{ t.invoice.reference }}</a></td><td>{{ t.name }}</td><td>{{ t.decided_by }}</td><td>{% status_badge t %}</td><td>{% sla_badge t %}</td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No decisions yet.</td></tr>{% endfor %}</tbody></table></div>{% include "includes/pagination.html" %}</div>
+{% endblock %}

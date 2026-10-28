@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}Users &amp; roles{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Users &amp; roles</h1><p>Roles apply to a unit and every unit below it.</p></div>
+<div class="actions"><a class="btn btn-primary" href="{% url 'accounts:user_create' %}">New user</a></div></div>
+<div class="card">
+<form method="get" class="filters"><div><label for="q">Search</label><input type="search" id="q" name="q" value="{{ q }}" placeholder="Name, username, e-mail"></div><div><button class="btn" type="submit">Search</button></div></form>
+<div class="table-wrap mt"><table><thead><tr><th>Name</th><th>Username</th><th>Roles</th><th>2FA</th><th>Status</th></tr></thead><tbody>
+{% for u in users %}<tr><td><a href="{% url 'accounts:user_detail' u.pk %}">{{ u.full_name }}</a><br><small>{{ u.job_title }}</small></td><td>{{ u.username }}</td>
+<td>{% for m in u.memberships.all %}<span class="chip">{{ m.get_role_display }} · {{ m.org_unit.code }}</span>{% empty %}<span class="muted">none</span>{% endfor %}</td>
+<td>{% if u.has_two_factor %}<span class="badge badge-ok">On</span>{% else %}<span class="badge badge-warn">Pending</span>{% endif %}</td>
+<td>{% if u.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Disabled</span>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="5" class="empty">No users.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

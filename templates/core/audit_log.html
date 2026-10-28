@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}Audit trail{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Audit trail</h1><p>Append-only and hash-chained: every entry includes the hash of the one before it, so any alteration or deletion is detectable.</p></div>
+<div class="actions"><a class="btn" href="?verify=1">Verify chain integrity</a><a class="btn" href="?{{ request.GET.urlencode }}&amp;export=csv">Export CSV</a></div></div>
+{% if chain %}<div class="callout {% if chain.ok %}ok{% else %}danger{% endif %}"><strong>{% if chain.ok %}Chain intact{% else %}Chain broken at entry #{{ chain.bad }}{% endif %}</strong>{{ chain.count }} entries verified.</div>{% endif %}
+<div class="card">
+<form method="get" class="filters"><div><label for="q">Search</label><input type="search" id="q" name="q" value="{{ q }}" placeholder="User, object id, data"></div>
+<div><label for="action">Area</label><select id="action" name="action" data-autosubmit><option value="">All</option>{% for a in actions %}<option value="{{ a }}" {% if a == action %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></div><div><button class="btn" type="submit">Filter</button></div></form>
+<div class="table-wrap mt"><table><thead><tr><th>#</th><th>Time</th><th>User</th><th>Action</th><th>Object</th><th>Details</th><th>IP</th></tr></thead><tbody>
+{% for e in page %}<tr><td class="mono">{{ e.sequence }}</td><td class="nowrap">{{ e.occurred_at|date:"d M Y H:i:s" }}</td><td>{{ e.actor_label }}</td><td><code>{{ e.action }}</code></td>
+<td>{{ e.object_type }} {{ e.object_id }}</td><td><small class="mono">{{ e.data|truncatechars:160 }}</small></td><td><small>{{ e.ip_address|default:"" }}</small></td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No entries.</td></tr>{% endfor %}</tbody></table></div>
+{% include "includes/pagination.html" %}</div>
+{% endblock %}

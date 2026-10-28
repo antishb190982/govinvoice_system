@@ -1,0 +1,61 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}GovBills{% endblock %} · GovBills</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
+  <script src="{% static 'js/app.js' %}" defer></script>
+</head>
+<body data-idle-minutes="{{ IDLE_TIMEOUT_MINUTES }}">
+{% with app=request.resolver_match.app_name url=request.resolver_match.url_name %}
+<div class="shell">
+  <aside class="sidebar" aria-label="Main navigation">
+    <div class="brand"><span class="brand-mark">GB</span><span>GovBills<small>Utility invoice management</small></span></div>
+    <nav class="nav">
+      <a href="{% url 'core:dashboard' %}" class="{% if app == 'core' and url == 'dashboard' or not app %}active{% endif %}">Dashboard</a>
+      {% if can.approve %}<a href="{% url 'workflow:inbox' %}" class="{% if app == 'workflow' and url in 'inbox,task' %}active{% endif %}">My approvals {% if pending_approvals %}<span class="count">{{ pending_approvals }}</span>{% endif %}</a>{% endif %}
+      <div class="nav-section">Invoices</div>
+      <a href="{% url 'invoices:list' %}?status=open" class="{% if app == 'invoices' %}active{% endif %}">Invoices</a>
+      {% if can.capture %}<a href="{% url 'imports:list' %}" class="{% if app == 'imports' %}active{% endif %}">Import PDF / Excel</a>{% endif %}
+      <a href="{% url 'workflow:sla' %}" class="{% if app == 'workflow' and url == 'sla' %}active{% endif %}">SLA monitor</a>
+      <div class="nav-section">Settlement</div>
+      <a href="{% url 'settlements:list' %}" class="{% if app == 'settlements' %}active{% endif %}">Settlement instructions</a>
+      <a href="{% url 'analytics' %}" class="{% if url == 'analytics' %}active{% endif %}">Trends &amp; analysis</a>
+      <div class="nav-section">Reference</div>
+      <a href="{% url 'providers:list' %}" class="{% if app == 'providers' %}active{% endif %}">Providers &amp; accounts</a>
+      <a href="{% url 'org:tree' %}" class="{% if app == 'org' %}active{% endif %}">Ministries &amp; units</a>
+      <a href="{% url 'workflow:policies' %}" class="{% if app == 'workflow' and url == 'policies' %}active{% endif %}">Approval policies</a>
+      <div class="nav-section">Security</div>
+      <a href="{% url 'signatures:mine' %}" class="{% if app == 'signatures' and url == 'mine' %}active{% endif %}">My digital signature</a>
+      <a href="{% url 'signatures:verify' %}" class="{% if app == 'signatures' and url == 'verify' %}active{% endif %}">Verify a signed PDF</a>
+      {% if can.admin %}<a href="{% url 'accounts:user_list' %}" class="{% if app == 'accounts' and url|slice:':4' == 'user' %}active{% endif %}">Users &amp; roles</a>{% endif %}
+      {% if can.audit %}<a href="{% url 'core:audit' %}" class="{% if url == 'audit' %}active{% endif %}">Audit trail</a>{% endif %}
+      {% if can.sysadmin %}<a href="{% url 'admin:index' %}">System configuration</a>{% endif %}
+    </nav>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <button class="btn btn-ghost menu-toggle" type="button" aria-expanded="false" aria-label="Open menu">☰</button>
+      {% if ENVIRONMENT != "production" %}<span class="env-badge">{{ ENVIRONMENT }}</span>{% endif %}
+      <span class="spacer"></span>
+      <a class="bell" href="{% url 'core:notifications' %}" aria-label="Notifications">🔔{% if unread_notifications %}<span class="dot">{{ unread_notifications }}</span>{% endif %}</a>
+      <a class="user-chip" href="{% url 'accounts:profile' %}"><span class="avatar">{{ request.user.full_name|slice:":1"|upper }}</span><span class="name">{{ request.user.full_name }}</span></a>
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn btn-sm" type="submit">Sign out</button></form>
+    </header>
+    <main class="content" id="content">
+      {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+<div class="callout warn idle-warning hidden" id="idle-warning" role="alert">
+  <strong>You will be signed out soon</strong>
+  For security, idle sessions end after {{ IDLE_TIMEOUT_MINUTES }} minutes.
+  <div class="mt"><button class="btn btn-sm" id="idle-stay" type="button">Stay signed in</button></div>
+</div>
+{% endwith %}
+</body>
+</html>

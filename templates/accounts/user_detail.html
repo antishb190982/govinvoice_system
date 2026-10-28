@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block title %}{{ target.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'accounts:user_list' %}">Users</a></div><h1>{{ target.full_name }}</h1><p>{{ target.username }} · {{ target.email }}</p></div>
+<div class="actions">{% if target != request.user and target.has_two_factor %}<form method="post" class="inline-form" data-confirm="Reset this user's two-step verification? They will have to enrol again.">{% csrf_token %}<input type="hidden" name="form" value="reset_2fa"><button class="btn btn-danger" type="submit">Reset 2FA</button></form>{% endif %}</div></div>
+<div class="grid cols-2">
+<div class="card"><h2>Details</h2><form method="post" novalidate>{% csrf_token %}<input type="hidden" name="form" value="edit">
+<div class="form-grid">{{ edit_form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div></form></div>
+<div class="card"><h2>Roles</h2>
+<table><thead><tr><th>Role</th><th>Unit</th><th>Until</th><th></th></tr></thead><tbody>
+{% for m in memberships %}<tr><td>{{ m.get_role_display }}</td><td>{{ m.org_unit }}</td><td>{{ m.valid_until|default:"—" }}</td>
+<td class="right">{% if m.org_unit_id in allowed_unit_ids %}<form method="post" class="inline-form" data-confirm="Revoke this role?">{% csrf_token %}<input type="hidden" name="form" value="revoke"><input type="hidden" name="membership" value="{{ m.pk }}"><button class="btn btn-sm btn-danger" type="submit">Revoke</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="4" class="empty">No roles.</td></tr>{% endfor %}</tbody></table>
+<h3 class="mt">Grant a role</h3>
+<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="form" value="role"><div class="form-grid">{{ role_form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Grant</button></div></form>
+<p class="muted"><small>Separation of duties is enforced by the system: a person who records or submits an invoice can never approve it, and nobody can approve two steps of the same invoice.</small></p>
+</div></div>
+{% endblock %}

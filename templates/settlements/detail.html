@@ -1,0 +1,44 @@
+{% extends "base.html" %}{% load gov %}{% block title %}{{ si.reference }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'settlements:list' %}">Settlement instructions</a> / {{ si.reference }}</div>
+<h1>{{ si.reference }} · {{ si.total_amount|money:si.currency }}</h1>
+<p>{% status_badge si %} {{ si.org_unit }} · pay by <strong>{{ si.pay_by|date:"d M Y" }}</strong> · execution requested {{ si.requested_execution_date|date:"d M Y" }}</p></div>
+<div class="actions">
+{% if si.pdf %}<a class="btn" href="{% url 'settlements:pdf' si.pk %}">Signed PDF</a>{% endif %}
+{% if si.status in "authorised sent executed" %}<a class="btn" href="{% url 'settlements:export' si.pk 'xml' %}">ISO 20022 (pain.001)</a><a class="btn" href="{% url 'settlements:export' si.pk 'csv' %}">CSV</a>{% endif %}
+</div></div>
+{% if si.rejection_comment and si.status == 'draft' %}<div class="callout warn"><strong>Returned by authoriser</strong>{{ si.rejection_comment }}</div>{% endif %}
+<div class="split"><div class="stack">
+<div class="card"><h2>Amounts per provider</h2><div class="table-wrap"><table><thead><tr><th>Provider</th><th>Beneficiary account</th><th>Invoices</th><th>Earliest due</th><th class="num">Amount</th></tr></thead><tbody>
+{% for line in lines %}<tr><td><strong>{{ line.provider.name }}</strong><br><small>{{ line.provider.get_utility_type_display }} · {{ line.end_to_end_id }}</small></td>
+<td>{{ line.beneficiary_name }}<br><small class="mono">{{ line.beneficiary_iban }} {{ line.beneficiary_bic }}</small></td><td>{{ line.invoice_count }}</td><td>{{ line.earliest_due|date:"d M Y" }}</td><td class="num">{{ line.amount|money }}</td></tr>{% endfor %}
+</tbody><tfoot><tr><td colspan="4">Total</td><td class="num">{{ si.total_amount|money:si.currency }}</td></tr></tfoot></table></div></div>
+<div class="card"><details class="disclosure"><summary>Invoices included</summary><div class="table-wrap mt"><table><thead><tr><th>Invoice</th><th>Provider no.</th><th>Unit</th><th>Due</th><th class="num">Amount</th></tr></thead><tbody>
+{% for line in lines %}{% for item in line.items.all %}<tr><td><a href="{{ item.invoice.get_absolute_url }}">{{ item.invoice.reference }}</a></td><td>{{ item.invoice.invoice_number }}</td><td>{{ item.invoice.org_unit.code }}</td><td>{{ item.invoice.due_date|date:"d M Y" }}</td><td class="num">{{ item.amount|money }}</td></tr>{% endfor %}{% endfor %}
+</tbody></table></div></details></div>
+</div><div class="stack">
+<div class="card"><h2>Next step</h2>
+{% if si.status == 'draft' %}{% if can_prepare %}
+  <p>Review the totals, then sign as preparer. This generates the instruction PDF with your PAdES signature.</p>
+  {% if identity %}<form method="post" action="{% url 'settlements:action' si.pk 'submit' %}" autocomplete="off">{% csrf_token %}{{ pin_form.pin.label_tag }}{{ pin_form.pin }}<div class="form-actions"><button class="btn btn-primary" type="submit">Sign &amp; submit for authorisation</button></div></form>
+  {% else %}<div class="callout warn">Set up your <a href="{% url 'signatures:mine' %}">digital signature</a> first.</div>{% endif %}
+  <form method="post" action="{% url 'settlements:action' si.pk 'cancel' %}" class="mt" data-confirm="Cancel this instruction? Its invoices return to 'approved'.">{% csrf_token %}<input type="hidden" name="comment" value="Cancelled by preparer"><button class="btn btn-danger btn-sm" type="submit">Cancel instruction</button></form>
+{% else %}<p class="muted">Waiting for a finance officer to sign.</p>{% endif %}
+{% elif si.status == 'pending' %}
+  <p>Authorise by <strong>{{ si.authorise_by|date:"d M Y H:i" }}</strong> to pay on time.</p>
+  {% if can_authorise %}{% if identity %}<form method="post" action="{% url 'settlements:action' si.pk 'authorise' %}" autocomplete="off">{% csrf_token %}{{ pin_form.pin.label_tag }}{{ pin_form.pin }}<div class="form-actions"><button class="btn btn-primary" type="submit">Authorise &amp; counter-sign</button></div></form>
+  {% else %}<div class="callout warn">Set up your <a href="{% url 'signatures:mine' %}">digital signature</a> first.</div>{% endif %}
+  <form method="post" action="{% url 'settlements:action' si.pk 'reject' %}" class="mt">{% csrf_token %}<label for="comment">Return to preparer</label><textarea id="comment" name="comment" rows="2" placeholder="Reason"></textarea><div class="form-actions"><button class="btn btn-danger btn-sm" type="submit">Return</button></div></form>
+  {% else %}<p class="muted">Waiting for a payment authoriser (not the preparer).</p>{% endif %}
+{% elif si.status == 'authorised' or si.status == 'sent' %}
+  <p>Send the ISO 20022 file (or the signed PDF) to the bank / treasury, then record the execution.</p>
+  {% if si.status == 'authorised' %}<form method="post" action="{% url 'settlements:action' si.pk 'sent' %}">{% csrf_token %}<button class="btn" type="submit">Mark as sent</button></form>{% endif %}
+  <form method="post" action="{% url 'settlements:action' si.pk 'executed' %}" class="mt">{% csrf_token %}<div class="form-stack">{{ executed_form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Record payment executed</button></div></form>
+{% elif si.status == 'executed' %}<div class="callout ok"><strong>Paid</strong>Value date {{ si.executed_at|date:"d M Y" }} · bank reference {{ si.bank_reference }}</div>
+{% else %}<p class="muted">Cancelled. {{ si.rejection_comment }}</p>{% endif %}
+</div>
+<div class="card"><h2>Signatures</h2>{% for s in signings %}<div class="sigbox valid"><strong>{{ s.role|capfirst }}</strong> by {{ s.user }}<br><small>{{ s.signed_at|date:"d M Y H:i" }} · cert {{ s.identity.serial_number|slice:":12" }}…<br>PDF SHA-256 {{ s.pdf_sha256|slice:":24" }}…</small></div>{% empty %}<p class="muted">Not signed yet.</p>{% endfor %}
+{% if si.pdf %}<p class="mt"><small>Anyone can check the PDF on the <a href="{% url 'signatures:verify' %}">verification page</a> or in Adobe Reader after trusting the CA certificate.</small></p>{% endif %}</div>
+<div class="card"><h2>History</h2><ul class="timeline">{% for e in history %}<li><code>{{ e.action }}</code><br><span class="meta">{{ e.actor_label }} · {{ e.occurred_at|date:"d M Y H:i" }}</span></li>{% endfor %}</ul></div>
+</div></div>
+{% endblock %}

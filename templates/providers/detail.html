@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% load gov %}{% block title %}{{ provider.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:list' %}">Providers</a></div><h1>{{ provider.name }}</h1><p>{{ provider.get_utility_type_display }} · {{ provider.short_code }}</p></div>
+<div class="actions">{% if can_edit %}<a class="btn" href="{% url 'providers:edit' provider.pk %}">Edit</a><a class="btn" href="{% url 'providers:bank_change' provider.pk %}">Change bank details</a>{% endif %}{% if can_add_account %}<a class="btn btn-primary" href="{% url 'providers:account_create' %}?provider={{ provider.pk }}">Add service account</a>{% endif %}</div></div>
+<div class="grid cols-2">
+<div class="card"><h2>Details</h2><dl class="props"><dt>Tax number</dt><dd>{{ provider.tax_number|default:"—" }}</dd><dt>Contact</dt><dd>{{ provider.contact_email|default:"" }} {{ provider.contact_phone }}</dd>
+<dt>Payment terms</dt><dd>{{ provider.payment_terms_days }} days · {{ provider.currency }}</dd>
+<dt>Beneficiary</dt><dd>{{ provider.bank_account_name|default:"—" }}<br>{{ provider.bank_name }} {{ provider.bank_bic }}<br><span class="mono">{% if can_edit %}{{ provider.bank_iban|default:"—" }}{% else %}{{ provider.masked_iban|default:"—" }}{% endif %}</span></dd></dl></div>
+<div class="card"><h2>Bank detail changes</h2>
+{% for c in changes %}<div class="sigbox {% if c.status == 'pending' %}{% else %}valid{% endif %}"><strong>{{ c.get_status_display }}</strong> · requested by {{ c.requested_by }} {{ c.requested_at|date:"d M Y H:i" }}<br>
+{{ c.bank_account_name }} · {{ c.bank_name }} · <span class="mono">{% if can_edit %}{{ c.bank_iban }}{% else %}••••{% endif %}</span><br><small>Verification: {{ c.evidence_note }}</small>
+{% if c.decided_by %}<br><small>Decided by {{ c.decided_by }} {{ c.decided_at|date:"d M Y H:i" }}</small>{% endif %}
+{% if c.status == 'pending' and can_edit and c.requested_by_id != request.user.pk %}<form method="post" action="{% url 'providers:bank_decide' provider.pk c.pk %}" class="mt">{% csrf_token %}
+<button class="btn btn-sm btn-primary" name="decision" value="approve" type="submit">Approve</button> <button class="btn btn-sm btn-danger" name="decision" value="reject" type="submit">Reject</button></form>{% endif %}</div>
+{% empty %}<p class="muted">No changes recorded.</p>{% endfor %}</div></div>
+<div class="card mt"><h2>Service accounts in your units</h2><div class="table-wrap"><table><thead><tr><th>Account</th><th>Meter</th><th>Premises</th><th>Unit</th><th>Tariff</th><th>Status</th></tr></thead><tbody>
+{% for a in accounts %}<tr><td><a href="{% url 'providers:account' a.pk %}">{{ a.account_number }}</a></td><td>{{ a.meter_number }}</td><td>{{ a.premises }}</td><td>{{ a.org_unit.code }}</td><td>{{ a.tariff }}</td><td>{% if a.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Closed</span>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No accounts in your units.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

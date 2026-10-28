@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Settlement instructions{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Settlement instructions</h1><p>Totals to pay each utility provider before the due dates, signed by preparer and authoriser.</p></div>
+<div class="actions">{% if can.settle %}<a class="btn btn-primary" href="{% url 'settlements:new' %}">New instruction</a>{% endif %}</div></div>
+<div class="card"><div class="tabs"><a href="?" class="{% if not status %}active{% endif %}">All</a>{% for v, l in statuses %}<a href="?status={{ v }}" class="{% if status == v %}active{% endif %}">{{ l }}</a>{% endfor %}</div>
+<div class="table-wrap"><table><thead><tr><th>Reference</th><th>Unit</th><th>Pay by</th><th>Execution</th><th>Status</th><th>Prepared by</th><th class="num">Total</th></tr></thead><tbody>
+{% for si in page %}<tr><td><a href="{{ si.get_absolute_url }}">{{ si.reference }}</a></td><td>{{ si.org_unit.code }}</td><td class="nowrap">{{ si.pay_by|date:"d M Y" }}</td><td class="nowrap">{{ si.requested_execution_date|date:"d M Y" }}</td>
+<td>{% status_badge si %}</td><td>{{ si.prepared_by }}</td><td class="num">{{ si.total_amount|money:si.currency }}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No instructions yet.</td></tr>{% endfor %}</tbody></table></div>{% include "includes/pagination.html" %}</div>
+{% endblock %}

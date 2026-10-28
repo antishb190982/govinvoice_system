@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Providers{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Utility providers</h1><p>Shared master data. Beneficiary bank details change only under dual control.</p></div>
+<div class="actions">{% if can_edit %}<a class="btn btn-primary" href="{% url 'providers:create' %}">New provider</a>{% endif %}</div></div>
+{% if pending_changes and can_edit %}<div class="callout warn"><strong>{{ pending_changes }} bank detail change{{ pending_changes|pluralize }} awaiting a second approver</strong>Open the provider to review.</div>{% endif %}
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Provider</th><th>Utility</th><th>Accounts</th><th>Bank</th><th>Terms</th><th class="num">Unpaid</th></tr></thead><tbody>
+{% for p in providers %}<tr class="{% if not p.is_active %}row-muted{% endif %}"><td><a href="{% url 'providers:detail' p.pk %}">{{ p.name }}</a><br><small>{{ p.short_code }}</small></td><td>{{ p.get_utility_type_display }}</td><td>{{ p.accounts_count }}</td>
+<td>{% if p.bank_iban %}<span class="mono">{{ p.masked_iban }}</span>{% else %}<span class="badge badge-warn">Missing</span>{% endif %}</td><td>{{ p.payment_terms_days }} days</td><td class="num">{{ p.unpaid|money }}</td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No providers yet.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

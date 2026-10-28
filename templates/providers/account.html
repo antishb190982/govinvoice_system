@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% load gov %}{% block title %}{{ account }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:detail' account.provider_id %}">{{ account.provider.name }}</a></div><h1>Account {{ account.account_number }}</h1>
+<p>{{ account.premises }} · {{ account.org_unit }}</p></div><div class="actions">{% if can_edit %}<a class="btn" href="{% url 'providers:account_edit' account.pk %}">Edit</a>{% endif %}<a class="btn" href="{% url 'invoices:list' %}?q={{ account.account_number }}">All invoices</a></div></div>
+<div class="split"><div class="card"><div class="card-head"><h2>24-month history</h2><span class="muted">Average invoice {{ chart.average|money:account.provider.currency }}</span></div>
+<div class="chart tall"><canvas data-chart="acct" data-dual="true" aria-label="Amount and consumption by month"></canvas></div>{{ chart|json_script:"acct" }}</div>
+<div class="card"><h2>Details</h2><dl class="props"><dt>Meter</dt><dd>{{ account.meter_number|default:"—" }}</dd><dt>Description</dt><dd>{{ account.description|default:"—" }}</dd><dt>Tariff</dt><dd>{{ account.tariff|default:"—" }}</dd><dt>Budget line</dt><dd>{{ account.budget_line|default:"—" }}</dd></dl></div></div>
+<div class="card mt"><h2>Recent invoices</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Period</th><th>Consumption</th><th>Due</th><th>Status</th><th class="num">Amount</th></tr></thead><tbody>
+{% for inv in invoices %}<tr><td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a></td><td>{{ inv.period_start|date:"d M" }} – {{ inv.period_end|date:"d M Y" }}</td><td>{{ inv.consumption|floatformat:"-3g"|default:"—" }} {{ inv.consumption_unit }}</td><td>{{ inv.due_date|date:"d M Y" }}</td><td>{% status_badge inv %}</td><td class="num">{{ inv.amount_total|money }}</td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No invoices.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

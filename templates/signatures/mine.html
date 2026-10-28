@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% block title %}My digital signature{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>My digital signature</h1><p>Used to sign approvals and settlement instructions. Your private key is protected by your signing PIN and never leaves the server unencrypted.</p></div>
+<div class="actions"><a class="btn" href="{% url 'signatures:ca' %}">Download CA certificate</a><a class="btn" href="{% url 'signatures:verify' %}">Verify a signed PDF</a></div></div>
+{% if identity %}
+<div class="card"><div class="card-head"><h2>Active certificate</h2>{% if identity.is_locked %}<span class="badge badge-danger">Locked (wrong PIN)</span>{% elif identity.is_usable %}<span class="badge badge-ok">Valid</span>{% else %}<span class="badge badge-danger">Not valid</span>{% endif %}</div>
+<dl class="props"><dt>Subject</dt><dd>{{ identity.subject }}</dd><dt>Issuer</dt><dd>{{ identity.issuer }}</dd><dt>Source</dt><dd>{{ identity.get_source_display }}</dd>
+<dt>Serial</dt><dd class="mono">{{ identity.serial_number }}</dd><dt>SHA-256 fingerprint</dt><dd class="mono">{{ identity.fingerprint_sha256 }}</dd>
+<dt>Valid</dt><dd>{{ identity.not_before|date:"d M Y" }} – {{ identity.not_after|date:"d M Y" }}</dd></dl>
+<form method="post" action="{% url 'signatures:revoke' %}" class="mt" data-confirm="Revoke your certificate? You will need to enrol again before signing.">{% csrf_token %}
+<label for="reason">Revoke (e.g. PIN compromised, leaving post)</label><div class="actions"><input type="text" id="reason" name="reason" placeholder="Reason"><button class="btn btn-danger" type="submit">Revoke</button></div></form></div>
+{% endif %}
+<div class="grid cols-2 mt">
+<div class="card"><h2>{% if identity %}Renew with{% else %}Get{% endif %} an internal certificate</h2>
+<p class="muted">The system's certification authority issues a P-256 certificate in your name.</p>
+<form method="post" novalidate autocomplete="off">{% csrf_token %}<input type="hidden" name="form" value="enroll">{% with form=enroll_form %}{% include "includes/form_errors.html" %}<div class="form-stack">{{ form.as_div }}</div>{% endwith %}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Issue certificate</button></div></form></div>
+<div class="card"><h2>Import a national PKI certificate</h2>
+<p class="muted">Use a certificate issued by your national CA (PKCS#12 file). Its CA must be trusted by the system administrator.</p>
+<form method="post" enctype="multipart/form-data" novalidate autocomplete="off">{% csrf_token %}<input type="hidden" name="form" value="import">{% with form=import_form %}{% include "includes/form_errors.html" %}<div class="form-stack">{{ form.as_div }}</div>{% endwith %}
+<div class="form-actions"><button class="btn" type="submit">Import</button></div></form></div>
+</div>
+{% if history|length > 1 %}<div class="card mt"><h2>Previous certificates</h2><table><thead><tr><th>Serial</th><th>Source</th><th>Created</th><th>Status</th></tr></thead><tbody>
+{% for i in history %}<tr><td class="mono">{{ i.serial_number|slice:":20" }}</td><td>{{ i.get_source_display }}</td><td>{{ i.created_at|date:"d M Y" }}</td><td>{% if i.revoked_at %}Revoked {{ i.revoked_at|date:"d M Y" }}{% elif i.is_active %}Active{% else %}Superseded{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% endblock %}
