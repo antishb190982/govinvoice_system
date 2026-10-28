@@ -70,7 +70,9 @@ class SignatureBoxes(Flowable):
 
 
 def _money(value, currency):
-    return f"{currency} {value:,.3f}"
+    from core.money import fmt
+
+    return fmt(value, currency)
 
 
 def _styles():

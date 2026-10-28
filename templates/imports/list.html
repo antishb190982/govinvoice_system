@@ -1,15 +1,16 @@
 {% extends "base.html" %}{% load gov %}{% block title %}Import invoices{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Import invoices</h1><p>Upload a provider statement (XLSX, XLS, CSV) or a set of PDF invoices. Everything is staged for your review before any invoice is created.</p></div>
+<div class="page-head"><div><h1>Import invoices</h1><p>Upload a provider statement (XLSX, XLS, CSV), or PDF invoices, scans and phone photos. OCR finds the provider, account and amounts; everything is staged for review before any invoice is created.</p></div>
 <div class="actions"><a class="btn" href="{% url 'imports:template' %}">Download CSV template</a></div></div>
 <div class="grid cols-2">
 <div class="card"><h2>Upload</h2><form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
 <div class="form-stack">{{ form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Upload &amp; check</button></div></form></div>
 <div class="card"><h2>How it works</h2><ul>
 <li>Column names such as <em>Account No</em>, <em>Bill No</em>, <em>Due Date</em>, <em>Total Due</em> are recognised automatically. Providers with unusual layouts get an import template.</li>
-<li>PDF text is read to find the invoice number, account, dates and total; each PDF becomes the attached original.</li>
+<li>PDFs, scans and photos are read by OCR (English &amp; French). The analyser locates the provider, account number, dates, net/VAT/total and consumption, with a confidence score and the exact position of each value.</li>
+<li>Account numbers are matched against registered accounts, and net + VAT = total is cross-checked. Uncertain readings must be confirmed by a person, and each confirmation teaches the provider's template.</li>
 <li>Every row is checked: registered account, your unit permissions, duplicates against existing invoices and within the file, date logic.</li>
-<li>Scanned PDFs without a text layer are rejected for manual entry.</li></ul></div>
+</ul></div>
 </div>
 <div class="card mt"><h2>Recent imports</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>File</th><th>Provider</th><th>Uploaded</th><th>Status</th></tr></thead><tbody>
 {% for b in page %}<tr><td><a href="{% url 'imports:batch' b.pk %}">{{ b.pk }}</a></td><td>{{ b.original_name }}</td><td>{{ b.provider|default:"—" }}</td><td>{{ b.created_at|date:"d M Y H:i" }}</td><td>{% status_badge b %}</td></tr>

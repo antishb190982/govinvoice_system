@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% load gov %}{% block title %}OCR templates{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>OCR <span class="accent">templates</span></h1><p>Where each utility provider prints the account, amounts and dates. Templates learn from every confirmed invoice; administrators can also draw zones.</p></div></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Provider</th><th>Status</th><th>Fields with a zone</th><th>Learned from</th><th>Updated</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td><strong>{{ r.provider.name }}</strong><br><small>{{ r.provider.get_utility_type_display }}</small></td>
+<td>{% if r.template and r.template.zones %}{% if r.template.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Off</span>{% endif %}{% else %}<span class="badge badge-neutral">Generic reading</span>{% endif %}</td>
+<td>{% for f in r.fields %}<span class="chip">{{ field_labels|get_item:f }}</span>{% empty %}<span class="muted">—</span>{% endfor %}</td>
+<td>{{ r.template.learned_from|default:0 }} invoice{{ r.template.learned_from|default:0|pluralize }}</td><td>{{ r.template.updated_at|date:"d M Y"|default:"—" }}</td>
+<td class="right">{% if can_edit %}<a class="btn btn-sm" href="{% url 'ocr:template_edit' r.provider.pk %}">Edit zones</a>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% if recent %}<div class="card"><h2>Recently analysed documents</h2><div class="table-wrap"><table><thead><tr><th>Document</th><th>Provider</th><th>Method</th><th>When</th></tr></thead><tbody>
+{% for d in recent %}<tr><td><a href="{% url 'ocr:document' d.pk %}">{{ d.original_name }}</a></td><td>{{ d.provider|default:"not identified" }}</td><td>{% if d.used_ocr %}OCR{% else %}Text layer{% endif %}</td><td>{{ d.created_at|date:"d M H:i" }}</td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+{% endblock %}

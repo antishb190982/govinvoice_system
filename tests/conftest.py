@@ -82,8 +82,8 @@ def people(tree):
 @pytest.fixture
 def provider(db):
     return Provider.objects.create(name="Power Co", short_code="PWR", utility_type=UtilityType.ELECTRICITY,
-                                   bank_iban="OM810180000001299123456", bank_account_name="Power Co Collections",
-                                   bank_bic="BMUSOMRX", currency="OMR")
+                                   bank_iban="MU31MCBL0901000000440011000MUR", bank_account_name="Power Co Collections",
+                                   bank_bic="MCBLMUMU", currency="MUR")
 
 
 @pytest.fixture

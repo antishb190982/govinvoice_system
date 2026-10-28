@@ -56,10 +56,13 @@ INSTALLED_APPS = [
     "signatures",
     "settlements",
     "analytics",
+    "ocr",
+    "integrations",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "integrations.middleware.RuntimeConfigMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "core.middleware.SecurityHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -144,7 +147,7 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Strict"
 CSRF_COOKIE_SAMESITE = "Strict"
 CSRF_COOKIE_HTTPONLY = True
-OTP_ISSUER = env("OTP_ISSUER", "GovBills")
+OTP_ISSUER = env("OTP_ISSUER", "GovBills Mauritius")
 
 # --- Transport security (production) ----------------------------------------
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -164,7 +167,7 @@ if PRODUCTION:
 
 # --- Internationalisation ----------------------------------------------------
 LANGUAGE_CODE = "en-gb"
-TIME_ZONE = env("TIME_ZONE", "Asia/Muscat")
+TIME_ZONE = env("TIME_ZONE", "Indian/Mauritius")
 USE_I18N = True
 USE_TZ = True
 USE_THOUSAND_SEPARATOR = True
@@ -198,9 +201,9 @@ FIELD_ENCRYPTION_KEYS = env_list(
 # --- Signatures --------------------------------------------------------------
 SIGNING_CA_DIR = Path(env("SIGNING_CA_DIR", str(BASE_DIR / "var" / "ca")))
 SIGNING_CA_PASSPHRASE = env("SIGNING_CA_PASSPHRASE", "" if PRODUCTION else "dev-ca-passphrase")
-SIGNING_CA_NAME = env("SIGNING_CA_NAME", "GovBills Internal Signing CA")
-SIGNING_ORGANISATION = env("SIGNING_ORGANISATION", "Government Shared Services")
-SIGNING_COUNTRY = env("SIGNING_COUNTRY", "OM")
+SIGNING_CA_NAME = env("SIGNING_CA_NAME", "GovBills Internal Signing CA (Mauritius)")
+SIGNING_ORGANISATION = env("SIGNING_ORGANISATION", "Government of Mauritius")
+SIGNING_COUNTRY = env("SIGNING_COUNTRY", "MU")
 SIGNING_CERT_DAYS = int(env("SIGNING_CERT_DAYS", "730"))
 SIGNING_PIN_MAX_FAILURES = int(env("SIGNING_PIN_MAX_FAILURES", "5"))
 # Optional RFC 3161 timestamp authority; adds PAdES B-T timestamps when set.
@@ -212,23 +215,34 @@ SIGNING_EXTRA_TRUST_ROOTS = env_list("SIGNING_EXTRA_TRUST_ROOTS", "")
 # TTF with Arabic glyphs for local-language names on generated PDFs.
 PDF_UNICODE_FONT = env("PDF_UNICODE_FONT", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 
+# --- OCR ----------------------------------------------------------------------
+TESSERACT_CMD = env("TESSERACT_CMD", "")
+OCR_LANGUAGES = env("OCR_LANGUAGES", "eng+fra")
+OCR_DPI = int(env("OCR_DPI", "300"))
+# Required fields below this confidence (0-1) must be confirmed by a person.
+OCR_REVIEW_THRESHOLD = float(env("OCR_REVIEW_THRESHOLD", "0.8"))
+# Uploads with more files than this are analysed by the background worker.
+OCR_SYNC_MAX_FILES = int(env("OCR_SYNC_MAX_FILES", "3"))
+
 # --- Business rules ----------------------------------------------------------
-DEFAULT_CURRENCY = env("DEFAULT_CURRENCY", "OMR")
+DEFAULT_CURRENCY = env("DEFAULT_CURRENCY", "MUR")
 # Working week used for SLA clocks; Monday=0 .. Sunday=6.
-WORK_WEEK_DAYS = [int(d) for d in env_list("WORK_WEEK_DAYS", "6,0,1,2,3")]
-WORK_DAY_START_HOUR = int(env("WORK_DAY_START_HOUR", "7"))
-WORK_DAY_END_HOUR = int(env("WORK_DAY_END_HOUR", "15"))
+WORK_WEEK_DAYS = [int(d) for d in env_list("WORK_WEEK_DAYS", "0,1,2,3,4")]
+WORK_DAY_START_HOUR = int(env("WORK_DAY_START_HOUR", "9"))
+WORK_DAY_END_HOUR = int(env("WORK_DAY_END_HOUR", "16"))
 # Approvals must finish this many working days before an invoice falls due,
 # leaving time to issue the settlement instruction and transfer the money.
 SETTLEMENT_LEAD_DAYS = int(env("SETTLEMENT_LEAD_DAYS", "3"))
 DUE_SOON_DAYS = int(env("DUE_SOON_DAYS", "7"))
 ANOMALY_THRESHOLD_PCT = int(env("ANOMALY_THRESHOLD_PCT", "30"))
-PAYER_NAME = env("PAYER_NAME", "Ministry of Finance")
+PAYER_NAME = env("PAYER_NAME", "Treasury – Accountant-General, Ministry of Finance")
 PAYER_IBAN = env("PAYER_IBAN", "")
 PAYER_BIC = env("PAYER_BIC", "")
 
 # --- Email ---------------------------------------------------------------
-EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+# The configurable backend sends through the SMTP settings managed in the admin
+# console, and falls back to the console backend while SMTP is disabled.
+EMAIL_BACKEND = env("EMAIL_BACKEND", "integrations.mail.ConfigurableEmailBackend")
 EMAIL_HOST = env("EMAIL_HOST", "localhost")
 EMAIL_PORT = int(env("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
@@ -237,7 +251,15 @@ EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "govbills@localhost")
 
 ADMIN_URL_PATH = env("ADMIN_URL_PATH", "sysadmin/")
+BRAND_NAME = env("BRAND_NAME", "GovBills")
+BRAND_HIGHLIGHT = env("BRAND_HIGHLIGHT", "Bills")
+BRAND_TAGLINE = env("BRAND_TAGLINE", "Government utility invoice management · Republic of Mauritius")
 SITE_URL = env("SITE_URL", "http://localhost:8000")
+
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+if env("REDIS_URL"):
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": env("REDIS_URL")}}
+API_DEFAULT_RATE_PER_MINUTE = int(env("API_DEFAULT_RATE_PER_MINUTE", "120"))
 
 LOGGING = {
     "version": 1,

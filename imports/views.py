@@ -34,7 +34,8 @@ class UploadForm(forms.Form):
     provider = forms.ModelChoiceField(queryset=Provider.objects.filter(is_active=True), required=False,
                                       empty_label="Detect from the file",
                                       help_text="Choose the provider unless the file has a provider column.")
-    files = MultipleFileField(label="Files", help_text="One spreadsheet (XLSX, XLS, CSV) or up to 100 PDF invoices.")
+    files = MultipleFileField(label="Files", help_text="One spreadsheet (XLSX, XLS, CSV), or up to 100 invoices as PDF "
+                                                       "or scanned images / photos (PNG, JPG, TIFF).")
 
 
 @login_required
@@ -47,12 +48,12 @@ def batch_list(request):
         provider = form.cleaned_data["provider"]
         try:
             names = [f.name.lower() for f in files]
-            if all(n.endswith(".pdf") for n in names):
-                batch = services.stage_pdfs(request.user, files, provider)
+            if all(n.endswith((".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff")) for n in names):
+                batch = services.stage_documents(request.user, files, provider)
             elif len(files) == 1:
                 batch = services.stage_spreadsheet(request.user, files[0], provider)
             else:
-                raise ValidationError("Upload either one spreadsheet or a set of PDFs.")
+                raise ValidationError("Upload either one spreadsheet or a set of PDF / image invoices.")
             return redirect("imports:batch", pk=batch.pk)
         except ValidationError as exc:
             form.add_error("files", exc)
@@ -79,11 +80,17 @@ def batch_detail(request, pk):
     batch = _get_batch(request, pk)
     rows = batch.rows.select_related("invoice")
     counts = {s: rows.filter(status=s).count() for s in ImportRow.Status.values}
+    required = ("provider", "account_number", "invoice_number", "issue_date", "due_date", "amount_total")
+    rows = list(rows.select_related("ocr_document"))
+    for r in rows:
+        values = [r.confidence.get(f) for f in required if r.confidence]
+        r.min_confidence = int(min(v or 0 for v in values) * 100) if values else None
+    review_needed = sum(1 for r in rows if r.needs_review and not r.confirmed_at and r.status == ImportRow.Status.VALID)
     edit_row = None
     if request.GET.get("edit"):
         edit_row = get_object_or_404(ImportRow, batch=batch, pk=request.GET["edit"])
     return render(request, "imports/batch.html", {
-        "batch": batch, "rows": rows, "counts": counts, "edit_row": edit_row,
+        "batch": batch, "rows": rows, "counts": counts, "edit_row": edit_row, "review_needed": review_needed,
         "row_form": RowForm(row=edit_row) if edit_row else None,
     })
 
@@ -132,5 +139,5 @@ def batch_discard(request, pk):
 @login_required
 def template_csv(request):
     return csv_response("invoice-import-template.csv", parsers.FIELDS,
-                        [["100200300", "INV-2026-0001", "2026-10-01", "2026-10-31", "2026-09-01", "2026-09-30",
-                          "100.000", "5.000", "105.000", "1250", "40100", "41350", "OMR", "NAMA-E"]])
+                        [["1100453201", "CEB/2609/0001", "2026-10-01", "2026-10-31", "2026-09-01", "2026-09-30",
+                          "10000.00", "1500.00", "11500.00", "1250", "40100", "41350", "MUR", "CEB"]])

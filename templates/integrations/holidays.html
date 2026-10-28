@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Public holidays{% endblock %}
+{% block content %}{% with heading="Public" accent="holidays" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
+<div class="split"><div class="card"><h2>Holidays</h2><p class="muted"><small>SLA clocks and settlement dates skip these days. Add the moving holidays (Thaipoosam Cavadee, Chinese Spring Festival, Maha Shivaratree, Ougadi, Eid-ul-Fitr, Ganesh Chaturthi, Divali) each year once they are gazetted.</small></p>
+<div class="table-wrap"><table><thead><tr><th>Date</th><th>Holiday</th><th></th></tr></thead><tbody>
+{% for h in holidays %}<tr><td class="nowrap">{{ h.date|date:"D d M Y" }}</td><td>{{ h.name }}</td><td class="right"><form method="post" class="inline-form" data-confirm="Remove this holiday?">{% csrf_token %}<button class="btn btn-sm btn-danger" name="delete" value="{{ h.pk }}" type="submit">Remove</button></form></td></tr>
+{% empty %}<tr><td colspan="3" class="empty">No holidays configured.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2>Add a holiday</h2><form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}<div class="form-stack">{{ form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Add</button></div></form></div></div>
+{% endblock %}

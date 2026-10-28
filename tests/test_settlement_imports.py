@@ -33,7 +33,7 @@ def approved(signers, policy, make_invoice):
 
 def test_settlement_end_to_end(signers, tree, approved):
     p = signers
-    si = settle.create_instruction(p["finance"], tree["moh"], "OMR", timezone.localdate() + timedelta(days=30),
+    si = settle.create_instruction(p["finance"], tree["moh"], "MUR", timezone.localdate() + timedelta(days=30),
                                    [i.pk for i in approved])
     assert si.total_amount == sum(i.amount_total for i in approved)
     assert si.lines.count() == 1 and si.pay_by == min(i.due_date for i in approved)
@@ -53,8 +53,8 @@ def test_settlement_end_to_end(signers, tree, approved):
     xml = settle.pain001(si)
     ns = {"p": "urn:iso:std:iso:20022:tech:xsd:pain.001.001.09"}
     root = ET.fromstring(xml)
-    assert root.find(".//p:GrpHdr/p:CtrlSum", ns).text == "1250.500"
-    assert root.find(".//p:CdtTrfTxInf/p:CdtrAcct/p:Id/p:IBAN", ns).text == "OM810180000001299123456"
+    assert root.find(".//p:GrpHdr/p:CtrlSum", ns).text == "1250.50"
+    assert root.find(".//p:CdtTrfTxInf/p:CdtrAcct/p:Id/p:IBAN", ns).text == "MU31MCBL0901000000440011000MUR"
 
     settle.mark_executed(si, p["finance"], "BANK-REF-1", timezone.localdate())
     assert Invoice.objects.filter(status=Invoice.Status.PAID, payment_reference="BANK-REF-1").count() == 2
@@ -62,16 +62,15 @@ def test_settlement_end_to_end(signers, tree, approved):
 
 def test_tampered_pdf_fails_validation(signers, tree, approved):
     p = signers
-    si = settle.create_instruction(p["finance"], tree["moh"], "OMR", timezone.localdate() + timedelta(days=30),
+    si = settle.create_instruction(p["finance"], tree["moh"], "MUR", timezone.localdate() + timedelta(days=30),
                                    [i.pk for i in approved])
     settle.submit_for_authorisation(si, p["finance"], PIN)
     si.refresh_from_db()
     si.pdf.open("rb")
     data = bytearray(si.pdf.read())
     si.pdf.close()
-    idx = data.find(b"OMR 1,000.000")
-    if idx < 0:
-        idx = len(data) // 3
+    # Flip a byte inside the first content stream, which the signature's byte range covers.
+    idx = data.find(b"stream") + 40
     data[idx] = (data[idx] + 1) % 256
     reports = validate_pdf(bytes(data))
     assert not all(r.get("ok") for r in reports)
@@ -79,7 +78,7 @@ def test_tampered_pdf_fails_validation(signers, tree, approved):
 
 def test_stored_pdf_hash_checked_before_countersigning(signers, tree, approved):
     p = signers
-    si = settle.create_instruction(p["finance"], tree["moh"], "OMR", timezone.localdate() + timedelta(days=30),
+    si = settle.create_instruction(p["finance"], tree["moh"], "MUR", timezone.localdate() + timedelta(days=30),
                                    [i.pk for i in approved])
     settle.submit_for_authorisation(si, p["finance"], PIN)
     SettlementInstruction.objects.filter(pk=si.pk).update(pdf_sha256="0" * 64)
@@ -89,7 +88,7 @@ def test_stored_pdf_hash_checked_before_countersigning(signers, tree, approved):
 
 def test_cancel_releases_invoices(signers, tree, approved):
     p = signers
-    si = settle.create_instruction(p["finance"], tree["moh"], "OMR", timezone.localdate() + timedelta(days=30),
+    si = settle.create_instruction(p["finance"], tree["moh"], "MUR", timezone.localdate() + timedelta(days=30),
                                    [approved[0].pk])
     settle.cancel(si, p["finance"], "test")
     approved[0].refresh_from_db()
@@ -98,7 +97,7 @@ def test_cancel_releases_invoices(signers, tree, approved):
 
 def test_only_finance_in_scope_can_prepare(signers, tree, approved):
     with pytest.raises(PermissionDenied):
-        settle.create_instruction(signers["outsider"], tree["moh"], "OMR", timezone.localdate() + timedelta(days=30),
+        settle.create_instruction(signers["outsider"], tree["moh"], "MUR", timezone.localdate() + timedelta(days=30),
                                   [approved[0].pk])
 
 
@@ -158,7 +157,7 @@ def test_pdf_extraction(people, account):
     today = timezone.localdate()
     lines = ["Power Co", "TAX INVOICE", "Invoice No: PWR-7788", "Account No: ACC-1",
              f"Invoice Date: {(today - timedelta(days=1)):%d/%m/%Y}", "Consumption: 1,234 kWh",
-             "VAT (5%): 12.000", "Total Amount Due: OMR 252.000", f"Due Date: {(today + timedelta(days=30)):%d/%m/%Y}"]
+             "VAT (15%): 12.00", "Total Amount Due: Rs 252.00", f"Due Date: {(today + timedelta(days=30)):%d/%m/%Y}"]
     f = SimpleUploadedFile("bill.pdf", pdf_bytes(lines))
     batch = imports.stage_pdfs(people["clerk"], [f], account.provider)
     row = batch.rows.get()

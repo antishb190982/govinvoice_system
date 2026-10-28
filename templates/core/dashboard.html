@@ -1,16 +1,16 @@
-{% extends "base.html" %}{% load gov %}{% block title %}Dashboard{% endblock %}
+{% extends "base.html" %}{% load gov %}{% block title %}Dashboard{% endblock %}{% block body_class %}hero-tall{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Good day, {{ request.user.full_name|default:request.user.username }}</h1><p>Utility payables across your units · amounts in {{ currency }}</p></div>
+<div class="page-head"><div><h1 class="display">Utility payables, <span class="accent">under control</span></h1><p>Good day, {{ request.user.full_name|default:request.user.username }} · your units · amounts in {{ currency }}</p></div>
 <div class="actions">{% if can.capture %}<a class="btn" href="{% url 'imports:list' %}">Import invoices</a><a class="btn btn-primary" href="{% url 'invoices:create' %}">Record invoice</a>{% endif %}{% if can.settle %}<a class="btn btn-primary" href="{% url 'settlements:new' %}">New settlement instruction</a>{% endif %}</div></div>
 
-<div class="grid cols-4">
+<div class="grid cols-4 hero-tiles">
   <a class="card kpi tone-info" href="{% url 'invoices:list' %}?status=open"><div class="label">Outstanding</div><div class="value">{{ kpi.outstanding.t|money }}</div><div class="sub">{{ kpi.outstanding.n }} unpaid invoice{{ kpi.outstanding.n|pluralize }}</div></a>
   <a class="card kpi tone-warn" href="{% url 'invoices:list' %}?status=open&amp;due_to={{ soon|date:'Y-m-d' }}"><div class="label">Due in {{ DUE_SOON_DAYS|default:7 }} days</div><div class="value">{{ kpi.due_soon.t|money }}</div><div class="sub">{{ kpi.due_soon.n }} invoice{{ kpi.due_soon.n|pluralize }}</div></a>
   <a class="card kpi tone-danger" href="{% url 'invoices:list' %}?status=open&amp;flagged=on"><div class="label">At risk of late payment</div><div class="value">{{ kpi.at_risk.n }}</div><div class="sub">{{ kpi.at_risk.t|money }} · {{ kpi.overdue.n }} already overdue</div></a>
   <a class="card kpi {% if kpi.sla_breaches_open %}tone-danger{% else %}tone-ok{% endif %}" href="{% url 'workflow:sla' %}"><div class="label">Approval SLA (30 days)</div><div class="value">{% if kpi.sla_rate is not None %}{{ kpi.sla_rate }}%{% else %}—{% endif %}</div><div class="sub">{{ kpi.sla_breaches_open }} open breaches</div></a>
 </div>
 
-<div class="split mt">
+<div class="split">
   <div class="stack">
     <div class="card"><div class="card-head"><h2>Unpaid amounts by due week</h2><a href="{% url 'invoices:list' %}?status=open&amp;sort=due_date">All unpaid</a></div>
       <div class="chart short"><canvas data-chart="chart-due" data-stacked="true" data-currency="{{ currency }}" aria-label="Unpaid amounts by due week"></canvas></div>

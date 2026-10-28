@@ -26,6 +26,11 @@ security reviewer can check every claim.
 | CSRF / clickjacking | Django CSRF with SameSite=Strict cookies; state changes require POST; `X-Frame-Options: DENY`, `frame-ancestors 'none'` | settings | `test_security_headers` |
 | CSV / Excel formula injection | Exported cells starting with `= + - @` are prefixed with a quote | `core/utils.py::_safe_cell` | `test_csv_export_neutralises_formulas` |
 | Database or backup leak | IBANs, TOTP secrets and signing keys are encrypted with rotatable Fernet keys (`FIELD_ENCRYPTION_KEYS`) | `core/fields.py` | `test_encrypted_fields_are_not_stored_in_clear` |
+| Stolen or leaked API token | Only a SHA-256 hash is stored and the token is shown once. Each client has scopes, an org-unit restriction, an IP allowlist, an expiry date and a rate limit; tokens can be rotated or revoked, and every call is logged | `integrations/gateway.py`, `integrations/models.py` | `test_api_auth_scope_and_logging`, `test_api_unit_scope`, `test_api_ip_allowlist_expiry_and_rate_limit` |
+| AI assistant over-reach | MCP tools are read-only (no approve, sign or pay) and need the `mcp` scope; foreign browser `Origin` headers are rejected (DNS-rebinding protection) | `integrations/mcp.py` | `test_mcp_protocol_and_tools`, `test_mcp_requires_scope_and_valid_origin` |
+| Leaked integration secrets | SMTP passwords, SMS tokens and the payer IBAN entered in the console are Fernet-encrypted and never displayed again; audit entries list changed keys, not values | `integrations/config.py` | `test_runtime_config_overrides_and_encrypts_secrets` |
+| SMS interception / misuse | The SMS gateway must be HTTPS; messages carry only a title and a link (no amounts or bank data); numbers are masked in logs | `integrations/sms.py` | `test_sms_http_gateway` |
+| OCR mis-reading leading to a wrong payment | Required fields below the confidence threshold must be confirmed by a person; account numbers are matched against registered accounts; net + VAT = total is cross-checked; the normal approval workflow still applies after import | `ocr/extract.py`, `imports/services.py` | `test_low_confidence_requires_confirmation_then_learns_template` |
 | Misconfiguration | Production mode refuses to start without its secrets or with DEBUG on, and turns on HSTS, SSL redirect, secure `__Host-` cookies and hashed static files | `config/settings.py` | `manage.py check --deploy` |
 
 ## Residual risks and recommendations
@@ -37,7 +42,8 @@ security reviewer can check every claim.
    For qualified signatures, integrate a remote signing service or smart cards / USB tokens instead.
 3. **TLS termination and `REMOTE_ADDR`.** Configure the reverse proxy so the client IP reaches gunicorn
    (`--forwarded-allow-ips` set to the proxy address only, not `*`, when it is on another host).
-4. **Admin URL.** Change `ADMIN_URL_PATH` and restrict it at the proxy to the ICT network.
+4. **Admin URL and console.** Change `ADMIN_URL_PATH`. At the proxy, restrict both it and `/console/` to the ICT
+   network. Restrict `/api/` and `/mcp` to the networks of the systems that integrate.
 5. **Monitoring.** Ship logs to the SIEM. Alert on `auth.login_locked`, `signature.pin_failed`,
    `provider.bank_change_*`, `approval.sla_breached` and any `verify_audit_chain` failure.
 6. **Independent testing.** Commission a penetration test and a code review before production use.

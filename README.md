@@ -1,41 +1,58 @@
-# GovBills — Government Utility Invoice Management
+# GovBills — Government Utility Invoice Management (Republic of Mauritius)
 
-GovBills lets ministries and their sub-units record, approve and settle utility invoices (electricity, water, gas,
-telecom, internet, waste, fuel, district cooling) on time. It also shows how each invoice, account, unit and provider
-trends over time.
+GovBills is for ministries and their departments, hospitals, schools and other sites. It handles the bills from
+utility providers such as the Central Electricity Board (CEB), Central Water Authority (CWA), Mauritius Telecom,
+Emtel and the Wastewater Management Authority (WMA). With it, staff can:
 
-Approvals run against SLAs measured in working hours and never extend past the date an invoice must be settled.
-Approvals and payment instructions carry digital signatures. Every action is recorded in a tamper-evident audit trail.
+* **capture** invoices from PDFs, scans, phone photos, Excel/CSV statements or provider APIs, with OCR deciding
+  where on the page each value is printed;
+* **approve** them through SLA-bound, digitally signed workflows that always finish before the due date;
+* **instruct payment** with signed settlement instructions that total the amount owed to each utility, plus ISO 20022
+  bank files;
+* **analyse** spend and consumption trends for every ministry, unit, provider and meter.
 
-## Main capabilities
+It works in Mauritian rupees (MUR, 2 decimals) and the Port Louis time zone. SLA clocks follow a Monday–Friday civil
+service week (09:00–16:00) and skip Mauritian public holidays. Bank accounts use MU IBANs, OCR reads English and French
+invoices, and the look follows the agreed template: a royal-blue gradient, a floating pill navigation bar, Poppins
+type and glass KPI tiles.
+
+## Architecture
+
+```
+            Browser (staff)                Other systems / AI assistants
+                  │  HTTPS, session + TOTP 2FA        │  HTTPS, Bearer token
+          ┌───────▼────────────────────────────────────▼────────┐
+          │                Django application                    │
+          │  UI · workflow · OCR · signatures · settlements      │
+          │  ┌──────────────── Integration gateway ───────────┐  │
+          │  │ REST API /api/v1 · MCP /mcp · SMTP · SMS       │  │
+          │  └────────────────────────────────────────────────┘  │
+          │  Admin console /console (settings, health, logs)    │
+          └──────┬───────────────┬──────────────┬───────────────┘
+                 │               │              │
+        PostgreSQL (backend   /data volume    Redis (shared cache,
+        database: all records, (documents,    API rate limits)
+        audit chain, config,   signed PDFs,
+        integration logs)      OCR previews, CA)
+                 ▲
+     scheduler worker (SLA, alerts) · OCR worker (large uploads)
+```
+
+## Capabilities
 
 | Area | What it does |
 |---|---|
-| **Organisation** | Unlimited tree: government → ministry/authority → directorate → department → site. A role granted on a unit applies to everything beneath it, and nothing sideways or upwards. Delegations can have an expiry date. |
-| **Providers & accounts** | Provider master data with bank details encrypted at rest. Changing bank details needs **dual control**: one administrator requests the change, a different one approves it, and IBAN checksums are validated. Service accounts (meters) are owned by units. |
-| **Invoice intake** | Manual entry, **Excel (XLSX/XLS) and CSV statements** with automatic column recognition or per-provider templates, and **PDF invoices** with text extraction. Imports go to a review screen where you can fix, skip or commit rows. Each invoice keeps the original document and its SHA-256 hash. |
-| **Integrity checks** | Duplicate provider invoice numbers are blocked. The system also flags: possible duplicates (same account, period and amount), the same file reused, net + tax ≠ total, meter readings that don't add up, overlapping billing periods, amount or consumption spikes against the account's recent history, invoices arriving too late for the normal SLA, and overdue invoices. |
-| **Approval workflow** | Configurable policies by unit, utility and amount band, each with ordered steps (role, SLA in working hours, signature required, extra steps from a threshold amount). Each step's SLA deadline is capped at the invoice's *must-approve-by* time (due date minus `SETTLEMENT_LEAD_DAYS` working days). Late invoices are expedited automatically. Steps can be returned for correction or disputed with the provider, then resubmitted as a new round. |
-| **SLA control** | Reminders go out at 75% of the time used. On breach, the step is flagged and escalated: the escalation role (for example the unit administrator) is notified and may decide the step itself. The SLA monitor and dashboard show compliance. Working week, hours and public holidays are configurable. |
-| **Segregation of duties** | Enforced in the engine, not only the UI. Whoever records or submits an invoice cannot approve it, nobody decides two steps of the same approval round, and the preparer of a settlement instruction cannot authorise it. |
-| **Digital signatures** | Each user has an X.509 signing certificate, issued by the built-in CA or **imported from the national PKI** as PKCS#12. The key is encrypted with the user's signing PIN and again with the server key. Repeated wrong PINs lock signing. Approval decisions are signed over the invoice figures and document hash, and any later change shows up as an invalid signature. Settlement PDFs carry **PAdES** signatures from the preparer and the authoriser (visible stamps, and B-T timestamps when a TSA is configured). A verification page checks any signed PDF. |
-| **Settlement instructions** | Collects approved invoices due by a cut-off date, totals them **per utility provider**, sets the pay-by date (earliest due date) and the requested execution date (one working day earlier). It produces a signed PDF, an **ISO 20022 pain.001.001.09** file and a CSV. Marking an instruction executed records the bank reference and pays the invoices. Finance is alerted about approved invoices close to their due date that aren't in an instruction yet. |
-| **Trend analysis** | Monthly spend by utility, consumption indexed per utility, spend by unit (drill down by choosing a unit), year-on-year comparison, next-month projection with seasonality, top providers and costliest accounts, approval SLA by step, payment timeliness and anomaly lists. Every account has a 24-month chart, and the data exports to CSV. |
-| **Security** | Mandatory TOTP two-factor login with single-use recovery codes and replay protection. Account lockout and IP throttling, Argon2 password hashing, a strong password policy and forced change of temporary passwords. 15-minute idle timeout and 8-hour session limit. Strict CSP with no inline scripts or styles, plus HSTS, secure SameSite=Strict cookies, `no-store` caching and clickjacking protection. Uploads are checked by content, files are served only through permission checks, and CSV exports are protected against formula injection. The audit log is **hash-chained**. |
-
-## Roles
-
-| Role | Typical holder | Can |
-|---|---|---|
-| Viewer | Managers | See invoices, dashboards and trends in their units |
-| Invoice clerk | Accounts staff | Record and import invoices, submit and resubmit them |
-| Verifier | Facilities / engineering | Check consumption and account details (first step) |
-| Approver | Budget holders | Approve, with a digital signature |
-| Finance officer | Finance | Prepare and sign settlement instructions, export payment files |
-| Payment authoriser | Head of finance | Counter-sign and authorise instructions |
-| Unit administrator | Ministry admin | Manage sub-units, service accounts and users. The escalation target for SLA breaches |
-| Auditor | Internal audit | Read-only access, audit-trail viewing and chain verification |
-| System administrator | ICT | Configuration (policies, holidays, import templates) |
+| **Organisation** | Government → ministry → directorate/department → site. A role on a unit applies to everything beneath it, and delegations can expire. The demo includes the Prime Minister's Office, Ministry of Health and Wellness, Ministry of Education and Human Resource and Ministry of Finance, with real hospitals and school zones. |
+| **OCR & document intelligence** | Born-digital PDFs are read from their text layer; scans and photos (PNG/JPG/TIFF/scanned PDF) go through Tesseract (English + French). Pages are rotated to the right orientation, deskewed, denoised and contrast-corrected first. The analyser **identifies the provider** (header name, aliases, tax number, IBAN, registered account numbers) and then **locates each field**: account, invoice number, dates, billing period, net/VAT/total, consumption and meter readings. It uses English/French labels (value to the right of or below the label), the provider's zone template, and the account registry. Cross-checks (net + VAT = total, readings = consumption, plausible payment terms) adjust confidence. The review screen draws a box around every value on the page image with its confidence. Required fields under the threshold must be **confirmed by a person** before import. Each confirmation **teaches the provider's template**, with zones anchored to the nearby printed label so shifted scans still line up. Admins can also draw zones in the template editor. |
+| **Invoice intake** | Manual entry, Excel/CSV with column recognition, OCR documents, and the provider e-invoicing API. Every invoice keeps its original document and SHA-256 hash. Duplicates are blocked, and the system flags anomalies: spikes against the account's history, total mismatches, wrong readings, overlapping periods, reused documents and late arrivals. |
+| **Approval workflow** | Policies are set by unit, utility and amount band, with steps defining the role, the SLA in working hours, whether a signature is required, and value thresholds (for example, a senior approval above Rs 500,000). Each step's deadline is capped at *must-approve-by*, which is the due date minus the settlement lead days. Late invoices are expedited. Reminders go out at 75% of the time used; on breach the step is escalated and the escalation role may decide it. Steps can be returned or disputed and then resubmitted as a new round. |
+| **Segregation of duties** | Enforced in the workflow engine itself. Whoever records or submits an invoice can't approve it, nobody decides two steps of the same round, and the preparer of a settlement can't authorise it. Changing a provider's bank details needs two administrators. |
+| **Digital signatures** | X.509 identities come from the internal CA or are imported from national PKI PKCS#12 files. The key is protected by a PIN and by server encryption, with a PIN lockout. Approval decisions are signed over the invoice figures and document hash. Settlement PDFs carry PAdES signatures from preparer and authoriser (B-T with a timestamp authority). A verification page checks any signed PDF. |
+| **Settlement** | Approved invoices are totalled **per utility provider**. The pay-by date is the earliest due date and execution is requested one working day earlier. The output is a signed PDF, an ISO 20022 pain.001.001.09 file and a CSV. Recording execution marks the invoices paid. |
+| **Analytics** | Monthly spend by utility, a consumption index, spend by unit with drill-down, year-on-year comparison, a seasonal projection, top providers and accounts, SLA by step, payment timeliness, anomalies and 24-month account histories, with CSV export. |
+| **Integration gateway** | **REST API** `/api/v1`: invoices (read and submit), dues, providers, settlements and analytics, with an OpenAPI description. **MCP server** `/mcp`: JSON-RPC over HTTP (Streamable HTTP, protocol 2025-06-18) with read-only tools (search_invoices, get_invoice, upcoming_dues, sla_breaches, spend_summary, list_settlements), so AI assistants can answer questions but never approve, sign or pay. Clients get hashed bearer tokens shown only once, scopes, an organisation-unit restriction, an IP allowlist, a per-minute rate limit, an expiry date and a full request log. **SMTP**: e-mail through the configured relay (STARTTLS/SSL) with a delivery log. **SMS**: a generic HTTPS/JSON gateway (local operators) or Twilio. Critical alerts (SLA breaches, payment deadlines) go to users' mobiles, and numbers are masked in logs. |
+| **Admin console** `/console` | **System health:** database engine, version, size, connections and pending migrations, document storage and disk, scheduler heartbeat, OCR engine, languages and queue, signing-CA expiry, audit-chain verification, and integration traffic and errors. **Settings:** business rules, working calendar, payer account, OCR, security limits and branding, stored in the database and applied to every server process within seconds. Secrets are encrypted and never shown again. **Also:** SMTP and SMS setup with test sends, API/MCP client management, integration logs, public holidays, and a link to low-level data administration. |
+| **Security** | Mandatory TOTP two-factor login with recovery codes and replay protection. Lockout, Argon2 hashing, a strong password policy, idle timeout and session limits. Strict CSP with no inline script or style (fonts are self-hosted), HSTS and `__Host-` cookies. Uploads are checked by content and documents are served only after permission checks. Bank details, TOTP secrets, signing keys and console secrets are encrypted. The audit log is hash-chained. |
 
 ## Quick start (development)
 
@@ -45,6 +62,12 @@ python3 -m venv .venv
 
 ```bash
 .venv/bin/pip install -r requirements-dev.txt
+```
+
+OCR needs Tesseract with English and French language data. On Debian/Ubuntu:
+
+```bash
+sudo apt-get install tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra
 ```
 
 ```bash
@@ -59,102 +82,108 @@ python3 -m venv .venv
 .venv/bin/python manage.py runserver
 ```
 
-Open http://localhost:8000. Demo users (password `Demo-Passw0rd-2026!`, signing PIN `Sign-2026!`) share the TOTP
-secret `JBSWY3DPEHPK3PXP`. Add it to an authenticator app as a manual key. Each demo user has a different job:
+Open http://localhost:8000. Every demo user has the password `Demo-Passw0rd-2026!` and the signing PIN `Sign-2026!`.
+They all share the TOTP secret `JBSWY3DPEHPK3PXP`; add it to an authenticator app as a manual key.
 
-* `h.clerk` records and imports invoices for the Ministry of Health (MOH).
-* `s.verifier` is the first approval step for MOH.
-* `m.approver` signs approvals for MOH.
-* `k.director` is the MOH senior approver and unit administrator.
-* `f.finance` prepares settlement instructions for MOH and the Ministry of Education (MOE).
-* `a.authoriser` authorises them.
-* `e.clerk`, `e.verifier` and `e.approver` play the same roles for MOE and the Ministry of Interior (MOI).
-* `g.admin` is the government-level administrator, `auditor` has audit access, and `sysadmin` is the system administrator.
+| User | Role |
+|---|---|
+| `sysadmin` | System administrator (admin console) |
+| `h.clerk` | Accounts officer, Ministry of Health and Wellness (has a staged OCR batch to review) |
+| `s.verifier` / `m.approver` / `k.director` | Health verification, budget-holder and senior approval |
+| `f.finance` / `a.authoriser` | Prepares / authorises settlement instructions (Health, Education) |
+| `e.clerk` / `e.verifier` / `e.approver` | Same roles for Education and the Prime Minister's Office |
+| `g.admin` | Government-level administrator; `auditor` has read-only audit access |
 
-Run the tests:
+The seed also prints a demo API/MCP token. Try it:
+
+```bash
+curl -H "Authorization: Bearer <token>" http://localhost:8000/api/v1/dues?days=30
+```
+
+```bash
+curl -H "Authorization: Bearer <token>" -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' http://localhost:8000/mcp
+```
+
+Run the tests (96 tests; the OCR tests need Tesseract):
 
 ```bash
 .venv/bin/pytest
 ```
 
-The SLA reminders, escalations and due-date alerts come from one scheduled command. Run it every 5–15 minutes, from
-cron, a systemd timer or the `scheduler` container:
-
-```bash
-python manage.py run_scheduler
-```
-
 ## Production deployment
 
-1. Copy the environment template and set every secret in `.env`:
+1. Copy the environment template, then set the secrets in `.env`. The app refuses to start without
+   `DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEYS` and `SIGNING_CA_PASSPHRASE`.
 
    ```bash
    cp .env.example .env
    ```
 
-   The app refuses to start in production without `DJANGO_SECRET_KEY`, `FIELD_ENCRYPTION_KEYS` and
-   `SIGNING_CA_PASSPHRASE`.
-2. Start the stack (PostgreSQL, the web app and the scheduler worker):
+2. Start the stack. This runs **PostgreSQL** (the backend database), the web app, the **scheduler**, the **OCR
+   worker** and **Redis**.
 
    ```bash
    docker compose up -d --build
    ```
 
-3. Terminate TLS in front of port 8000 (the agency load balancer or nginx). Set `DJANGO_ALLOWED_HOSTS`,
-   `DJANGO_CSRF_TRUSTED_ORIGINS` and `SITE_URL` to the public HTTPS name.
+3. Terminate TLS in front of port 8000 and set `DJANGO_ALLOWED_HOSTS`, `DJANGO_CSRF_TRUSTED_ORIGINS` and `SITE_URL`.
 4. Create the first system administrator:
 
    ```bash
    docker compose exec web python manage.py createsuperuser
    ```
 
-   Then sign in, enrol two-factor login and build the unit tree, roles, providers and service accounts. The approval
-   policy, holidays and import templates are configured under *System configuration*.
-5. Back up the PostgreSQL database **and** the `/data` volume, which holds uploaded documents, signed PDFs and the CA.
-   Keep `.env` in your secrets vault: without `FIELD_ENCRYPTION_KEYS`, bank details and signing keys cannot be decrypted.
+5. Sign in, enrol two-factor login, then open **Security → Admin console**:
+   * configure SMTP and SMS and send test messages;
+   * set the payer account, working calendar and holidays;
+   * create API/MCP clients.
+
+   Then build the unit tree, roles, providers (with bank details under dual control) and service accounts.
+6. Back up PostgreSQL (`pg_dump`) **and** the `/data` volume. Keep `.env` in the secrets vault: without
+   `FIELD_ENCRYPTION_KEYS`, encrypted data can't be read.
 
 ### Operations
 
-* `python manage.py verify_audit_chain` exits non-zero if any audit entry was altered or removed. Schedule it and
-  alert on failure.
-* To rotate the field-encryption key, prepend a new key to `FIELD_ENCRYPTION_KEYS`. Old keys still decrypt existing
-  data.
-* To use the national PKI, add its root to `SIGNING_EXTRA_TRUST_ROOTS` and have staff import their PKCS#12
-  certificates. Set `SIGNING_TSA_URL` to get trusted timestamps on PDFs.
-* Read [docs/SECURITY.md](docs/SECURITY.md) before go-live.
+* `python manage.py verify_audit_chain` exits non-zero if any audit entry was altered or removed. Schedule it.
+* `python manage.py run_scheduler --loop 300` handles SLA reminders and escalation, due-date alerts, overdue flags and
+  the OCR queue fallback. The console shows its heartbeat.
+* `python manage.py ocr_worker --loop 5` analyses uploads with more than `OCR_SYNC_MAX_FILES` files in the background.
+* To rotate the field-encryption key, prepend a new key to `FIELD_ENCRYPTION_KEYS`.
+* To use the national PKI, add its root to `SIGNING_EXTRA_TRUST_ROOTS`; set `SIGNING_TSA_URL` for trusted timestamps.
+* Add each year's moving public holidays (Thaipoosam Cavadee, Chinese Spring Festival, Maha Shivaratree, Ougadi,
+  Eid-ul-Fitr, Ganesh Chaturthi, Divali) in **Console → Holidays** once they are gazetted.
 
 ## Project layout
 
 ```
-config/       settings (all from environment), URLs
-core/         audit chain, encryption, working-time calendar, notifications, upload checks, dashboard
-accounts/     users, two-factor login, lockout, idle timeout, user administration
-org/          organisation tree, roles, row-level access rules (org/access.py)
-providers/    providers, service accounts, dual-control bank changes
-invoices/     invoice model, intake rules and anomaly detection (invoices/services.py)
-imports/      spreadsheet/PDF parsers and staged import review
-workflow/     approval policies, engine (workflow/engine.py), SLA sweep, scheduler command
-signatures/   internal CA, signing identities, detached and PAdES signatures, verification
-settlements/  instructions, PDF rendering, ISO 20022 export
-analytics/    trend queries and analysis page
-tests/        68 tests covering security controls, workflow rules, signatures, settlement and imports
+config/        settings (environment), URLs
+core/          audit chain, encryption, money/currency precision, working-time calendar, notifications, dashboard
+accounts/      users, TOTP 2FA, lockout, idle timeout, user administration
+org/           government structure, roles, row-level access (org/access.py)
+providers/     utility providers, service accounts/meters, dual-control bank changes
+invoices/      invoice model, intake rules, anomaly detection
+imports/       spreadsheet parsing, staged review, OCR document intake, confirmation gate
+ocr/           engine (Tesseract / text layer, clean-up), field analysis (extract.py), templates & learning, review UI
+workflow/      approval policies and engine, SLA sweep, scheduler
+signatures/    internal CA, signing identities, detached and PAdES signatures, verification
+settlements/   instructions, PDF, ISO 20022 export
+analytics/     trend queries and analysis page
+integrations/  runtime config, REST API, MCP server, SMTP backend, SMS gateway, admin console
+tests/         96 tests: security, workflow, signatures, settlement, imports, OCR, gateway, console
 ```
 
-## Relationship to InvoiceShelf
+## Notes
 
-This system was assessed against InvoiceShelf 3.x. That codebase is an alpha-stage invoicing tool for small
-businesses, built on PHP 8.4 / Laravel 13 under the AGPL-3.0 licence. It has no approval workflow, SLA handling,
-signatures, ministry hierarchy or import pipeline. Its useful concepts (supplier bills, payment allocation, due-date
-sweeps, per-company scoping) were reimplemented here for the government accounts-payable setting. **No InvoiceShelf
-code is included**, so its AGPL obligations do not apply to this codebase.
-
-## Known limitations / next steps
-
-* **Scanned (image-only) PDFs** are rejected for manual entry. Add OCR (e.g. Tesseract) if providers send scans.
-* **Single sign-on** (SAML/OIDC against the government identity provider) is not included. TOTP two-factor login is
-  built in.
-* **E-mail is sent synchronously after commit.** For high volume, move it to a task queue.
-* **Provider e-invoicing API intake** (UBL / provider portals) is designed for but not implemented: invoices have a
-  `source = api` value ready for it.
-* **Before production:** have the code independently penetration-tested and the internal CA procedures reviewed
-  against national PKI policy.
+* **Data to confirm with the government.** The demo ministries, sites, providers and VAT treatment (electricity,
+  water and wastewater at 0%, telecom at 15%) are seed data. Check them against the current Government Gazette and
+  each provider's actual billing before go-live; all of them can be edited in the app.
+* **Branding.** It uses the product name *GovBills* (`BRAND_NAME` / `BRAND_HIGHLIGHT`) and follows the reference
+  template's colours and layout, but deliberately doesn't copy another organisation's logo. Set your own name in the
+  console.
+* **Relationship to InvoiceShelf.** This system was assessed against InvoiceShelf 3.x (alpha, AGPL-3.0, PHP 8.4). No
+  InvoiceShelf code is included; its concepts were reimplemented for the government accounts-payable setting.
+* **Not included:**
+  * single sign-on (SAML/OIDC) with the government identity provider;
+  * handwriting recognition;
+  * write actions over MCP (excluded by design).
+* **Before production:** have the system independently penetration-tested and the CA procedures reviewed.

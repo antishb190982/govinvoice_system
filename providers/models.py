@@ -34,6 +34,8 @@ class Provider(models.Model):
     short_code = models.CharField(max_length=20, unique=True)
     utility_type = models.CharField(max_length=20, choices=UtilityType.choices)
     tax_number = models.CharField(max_length=60, blank=True)
+    identifiers = models.TextField(blank=True, help_text="Other names printed on its invoices (one per line, any "
+                                                          "language), used to recognise scanned invoices")
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=40, blank=True)
     # Payment details are encrypted at rest and every change is audited.
@@ -42,7 +44,7 @@ class Provider(models.Model):
     bank_iban = EncryptedTextField(blank=True)
     bank_account_name = models.CharField(max_length=140, blank=True)
     payment_terms_days = models.PositiveSmallIntegerField(default=30)
-    currency = models.CharField(max_length=3, default="OMR")
+    currency = models.CharField(max_length=3, default="MUR")
     is_active = models.BooleanField(default=True)
 
     class Meta:

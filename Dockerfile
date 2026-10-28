@@ -4,6 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 GOVBILLS_ENV=production \
     PRIVATE_STORAGE_ROOT=/data/private SIGNING_CA_DIR=/data/ca
 
 RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core \
+    tesseract-ocr tesseract-ocr-eng tesseract-ocr-fra \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 govbills \
     && mkdir -p /data/private /data/ca && chown -R govbills /data

@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% load gov %}{% block title %}API &amp; MCP clients{% endblock %}
+{% block content %}{% with heading="Integration" accent="gateway" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
+{% if token %}<div class="callout ok"><strong>Copy this token now – it will not be shown again</strong><code class="secret">{{ token }}</code></div>{% endif %}
+<div class="grid cols-2">
+<div class="card"><h2>Endpoints</h2><dl class="props">
+<dt>REST API</dt><dd class="mono">{{ base_url }}/api/v1/</dd><dt>OpenAPI</dt><dd><a class="mono" href="{% url 'api:openapi' %}">{{ base_url }}/api/v1/openapi.json</a></dd>
+<dt>MCP server</dt><dd class="mono">{{ base_url }}/mcp</dd><dt>Authentication</dt><dd><code>Authorization: Bearer gbk_…</code></dd></dl>
+<p class="muted mt"><small>The MCP server speaks JSON-RPC over HTTP (protocol 2025-06-18) and offers read-only tools: search_invoices, get_invoice, upcoming_dues, sla_breaches, spend_summary, list_settlements. AI assistants can answer questions but never approve, sign or pay.</small></p>
+<p class="muted"><small>Every client is limited to its scopes and organisation unit, its IP allow-list and its rate limit; every call is logged.</small></p></div>
+<div class="card"><h2>New client</h2><form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
+<div class="form-grid">{% for f in form %}<div class="{% if f.name in 'scopes allowed_ips description' %}wide{% endif %}">{{ f.label_tag }}{{ f }}<span class="helptext">{{ f.help_text }}</span>{{ f.errors }}</div>{% endfor %}</div>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Create &amp; issue token</button></div></form></div></div>
+<div class="card mt"><h2>Clients</h2><div class="table-wrap"><table><thead><tr><th>Client</th><th>Scopes</th><th>Unit</th><th>Limits</th><th>Last used</th><th>Status</th><th></th></tr></thead><tbody>
+{% for c in clients %}<tr class="{% if not c.is_usable %}row-muted{% endif %}"><td><strong>{{ c.name }}</strong><br><small class="mono">gbk_{{ c.token_id }}_…</small><br><small>{{ c.description }}</small></td>
+<td>{% for s in c.scopes %}<span class="chip">{{ s }}</span>{% endfor %}</td><td>{{ c.org_unit.code|default:"All" }}</td>
+<td><small>{{ c.rate_limit_per_minute }}/min{% if c.allowed_ips %} · IP-restricted{% endif %}{% if c.expires_at %}<br>expires {{ c.expires_at|date:"d M Y" }}{% endif %}</small></td>
+<td><small>{{ c.last_used_at|date:"d M H:i"|default:"never" }}{% if c.calls %} · {{ c.calls }} today{% endif %}</small></td>
+<td>{% if c.is_usable %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Revoked/expired</span>{% endif %}</td>
+<td class="right nowrap"><form method="post" action="{% url 'console:api_action' c.pk 'rotate' %}" class="inline-form" data-confirm="Issue a new token? The old one stops working immediately.">{% csrf_token %}<button class="btn btn-sm" type="submit">Rotate</button></form>
+{% if c.is_usable %}<form method="post" action="{% url 'console:api_action' c.pk 'revoke' %}" class="inline-form" data-confirm="Revoke this client?">{% csrf_token %}<button class="btn btn-sm btn-danger" type="submit">Revoke</button></form>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No clients yet.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

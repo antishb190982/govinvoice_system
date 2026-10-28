@@ -269,6 +269,6 @@ def default_policy_steps():
         {"name": "Verification of consumption & account", "role": Role.VERIFIER, "sla_hours": 8},
         {"name": "Budget holder approval", "role": Role.APPROVER, "sla_hours": 16, "requires_signature": True},
         {"name": "Senior approval (high value)", "role": Role.APPROVER, "sla_hours": 16,
-         "requires_signature": True, "min_amount": 5000, "escalation_role": Role.UNIT_ADMIN},
+         "requires_signature": True, "min_amount": 500000, "escalation_role": Role.UNIT_ADMIN},
     ]
 

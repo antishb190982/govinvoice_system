@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Document analysis{% endblock %}
+{% block head %}<script src="{% static 'js/ocr.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="page-head"><div>
+  <div class="crumbs">{% if row %}<a href="{% url 'imports:batch' row.batch_id %}">Import #{{ row.batch_id }}</a> / {% endif %}Document analysis</div>
+  <h1>{{ doc.original_name }}</h1>
+  <p>{{ doc.page_count }} page{{ doc.page_count|pluralize }} · {% if doc.used_ocr %}scanned – read by OCR{% else %}digital PDF – text layer{% endif %} · {{ doc.processing_ms }} ms · {{ doc.engine }}</p>
+</div>
+<div class="actions">
+  <form method="post" action="{% url 'ocr:reanalyse' doc.pk %}" class="inline-form">{% csrf_token %}<button class="btn" type="submit">{% icon "spark" %} Analyse again</button></form>
+  {% if can_edit_template %}<a class="btn" href="{% url 'ocr:template_edit' doc.provider_id %}?doc={{ doc.pk }}">Edit {{ doc.provider.short_code }} template</a>{% endif %}
+</div></div>
+
+{% if warnings %}<div class="callout warn"><strong>Check before importing</strong>{% for w in warnings %}<span class="chip">{{ w }}</span>{% endfor %}</div>{% endif %}
+
+<div class="ocr-layout">
+  <div class="card"><div class="card-head"><h2>Where each value was found</h2><span class="muted">Blue = confident · amber = check · red = uncertain · dashed = label</span></div>
+    {% for page in pages %}<p class="muted"><small>Page {{ page.index|add:1 }} · {% if page.method == 'ocr' %}OCR, mean word confidence {{ page.mean_conf }}%{% if page.rotation %}, rotated {{ page.rotation }}°{% endif %}{% if page.skew %}, deskewed {{ page.skew }}°{% endif %}{% else %}text layer{% endif %}</small></p>
+    {% include "ocr/_page.html" %}{% endfor %}
+  </div>
+  <div class="stack">
+    <div class="card"><div class="card-head"><h2>Extracted fields</h2><span class="muted">select to locate</span></div>
+      <ul class="field-list" id="field-list">
+      {% for f in fields %}<li data-field="{{ f.field }}" tabindex="0">
+        <span><span class="fname">{{ f.label }}</span><br><span class="fval">{{ f.value|default:"— not found" }}</span></span>
+        {% if f.confidence is not None %}<span class="conf {{ f.tone }}">{{ f.pct }}%</span>{% else %}<span class="conf low">—</span>{% endif %}
+        {% if f.source %}<span class="fsrc">{{ f.source }} · {{ f.evidence }}{% if f.raw and f.raw != f.value %} · read “{{ f.raw }}”{% endif %}</span>{% endif %}
+      </li>{% endfor %}</ul>
+    </div>
+    {% if can_confirm %}<div class="card"><h2>Confirm values</h2>
+      <p class="muted"><small>Compare with the document, correct anything wrong, then confirm. Confirmed positions train this provider's template so the next invoice is read more reliably.</small></p>
+      <form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
+        <div class="form-grid">{% for f in form %}{% if f.name != "learn" %}<div>{{ f.label_tag }}{{ f }}</div>{% endif %}{% endfor %}</div>
+        <div class="mt">{{ form.learn }} {{ form.learn.label_tag }}</div>
+        {% if row.errors %}<ul class="errorlist">{% for e in row.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        <div class="form-actions"><a class="btn" href="{% url 'imports:batch' row.batch_id %}">Back</a><button class="btn btn-primary" type="submit">{% icon "check" %} Confirm</button></div>
+      </form></div>
+    {% elif row %}<div class="card"><p class="muted">Row {{ row.row_number }} of import #{{ row.batch_id }} · {{ row.get_status_display }}{% if row.confirmed_by %} · confirmed by {{ row.confirmed_by }}{% endif %}.</p></div>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -179,7 +179,7 @@ def test_encrypted_fields_are_not_stored_in_clear(provider):
     with connection.cursor() as cur:
         cur.execute("SELECT bank_iban FROM providers_provider WHERE id = %s", [provider.pk])
         raw = cur.fetchone()[0]
-    assert raw.startswith("enc:") and "OM81" not in raw
+    assert raw.startswith("enc:") and provider.bank_iban not in raw
 
 
 # --- Working time --------------------------------------------------------------------

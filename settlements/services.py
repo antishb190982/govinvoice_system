@@ -2,7 +2,6 @@ import hashlib
 import uuid
 from collections import defaultdict
 from datetime import timedelta
-from decimal import Decimal
 from xml.etree import ElementTree as ET
 
 from django.conf import settings
@@ -243,8 +242,10 @@ def mark_executed(instruction, user, bank_reference, value_date):
 
 # --- Bank file ------------------------------------------------------------------
 
-def _amount(value):
-    return f"{Decimal(value).quantize(Decimal('0.001'))}"
+def _amount(value, currency):
+    from core.money import quantize
+
+    return f"{quantize(value, currency)}"
 
 
 def pain001(instruction):
@@ -265,14 +266,14 @@ def pain001(instruction):
     el(hdr, "MsgId", f"{instruction.reference}-{uuid.uuid4().hex[:8]}"[:35])
     el(hdr, "CreDtTm", timezone.localtime().replace(microsecond=0).isoformat())
     el(hdr, "NbOfTxs", len(lines))
-    el(hdr, "CtrlSum", _amount(instruction.total_amount))
+    el(hdr, "CtrlSum", _amount(instruction.total_amount, instruction.currency))
     el(el(hdr, "InitgPty"), "Nm", instruction.payer_name[:140])
 
     pmt = el(cst, "PmtInf")
     el(pmt, "PmtInfId", instruction.reference)
     el(pmt, "PmtMtd", "TRF")
     el(pmt, "NbOfTxs", len(lines))
-    el(pmt, "CtrlSum", _amount(instruction.total_amount))
+    el(pmt, "CtrlSum", _amount(instruction.total_amount, instruction.currency))
     el(el(pmt, "ReqdExctnDt"), "Dt", instruction.requested_execution_date.isoformat())
     el(el(pmt, "Dbtr"), "Nm", instruction.payer_name[:140])
     el(el(el(pmt, "DbtrAcct"), "Id"), "IBAN", (instruction.payer_iban or "").replace(" ", ""))
@@ -283,7 +284,7 @@ def pain001(instruction):
     for line in lines:
         tx = el(pmt, "CdtTrfTxInf")
         el(el(tx, "PmtId"), "EndToEndId", line.end_to_end_id)
-        amt = el(el(tx, "Amt"), "InstdAmt", _amount(line.amount))
+        amt = el(el(tx, "Amt"), "InstdAmt", _amount(line.amount, instruction.currency))
         amt.set("Ccy", instruction.currency)
         if line.beneficiary_bic:
             el(el(el(tx, "CdtrAgt"), "FinInstnId"), "BICFI", line.beneficiary_bic)

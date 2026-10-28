@@ -1,0 +1,8 @@
+{# One page preview with highlight boxes (SVG attributes only: CSP-safe). #}{% load l10n %}{% localize off %}
+<div class="ocr-page" data-page="{{ page.index }}">
+  <svg viewBox="0 0 {{ page.width }} {{ page.height }}" class="{% if editor %}ocr-canvas{% endif %}" data-width="{{ page.width }}" data-height="{{ page.height }}" data-page="{{ page.index }}" role="img" aria-label="Page {{ page.index|add:1 }}">
+    <image href="{% url 'ocr:preview' doc.pk page.index %}" x="0" y="0" width="{{ page.width }}" height="{{ page.height }}"/>
+    {% for r in page.rects %}<rect class="zone {{ r.tone }}" data-field="{{ r.field }}" x="{{ r.x }}" y="{{ r.y }}" width="{{ r.w }}" height="{{ r.h }}" rx="4"><title>{{ r.tag }}</title></rect>
+    {% if r.tag %}<text class="zone-tag" x="{{ r.x }}" y="{{ r.ty }}">{{ r.tag }}</text>{% endif %}{% endfor %}
+  </svg>
+</div>{% endlocalize %}

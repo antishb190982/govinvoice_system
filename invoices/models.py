@@ -26,6 +26,7 @@ class Invoice(models.Model):
         MANUAL = "manual", "Manual entry"
         SPREADSHEET = "spreadsheet", "Spreadsheet import"
         PDF = "pdf", "PDF extraction"
+        OCR = "ocr", "Scanned document (OCR)"
         API = "api", "API"
 
     EDITABLE = {Status.DRAFT, Status.RETURNED}
@@ -44,7 +45,7 @@ class Invoice(models.Model):
     period_start = models.DateField(null=True, blank=True)
     period_end = models.DateField(null=True, blank=True)
     due_date = models.DateField(db_index=True)
-    currency = models.CharField(max_length=3, default="OMR")
+    currency = models.CharField(max_length=3, blank=True, help_text="Defaults to the provider's currency")
     amount_net = models.DecimalField(**MONEY, default=Decimal("0"))
     amount_tax = models.DecimalField(**MONEY, default=Decimal("0"))
     amount_total = models.DecimalField(**MONEY)
@@ -68,6 +69,8 @@ class Invoice(models.Model):
     paid_at = models.DateField(null=True, blank=True)
     payment_reference = models.CharField(max_length=80, blank=True)
 
+    ocr_document = models.ForeignKey("ocr.OcrDocument", null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name="invoices")
     import_batch = models.ForeignKey("imports.ImportBatch", null=True, blank=True, on_delete=models.SET_NULL,
                                      related_name="invoices")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")

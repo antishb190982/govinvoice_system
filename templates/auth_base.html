@@ -1,21 +1,31 @@
-{% load static %}<!doctype html>
+{% load static gov %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>{% block title %}Sign in{% endblock %} · GovBills</title>
+  <title>{% block title %}Sign in{% endblock %} · {{ BRAND_NAME }}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
-<body>
+<body class="auth-page">
+<div class="hero-bg full" aria-hidden="true"><span class="orbit orbit-1"></span><span class="orbit orbit-2"></span></div>
 <div class="auth">
+  <div class="auth-intro">
+    <h1 class="display">Utility invoices, <span class="accent">settled on time</span></h1>
+    <p>Capture, approve, sign and pay every ministry's electricity, water and telecom bills before they fall due.</p>
+    <div class="glass-row">
+      <div class="glass"><strong>OCR</strong><span>scans read automatically</span></div>
+      <div class="glass"><strong>SLA</strong><span>approvals before due date</span></div>
+      <div class="glass"><strong>PAdES</strong><span>digitally signed payments</span></div>
+    </div>
+  </div>
   <div class="auth-card">
-    <div class="brand"><span class="brand-mark">GB</span><span>GovBills<small>Government utility invoice management</small></span></div>
     <div class="card">
+      <div class="auth-brand">{% brand_mark %}</div>
       {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
       {% block content %}{% endblock %}
     </div>
-    <p class="muted mt"><small>Authorised use only. Activity is recorded in a tamper-evident audit trail.</small></p>
+    <p class="auth-note">Authorised use only · {{ BRAND_TAGLINE }}</p>
   </div>
 </div>
 </body>

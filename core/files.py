@@ -14,6 +14,7 @@ SIGNATURES = {
     "xls": [b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"],
     "png": [b"\x89PNG\r\n\x1a\n"],
     "jpg": [b"\xff\xd8\xff"],
+    "tif": [b"II*\x00", b"MM\x00*"],
 }
 CONTENT_TYPES = {
     "pdf": "application/pdf",
@@ -22,6 +23,7 @@ CONTENT_TYPES = {
     "csv": "text/csv",
     "png": "image/png",
     "jpg": "image/jpeg",
+    "tif": "image/tiff",
 }
 
 

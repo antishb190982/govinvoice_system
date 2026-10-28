@@ -1,56 +1,75 @@
-{% load static %}<!doctype html>
+{% load static gov %}<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>{% block title %}GovBills{% endblock %} · GovBills</title>
+  <title>{% block title %}{{ BRAND_NAME }}{% endblock %} · {{ BRAND_NAME }}</title>
+  <link rel="preload" href="{% static 'fonts/poppins-latin-500-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
+  {% block head %}{% endblock %}
 </head>
-<body data-idle-minutes="{{ IDLE_TIMEOUT_MINUTES }}">
+<body class="{% block body_class %}{% endblock %}" data-idle-minutes="{{ IDLE_TIMEOUT_MINUTES }}">
 {% with app=request.resolver_match.app_name url=request.resolver_match.url_name %}
-<div class="shell">
-  <aside class="sidebar" aria-label="Main navigation">
-    <div class="brand"><span class="brand-mark">GB</span><span>GovBills<small>Utility invoice management</small></span></div>
-    <nav class="nav">
-      <a href="{% url 'core:dashboard' %}" class="{% if app == 'core' and url == 'dashboard' or not app %}active{% endif %}">Dashboard</a>
-      {% if can.approve %}<a href="{% url 'workflow:inbox' %}" class="{% if app == 'workflow' and url in 'inbox,task' %}active{% endif %}">My approvals {% if pending_approvals %}<span class="count">{{ pending_approvals }}</span>{% endif %}</a>{% endif %}
-      <div class="nav-section">Invoices</div>
-      <a href="{% url 'invoices:list' %}?status=open" class="{% if app == 'invoices' %}active{% endif %}">Invoices</a>
-      {% if can.capture %}<a href="{% url 'imports:list' %}" class="{% if app == 'imports' %}active{% endif %}">Import PDF / Excel</a>{% endif %}
-      <a href="{% url 'workflow:sla' %}" class="{% if app == 'workflow' and url == 'sla' %}active{% endif %}">SLA monitor</a>
-      <div class="nav-section">Settlement</div>
-      <a href="{% url 'settlements:list' %}" class="{% if app == 'settlements' %}active{% endif %}">Settlement instructions</a>
-      <a href="{% url 'analytics' %}" class="{% if url == 'analytics' %}active{% endif %}">Trends &amp; analysis</a>
-      <div class="nav-section">Reference</div>
-      <a href="{% url 'providers:list' %}" class="{% if app == 'providers' %}active{% endif %}">Providers &amp; accounts</a>
-      <a href="{% url 'org:tree' %}" class="{% if app == 'org' %}active{% endif %}">Ministries &amp; units</a>
-      <a href="{% url 'workflow:policies' %}" class="{% if app == 'workflow' and url == 'policies' %}active{% endif %}">Approval policies</a>
-      <div class="nav-section">Security</div>
-      <a href="{% url 'signatures:mine' %}" class="{% if app == 'signatures' and url == 'mine' %}active{% endif %}">My digital signature</a>
-      <a href="{% url 'signatures:verify' %}" class="{% if app == 'signatures' and url == 'verify' %}active{% endif %}">Verify a signed PDF</a>
-      {% if can.admin %}<a href="{% url 'accounts:user_list' %}" class="{% if app == 'accounts' and url|slice:':4' == 'user' %}active{% endif %}">Users &amp; roles</a>{% endif %}
-      {% if can.audit %}<a href="{% url 'core:audit' %}" class="{% if url == 'audit' %}active{% endif %}">Audit trail</a>{% endif %}
-      {% if can.sysadmin %}<a href="{% url 'admin:index' %}">System configuration</a>{% endif %}
-    </nav>
-  </aside>
-  <div class="main">
-    <header class="topbar">
-      <button class="btn btn-ghost menu-toggle" type="button" aria-expanded="false" aria-label="Open menu">☰</button>
-      {% if ENVIRONMENT != "production" %}<span class="env-badge">{{ ENVIRONMENT }}</span>{% endif %}
-      <span class="spacer"></span>
-      <a class="bell" href="{% url 'core:notifications' %}" aria-label="Notifications">🔔{% if unread_notifications %}<span class="dot">{{ unread_notifications }}</span>{% endif %}</a>
-      <a class="user-chip" href="{% url 'accounts:profile' %}"><span class="avatar">{{ request.user.full_name|slice:":1"|upper }}</span><span class="name">{{ request.user.full_name }}</span></a>
-      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn btn-sm" type="submit">Sign out</button></form>
-    </header>
-    <main class="content" id="content">
-      {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
-      {% block content %}{% endblock %}
-    </main>
-  </div>
-</div>
+<div class="hero-bg" aria-hidden="true"><span class="orbit orbit-1"></span><span class="orbit orbit-2"></span></div>
+<header class="topnav-wrap">
+  <nav class="topnav" aria-label="Main navigation">
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menus" aria-label="Menu">{% icon "menu" 22 %}</button>
+    <div class="nav-menus" id="nav-menus">
+      <a class="nav-link {% if app == 'core' and url == 'dashboard' or not app %}active{% endif %}" href="{% url 'core:dashboard' %}">Dashboard</a>
+      <details class="menu {% if app == 'invoices' or app == 'imports' or app == 'ocr' %}active{% endif %}">
+        <summary>Invoices {% icon "chevron" 14 %}</summary>
+        <div class="menu-panel">
+          <a href="{% url 'invoices:list' %}?status=open">{% icon "file" %}<span>All invoices<small>Search, filter, export</small></span></a>
+          {% if can.capture %}<a href="{% url 'imports:list' %}">{% icon "scan" %}<span>Scan &amp; import<small>PDF, photos, Excel, CSV</small></span></a>
+          <a href="{% url 'invoices:create' %}">{% icon "file" %}<span>Record manually<small>Type in a single invoice</small></span></a>{% endif %}
+          <a href="{% url 'ocr:templates' %}">{% icon "spark" %}<span>OCR templates<small>Where each provider prints its fields</small></span></a>
+        </div>
+      </details>
+      {% if can.approve %}<a class="nav-link {% if app == 'workflow' and url == 'inbox' or url == 'task' %}active{% endif %}" href="{% url 'workflow:inbox' %}">Approvals{% if pending_approvals %} <span class="count">{{ pending_approvals }}</span>{% endif %}</a>{% endif %}
+      <details class="menu {% if app == 'settlements' or url == 'analytics' or url == 'sla' %}active{% endif %}">
+        <summary>Payments {% icon "chevron" 14 %}</summary>
+        <div class="menu-panel">
+          <a href="{% url 'settlements:list' %}">{% icon "bank" %}<span>Settlement instructions<small>Totals to pay each utility</small></span></a>
+          <a href="{% url 'workflow:sla' %}">{% icon "clock" %}<span>SLA monitor<small>Open approval steps</small></span></a>
+          <a href="{% url 'analytics' %}">{% icon "chart" %}<span>Trends &amp; analysis<small>Spend, consumption, performance</small></span></a>
+        </div>
+      </details>
+      <details class="menu {% if app == 'providers' or app == 'org' or url == 'policies' %}active{% endif %}">
+        <summary>Reference {% icon "chevron" 14 %}</summary>
+        <div class="menu-panel">
+          <a href="{% url 'providers:list' %}">{% icon "building" %}<span>Providers &amp; accounts<small>CEB, CWA, telecoms…</small></span></a>
+          <a href="{% url 'org:tree' %}">{% icon "home" %}<span>Ministries &amp; units<small>Government structure</small></span></a>
+          <a href="{% url 'workflow:policies' %}">{% icon "check" %}<span>Approval policies<small>Steps, roles and SLAs</small></span></a>
+        </div>
+      </details>
+      <details class="menu {% if app == 'signatures' or app == 'accounts' and url != 'profile' or url == 'audit' %}active{% endif %}">
+        <summary>Security {% icon "chevron" 14 %}</summary>
+        <div class="menu-panel">
+          <a href="{% url 'signatures:mine' %}">{% icon "key" %}<span>My digital signature<small>Certificate and PIN</small></span></a>
+          <a href="{% url 'signatures:verify' %}">{% icon "shield" %}<span>Verify a signed PDF<small>Check PAdES signatures</small></span></a>
+          {% if can.admin %}<a href="{% url 'accounts:user_list' %}">{% icon "user" %}<span>Users &amp; roles<small>Access by unit</small></span></a>{% endif %}
+          {% if can.audit %}<a href="{% url 'core:audit' %}">{% icon "file" %}<span>Audit trail<small>Tamper-evident log</small></span></a>{% endif %}
+          {% if can.sysadmin %}<a href="{% url 'console:overview' %}">{% icon "settings" %}<span>Admin console<small>Settings, integrations, health</small></span></a>{% endif %}
+        </div>
+      </details>
+    </div>
+    <a class="brand" href="{% url 'core:dashboard' %}" aria-label="{{ BRAND_NAME }} home">{% brand_mark %}</a>
+    <div class="nav-right">
+      <a class="nav-icon" href="{% url 'core:notifications' %}" aria-label="Notifications">{% icon "bell" 20 %}{% if unread_notifications %}<span class="dot">{{ unread_notifications }}</span>{% endif %}</a>
+      <a class="nav-user" href="{% url 'accounts:profile' %}">{% icon "user" 18 %}<span class="name">{{ request.user.full_name }}</span></a>
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="nav-icon" type="submit" aria-label="Sign out" title="Sign out">{% icon "logout" 20 %}</button></form>
+    </div>
+  </nav>
+</header>
+<main class="content" id="content">
+  {% if ENVIRONMENT != "production" %}<span class="env-badge">{{ ENVIRONMENT }} environment</span>{% endif %}
+  {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="footer"><span>{{ BRAND_TAGLINE }}</span><span>Activity is recorded in a tamper-evident audit trail.</span></footer>
 <div class="callout warn idle-warning hidden" id="idle-warning" role="alert">
   <strong>You will be signed out soon</strong>
   For security, idle sessions end after {{ IDLE_TIMEOUT_MINUTES }} minutes.

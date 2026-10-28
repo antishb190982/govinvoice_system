@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}Integration logs{% endblock %}
+{% block content %}{% with heading="Integration" accent="logs" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
+<div class="card"><div class="tabs"><a href="?kind=api" class="{% if kind == 'api' %}active{% endif %}">API &amp; MCP calls</a><a href="?kind=messages" class="{% if kind == 'messages' %}active{% endif %}">E-mail &amp; SMS</a></div>
+<div class="table-wrap"><table>
+{% if kind == 'messages' %}<thead><tr><th>Time</th><th>Channel</th><th>Recipient</th><th>Subject</th><th>Status</th><th>Detail</th></tr></thead><tbody>
+{% for m in page %}<tr><td class="nowrap">{{ m.created_at|date:"d M H:i:s" }}</td><td>{{ m.get_channel_display }}</td><td>{{ m.recipient }}</td><td>{{ m.subject|truncatechars:50 }}</td>
+<td><span class="badge badge-{% if m.status == 'sent' %}ok{% elif m.status == 'failed' %}danger{% else %}neutral{% endif %}">{{ m.get_status_display }}</span></td><td><small>{{ m.error|default:m.provider_reference|truncatechars:90 }}</small></td></tr>
+{% empty %}<tr><td colspan="6" class="empty">Nothing yet.</td></tr>{% endfor %}
+{% else %}<thead><tr><th>Time</th><th>Client</th><th>Channel</th><th>Request</th><th>Status</th><th class="num">ms</th><th>IP</th></tr></thead><tbody>
+{% for r in page %}<tr><td class="nowrap">{{ r.created_at|date:"d M H:i:s" }}</td><td>{{ r.client|default:"(unauthenticated)" }}</td><td>{{ r.channel|upper }}</td><td><code>{{ r.method }} {{ r.path|truncatechars:60 }}</code><br><small>{{ r.operation }}</small></td>
+<td><span class="badge badge-{% if r.status < 400 %}ok{% elif r.status < 500 %}warn{% else %}danger{% endif %}">{{ r.status }}</span></td><td class="num">{{ r.duration_ms }}</td><td><small>{{ r.ip_address|default:"" }}</small></td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No calls yet.</td></tr>{% endfor %}{% endif %}
+</tbody></table></div>{% include "includes/pagination.html" %}</div>
+{% endblock %}

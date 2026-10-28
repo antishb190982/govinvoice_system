@@ -20,10 +20,25 @@ def notify(users, title, body="", link="", level=Notification.Level.INFO, dedupe
         except IntegrityError:
             continue
         sent += 1
+        url = settings.SITE_URL.rstrip("/") + link if link else ""
         if email and user.email:
-            url = settings.SITE_URL.rstrip("/") + link if link else ""
             transaction.on_commit(lambda u=user, t=title, b=f"{body}\n\n{url}".strip(): _send(u, t, b))
+        if user.phone:
+            from integrations import sms
+
+            if sms.wanted(level):
+                text = f"{settings.BRAND_NAME}: {title}. {url}".strip()
+                transaction.on_commit(lambda n=user.phone, x=text, t=title: _send_sms(n, x, t))
     return sent
+
+
+def _send_sms(number, text, title):
+    from integrations import sms
+
+    try:
+        sms.send(number, text, subject=title)
+    except Exception:
+        log.exception("SMS delivery failed")
 
 
 def _send(user, title, body):

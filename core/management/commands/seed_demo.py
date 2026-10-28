@@ -33,79 +33,105 @@ DEMO_PASSWORD = "Demo-Passw0rd-2026!"
 DEMO_PIN = "Sign-2026!"
 DEMO_TOTP = "JBSWY3DPEHPK3PXP"  # shared demo secret; real users enrol their own
 
+def mu_iban(bank, branch, account):
+    """Build a checksum-valid 30-character Mauritian IBAN: MUkk + bank(4) + 2+2 digits + account(12) + 000 + MUR."""
+    bban = f"{bank}{branch:0>4}{account:0>12}000MUR"
+    digits = "".join(str(int(c, 36)) for c in bban + "MU00")
+    return f"MU{98 - int(digits) % 97:02d}{bban}"
+
+
 UNITS = [
-    ("GOV", None, "government", "Government of the Sultanate (demo)", ""),
-    ("MOH", "GOV", "ministry", "Ministry of Health", "وزارة الصحة"),
-    ("MOH-HOS", "MOH", "directorate", "Directorate General of Hospitals", ""),
-    ("MOH-HOS-RH", "MOH-HOS", "site", "Central Referral Hospital", ""),
-    ("MOH-HOS-NH", "MOH-HOS", "site", "North District Hospital", ""),
-    ("MOH-PHC", "MOH", "directorate", "Primary Health Care", ""),
-    ("MOE", "GOV", "ministry", "Ministry of Education", "وزارة التربية والتعليم"),
-    ("MOE-MCT", "MOE", "directorate", "Capital Region Schools", ""),
-    ("MOE-DHO", "MOE", "directorate", "Southern Region Schools", ""),
-    ("MOI", "GOV", "ministry", "Ministry of Interior", "وزارة الداخلية"),
-    ("MOI-HQ", "MOI", "department", "Headquarters Facilities", ""),
+    ("GOM", None, "government", "Government of Mauritius", "Gouvernement de Maurice"),
+    ("PMO", "GOM", "ministry", "Prime Minister's Office", "Bureau du Premier ministre"),
+    ("PMO-HQ", "PMO", "department", "PMO Headquarters, Port Louis", ""),
+    ("MOHW", "GOM", "ministry", "Ministry of Health and Wellness", "Ministère de la Santé et du Bien-être"),
+    ("MOHW-HOS", "MOHW", "directorate", "Regional Hospitals", ""),
+    ("MOHW-HOS-JEE", "MOHW-HOS", "site", "Dr A. G. Jeetoo Hospital, Port Louis", ""),
+    ("MOHW-HOS-SSRN", "MOHW-HOS", "site", "Sir Seewoosagur Ramgoolam National Hospital, Pamplemousses", ""),
+    ("MOHW-PHC", "MOHW", "directorate", "Area Health Centres & Community Health", ""),
+    ("MOE", "GOM", "ministry", "Ministry of Education and Human Resource", "Ministère de l'Éducation"),
+    ("MOE-Z1", "MOE", "directorate", "Zone 1 – Port Louis schools", ""),
+    ("MOE-Z4", "MOE", "directorate", "Zone 4 – Curepipe & Plaines Wilhems schools", ""),
+    ("MOF", "GOM", "ministry", "Ministry of Finance", "Ministère des Finances"),
+    ("MOF-TRY", "MOF", "department", "Treasury – Accountant-General", ""),
 ]
 
+# name, code, utility, IBAN, beneficiary, BIC, VAT rate. Demo bank details are fictitious.
 PROVIDERS = [
-    ("National Electricity Distribution Co.", "NEDC", UtilityType.ELECTRICITY, "OM810180000001299123456", "NEDC Collections", "BMUSOMRX"),
-    ("Capital Water & Wastewater Services", "CWWS", UtilityType.WATER, "OM280270000002010000789", "CWWS Revenue Account", "NBOMOMRX"),
-    ("TeleNet Communications", "TNC", UtilityType.TELECOM, "OM590130000006543210987", "TeleNet Receivables", "BDOFOMRX"),
-    ("FibreLink Data", "FLD", UtilityType.INTERNET, "OM830180000001288877766", "FibreLink Billing", "BMUSOMRX"),
-    ("Metro Waste Management", "MWM", UtilityType.WASTE, "OM170330000004455667788", "MWM Collections", "OABBOMRX"),
+    ("Central Electricity Board", "CEB", UtilityType.ELECTRICITY, mu_iban("MCBL", "0901", "000440011"),
+     "Central Electricity Board – Collections", "MCBLMUMU", Decimal("0")),
+    ("Central Water Authority", "CWA", UtilityType.WATER, mu_iban("MCBL", "0901", "000551023"),
+     "Central Water Authority – Revenue", "MCBLMUMU", Decimal("0")),
+    ("Mauritius Telecom", "MT", UtilityType.TELECOM, mu_iban("MCBL", "0901", "000662034"),
+     "Mauritius Telecom Ltd", "MCBLMUMU", Decimal("0.15")),
+    ("Emtel Ltd", "EMTEL", UtilityType.INTERNET, mu_iban("MCBL", "0901", "000773045"),
+     "Emtel Ltd – Business Billing", "MCBLMUMU", Decimal("0.15")),
+    ("Wastewater Management Authority", "WMA", UtilityType.WASTE, mu_iban("MCBL", "0901", "000884056"),
+     "Wastewater Management Authority", "MCBLMUMU", Decimal("0")),
 ]
+PROVIDER_ALIASES = {"CEB": "CEB\nCentral Electricity Board (Mauritius)", "CWA": "CWA\nCentral Water Authority",
+                    "MT": "Mauritius Telecom Ltd\nmy.t", "EMTEL": "Emtel\nEmtel Business",
+                    "WMA": "WMA\nWastewater Management Authority (Mauritius)"}
 
-# unit code, provider code, account, premises, base monthly amount, base consumption
+# unit, provider, account, premises, base monthly amount (Rs), base consumption
 ACCOUNTS = [
-    ("MOH-HOS-RH", "NEDC", "100200301", "Main tower", 18500, 410000),
-    ("MOH-HOS-RH", "NEDC", "100200302", "Outpatient block", 6200, 138000),
-    ("MOH-HOS-RH", "CWWS", "W-778201", "Hospital campus", 3900, 21000),
-    ("MOH-HOS-RH", "TNC", "TN-55001", "Switchboard & mobiles", 1450, 52000),
-    ("MOH-HOS-RH", "FLD", "FL-90011", "Campus fibre 1 Gbps", 980, 42000),
-    ("MOH-HOS-RH", "MWM", "MW-3301", "Clinical & general waste", 2100, 38),
-    ("MOH-HOS-NH", "NEDC", "100355870", "Hospital building", 7600, 168000),
-    ("MOH-HOS-NH", "CWWS", "W-779455", "Hospital building", 1650, 8800),
-    ("MOH-HOS-NH", "TNC", "TN-55102", "Telephony", 520, 18000),
-    ("MOH-PHC", "NEDC", "100410012", "Health centres cluster A", 3100, 69000),
-    ("MOH-PHC", "NEDC", "100410013", "Health centres cluster B", 2800, 62000),
-    ("MOH-PHC", "CWWS", "W-780120", "Health centres", 640, 3400),
-    ("MOH-PHC", "FLD", "FL-90200", "Clinic connectivity", 760, 15000),
-    ("MOE-MCT", "NEDC", "200110450", "Schools – Capital zone 1", 9800, 215000),
-    ("MOE-MCT", "NEDC", "200110451", "Schools – Capital zone 2", 8700, 192000),
-    ("MOE-MCT", "CWWS", "W-801001", "Schools – Capital", 2300, 12500),
-    ("MOE-MCT", "FLD", "FL-91000", "Schools broadband", 1900, 88000),
-    ("MOE-DHO", "NEDC", "200540010", "Schools – Southern", 7100, 158000),
-    ("MOE-DHO", "CWWS", "W-805300", "Schools – Southern", 1200, 6700),
-    ("MOE-DHO", "MWM", "MW-4410", "Schools waste", 650, 12),
-    ("MOI-HQ", "NEDC", "300900001", "HQ complex", 11200, 247000),
-    ("MOI-HQ", "CWWS", "W-900100", "HQ complex", 1400, 7600),
-    ("MOI-HQ", "TNC", "TN-60001", "HQ telephony & mobiles", 2600, 91000),
-    ("MOI-HQ", "FLD", "FL-95000", "HQ data centre links", 2200, 120000),
+    ("MOHW-HOS-JEE", "CEB", "1100453201", "Main hospital block", 2150000, 410000),
+    ("MOHW-HOS-JEE", "CEB", "1100453202", "Outpatient & cardiac centre", 720000, 138000),
+    ("MOHW-HOS-JEE", "CWA", "80023117", "Hospital campus", 460000, 21000),
+    ("MOHW-HOS-JEE", "MT", "2087001", "Switchboard & mobiles", 170000, 52000),
+    ("MOHW-HOS-JEE", "EMTEL", "EB-554120", "Campus fibre 1 Gbps", 115000, 42000),
+    ("MOHW-HOS-JEE", "WMA", "WMA-30011", "Sewerage – hospital campus", 245000, 38),
+    ("MOHW-HOS-SSRN", "CEB", "1100678870", "Hospital building", 1880000, 360000),
+    ("MOHW-HOS-SSRN", "CWA", "80044552", "Hospital building", 390000, 18800),
+    ("MOHW-HOS-SSRN", "MT", "2087210", "Telephony", 61000, 18000),
+    ("MOHW-PHC", "CEB", "1100810012", "Area health centres – North", 365000, 69000),
+    ("MOHW-PHC", "CEB", "1100810013", "Area health centres – South", 330000, 62000),
+    ("MOHW-PHC", "CWA", "80051200", "Area health centres", 75000, 3400),
+    ("MOHW-PHC", "EMTEL", "EB-554300", "Clinic connectivity", 89000, 15000),
+    ("MOE-Z1", "CEB", "1200110450", "Secondary schools – Port Louis", 1150000, 215000),
+    ("MOE-Z1", "CEB", "1200110451", "Primary schools – Port Louis", 1020000, 192000),
+    ("MOE-Z1", "CWA", "80110010", "Schools – Port Louis", 270000, 12500),
+    ("MOE-Z1", "EMTEL", "EB-561000", "Schools broadband", 225000, 88000),
+    ("MOE-Z4", "CEB", "1200540010", "Schools – Curepipe", 835000, 158000),
+    ("MOE-Z4", "CWA", "80150300", "Schools – Curepipe", 141000, 6700),
+    ("MOE-Z4", "WMA", "WMA-44100", "Sewerage – schools", 76000, 12),
+    ("PMO-HQ", "CEB", "1300900001", "Government House & New Treasury Building", 1310000, 247000),
+    ("PMO-HQ", "CWA", "80900100", "Government House", 165000, 7600),
+    ("PMO-HQ", "MT", "2080001", "PMO telephony & mobiles", 305000, 91000),
+    ("PMO-HQ", "EMTEL", "EB-590000", "Data centre links", 258000, 120000),
 ]
 
 USERS = [
-    # username, full name, title, [(role, unit)]
-    ("sysadmin", "System Administrator", "ICT Security", [], True),
-    ("h.clerk", "Huda Al-Balushi", "Accounts Clerk", [(Role.CLERK, "MOH")], False),
-    ("s.verifier", "Salim Al-Harthy", "Facilities Engineer", [(Role.VERIFIER, "MOH")], False),
-    ("m.approver", "Maryam Al-Lawati", "Budget Holder, Hospitals", [(Role.APPROVER, "MOH")], False),
-    ("k.director", "Khalid Al-Rawahi", "Director of Finance", [(Role.APPROVER, "MOH"), (Role.UNIT_ADMIN, "MOH")], False),
-    ("f.finance", "Fatma Al-Siyabi", "Finance Officer", [(Role.FINANCE, "MOH"), (Role.FINANCE, "MOE")], False),
-    ("a.authoriser", "Ahmed Al-Kindi", "Payments Authoriser", [(Role.AUTHORISER, "MOH"), (Role.AUTHORISER, "MOE")], False),
-    ("e.clerk", "Aisha Al-Maskari", "Accounts Clerk", [(Role.CLERK, "MOE"), (Role.CLERK, "MOI")], False),
-    ("e.verifier", "Yousuf Al-Hinai", "Facilities Officer", [(Role.VERIFIER, "MOE"), (Role.VERIFIER, "MOI")], False),
-    ("e.approver", "Noor Al-Busaidi", "Budget Holder", [(Role.APPROVER, "MOE"), (Role.APPROVER, "MOI")], False),
-    ("g.admin", "Said Al-Mamari", "Shared Services Administrator", [(Role.UNIT_ADMIN, "GOV")], False),
-    ("auditor", "Rashid Al-Farsi", "Internal Auditor", [(Role.AUDITOR, "GOV")], False),
+    # username, full name, title, [(role, unit)], superuser
+    ("sysadmin", "System Administrator", "Government Online Centre", [], True),
+    ("h.clerk", "Priya Ramdhany", "Accounts Officer", [(Role.CLERK, "MOHW")], False),
+    ("s.verifier", "Jean-Marc Lagesse", "Hospital Engineer", [(Role.VERIFIER, "MOHW")], False),
+    ("m.approver", "Anjali Seetaram", "Hospital Administrator", [(Role.APPROVER, "MOHW")], False),
+    ("k.director", "Vikash Doorgakant", "Deputy Permanent Secretary", [(Role.APPROVER, "MOHW"), (Role.UNIT_ADMIN, "MOHW")], False),
+    ("f.finance", "Marie-Claire Lebon", "Manager, Financial Operations", [(Role.FINANCE, "MOHW"), (Role.FINANCE, "MOE")], False),
+    ("a.authoriser", "Rajesh Sookun", "Principal Financial Operations Officer", [(Role.AUTHORISER, "MOHW"), (Role.AUTHORISER, "MOE")], False),
+    ("e.clerk", "Nadia Peerbux", "Accounts Officer", [(Role.CLERK, "MOE"), (Role.CLERK, "PMO")], False),
+    ("e.verifier", "Kevin Ah-Kee", "Works Inspector", [(Role.VERIFIER, "MOE"), (Role.VERIFIER, "PMO")], False),
+    ("e.approver", "Sandeep Bhoyroo", "Assistant Permanent Secretary", [(Role.APPROVER, "MOE"), (Role.APPROVER, "PMO")], False),
+    ("g.admin", "Fabrice Perrine", "Shared Services Administrator", [(Role.UNIT_ADMIN, "GOM")], False),
+    ("auditor", "Ashvin Gungadin", "Internal Control Officer", [(Role.AUDITOR, "GOM")], False),
+]
+
+HOLIDAYS = [  # fixed-date public holidays; add the lunar-calendar ones each year (Cavadee, Divali, Eid…)
+    (date(2026, 1, 1), "New Year"), (date(2026, 1, 2), "New Year"), (date(2026, 2, 1), "Abolition of Slavery"),
+    (date(2026, 3, 12), "Independence and Republic Day"), (date(2026, 5, 1), "Labour Day"),
+    (date(2026, 8, 15), "Assumption of the Blessed Virgin Mary"),
+    (date(2026, 11, 2), "Arrival of Indentured Labourers"), (date(2026, 12, 25), "Christmas"),
+    (date(2027, 1, 1), "New Year"), (date(2027, 1, 2), "New Year"),
 ]
 
 
 def seasonal(utility, month):
-    """Hot summers drive electricity and water demand."""
-    if utility in (UtilityType.ELECTRICITY,):
-        return 1 + 0.45 * math.sin((month - 3) / 12 * 2 * math.pi)
+    """Southern-hemisphere summer (Dec–Mar) drives air-conditioning and water demand."""
+    if utility == UtilityType.ELECTRICITY:
+        return 1 + 0.28 * math.cos((month - 2) / 12 * 2 * math.pi)
     if utility == UtilityType.WATER:
-        return 1 + 0.18 * math.sin((month - 3) / 12 * 2 * math.pi)
+        return 1 + 0.15 * math.cos((month - 2) / 12 * 2 * math.pi)
     return 1.0
 
 
@@ -118,8 +144,8 @@ def invoice_pdf(provider, account, number, issue, due, start, end, net, tax, tot
     lines = [
         "TAX INVOICE", f"Invoice No: {number}", f"Account No: {account.account_number}",
         f"Invoice Date: {issue:%d/%m/%Y}", f"Period: {start:%d/%m/%Y} to {end:%d/%m/%Y}",
-        f"Consumption: {consumption} {unit}", f"Amount before tax: {net:,.3f}", f"VAT (5%): {tax:,.3f}",
-        f"Total Amount Due: OMR {total:,.3f}", f"Due Date: {due:%d/%m/%Y}",
+        f"Consumption: {consumption} {unit}", f"Amount before tax: {net:,.2f}", f"VAT: {tax:,.2f}",
+        f"Total Amount Due: Rs {total:,.2f}", f"Due Date: {due:%d/%m/%Y}",
         "Premises: " + account.premises,
     ]
     y = 750
@@ -145,17 +171,18 @@ class Command(BaseCommand):
             raise CommandError("Data already present. Use --force on an empty database only.")
         random.seed(2026)
         settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
-        call_command("setup_govbills", name=UNITS[0][3], code="GOV")
+        call_command("setup_govbills", name=UNITS[0][3], code="GOM")
         with transaction.atomic():
             units = self._units()
             providers = self._providers()
             users = self._users(units)
             accounts = self._accounts(units, providers)
-            for d, name in [(date(2026, 11, 18), "National Day"), (date(2026, 11, 19), "National Day"),
-                            (date(2027, 1, 1), "New Year")]:
+            for d, name in HOLIDAYS:
                 Holiday.objects.get_or_create(date=d, defaults={"name": name})
         self._history(accounts, users, months)
         self._live(accounts, users)
+        self._scans(users)
+        self._integrations(users)
         self.stdout.write(self.style.SUCCESS(
             f"Demo ready. Password for every demo user: {DEMO_PASSWORD} · signing PIN: {DEMO_PIN} · "
             f"TOTP secret: {DEMO_TOTP}"))
@@ -173,11 +200,15 @@ class Command(BaseCommand):
 
     def _providers(self):
         out = {}
-        for name, code, utility, iban, holder, bic in PROVIDERS:
+        for name, code, utility, iban, holder, bic, vat in PROVIDERS:
             p, _ = Provider.objects.get_or_create(short_code=code, defaults={
                 "name": name, "utility_type": utility, "bank_iban": iban, "bank_account_name": holder,
-                "bank_bic": bic, "bank_name": "Demo Bank", "currency": "OMR",
+                "bank_bic": bic, "bank_name": "The Mauritius Commercial Bank Ltd", "currency": "MUR",
+                "identifiers": PROVIDER_ALIASES.get(code, ""),
                 "payment_terms_days": 30 if utility in (UtilityType.TELECOM, UtilityType.INTERNET) else 45})
+            if not p.identifiers:
+                p.identifiers = PROVIDER_ALIASES.get(code, "")
+                p.save(update_fields=["identifiers"])
             out[code] = p
         return out
 
@@ -214,16 +245,17 @@ class Command(BaseCommand):
         period_end = (period_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
         factor = seasonal(provider.utility_type, period_start.month) * random.uniform(0.92, 1.08)
         consumption = Decimal(str(round(base_cons * factor, 0)))
-        net = Decimal(str(round(base * factor, 3)))
-        tax = (net * Decimal("0.05")).quantize(Decimal("0.001"))
+        net = Decimal(str(round(base * factor, 2)))
+        vat = next(v for _, code, *_rest, v in PROVIDERS if code == provider.short_code)
+        tax = (net * vat).quantize(Decimal("0.01"))
         total = net + tax
         issue = period_end + timedelta(days=random.randint(3, 8))
         due = issue + timedelta(days=provider.payment_terms_days)
         number = f"{provider.short_code}-{period_end:%y%m}-{acct.account_number[-4:]}"
-        clerk = users["h.clerk"] if acct.org_unit.code.startswith("MOH") else users["e.clerk"]
+        clerk = users["h.clerk"] if acct.org_unit.code.startswith("MOHW") else users["e.clerk"]
         inv = Invoice(service_account=acct, invoice_number=number, issue_date=issue, due_date=due,
                       period_start=period_start, period_end=period_end, amount_net=net, amount_tax=tax,
-                      amount_total=total, consumption=consumption, currency="OMR")
+                      amount_total=total, consumption=consumption, currency="MUR")
         pdf = invoice_pdf(provider, acct, number, issue, due, period_start, period_end, net, tax, total, consumption,
                           provider.consumption_unit)
         import hashlib
@@ -246,7 +278,7 @@ class Command(BaseCommand):
             start = first
             while start <= cutoff:
                 inv, clerk, created = self._make(acct, base, cons, start, users, "paid")
-                moh = acct.org_unit.code.startswith("MOH")
+                moh = acct.org_unit.code.startswith("MOHW")
                 steps = [("Verification of consumption & account", Role.VERIFIER, 8, users["s.verifier" if moh else "e.verifier"]),
                          ("Budget holder approval", Role.APPROVER, 16, users["m.approver" if moh else "e.approver"])]
                 t = created + timedelta(hours=random.randint(2, 20))
@@ -272,7 +304,7 @@ class Command(BaseCommand):
         today = timezone.localdate()
         last_month = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
         for i, (acct, base, cons) in enumerate(accounts):
-            moh = acct.org_unit.code.startswith("MOH")
+            moh = acct.org_unit.code.startswith("MOHW")
             verifier = users["s.verifier" if moh else "e.verifier"]
             approver = users["m.approver" if moh else "e.approver"]
             senior = users["k.director"] if moh else None
@@ -308,22 +340,58 @@ class Command(BaseCommand):
         call_command("run_scheduler")
         self.stdout.write("Live work created.")
 
+    def _scans(self, users):
+        """A staged batch of scanned / photographed invoices, to show the OCR review."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from imports.services import stage_documents
+        from ocr.samples import as_bytes, as_scanned_pdf, invoice_image
+
+        today = timezone.localdate()
+        common = dict(issue=today - timedelta(days=4), due=today + timedelta(days=41),
+                      start=(today.replace(day=1) - timedelta(days=1)).replace(day=1),
+                      end=today.replace(day=1) - timedelta(days=1))
+        files = [
+            SimpleUploadedFile("CEB-scan-1100810012.jpg", as_bytes(invoice_image(
+                provider_name="Central Electricity Board", account="1100810012", number="CEB/2610/0012",
+                net="318,400.00", vat="0.00", total="318,400.00", consumption="66,940", prev="1,204,330",
+                cur="1,271,270", skew=1.2, noise=0.002, blur=0.5, **common), "JPEG")),
+            SimpleUploadedFile("CWA-photo-80051200.pdf", as_scanned_pdf(invoice_image(
+                provider_name="Central Water Authority", account="80051200", number="CWA-10-51200", layout="stacked",
+                net="71,250.00", vat="0.00", total="71,250.00", consumption="3,310", unit="m3", prev="88,120",
+                cur="91,430", rotate90=True, **common))),
+        ]
+        batch = stage_documents(users["h.clerk"], files)
+        self.stdout.write(f"OCR demo batch #{batch.pk} staged.")
+
+    def _integrations(self, users):
+        from integrations.models import ApiClient
+
+        service, _ = User.objects.get_or_create(username="api:treasury-erp", defaults={
+            "full_name": "API client – Treasury ERP (demo)", "email": "treasury-erp@api.invalid", "is_active": False})
+        client = ApiClient(name="Treasury ERP (demo)", description="Reads approved invoices and settlement status",
+                           scopes=["invoices:read", "settlements:read", "analytics:read", "mcp"],
+                           service_user=service, created_by=users["sysadmin"])
+        token = client.issue_token()
+        client.save()
+        self.stdout.write(f"Demo API/MCP token (shown once): {token}")
+
     def _settlements(self, users):
         from settlements import services as settle
 
-        moh, moe = OrgUnit.objects.get(code="MOH"), OrgUnit.objects.get(code="MOE")
+        moh, moe = OrgUnit.objects.get(code="MOHW"), OrgUnit.objects.get(code="MOE")
         soon = timezone.localdate() + timedelta(days=30)
         # MOH telecom & data: fully executed, signed by preparer and authoriser.
-        ids = list(settle.eligible_invoices(moh, "OMR", soon).filter(provider__short_code__in=["TNC", "FLD", "MWM"])
+        ids = list(settle.eligible_invoices(moh, "MUR", soon).filter(provider__short_code__in=["MT", "EMTEL", "WMA"])
                    .values_list("pk", flat=True))
         if ids:
-            si = settle.create_instruction(users["f.finance"], moh, "OMR", soon, ids, "Monthly utilities run.")
+            si = settle.create_instruction(users["f.finance"], moh, "MUR", soon, ids, "Monthly utilities run.")
             settle.submit_for_authorisation(si, users["f.finance"], DEMO_PIN)
             settle.authorise(si, users["a.authoriser"], DEMO_PIN)
             settle.mark_sent(si, users["f.finance"])
-            settle.mark_executed(si, users["f.finance"], "TRSY-2026-10-0412", timezone.localdate())
+            settle.mark_executed(si, users["f.finance"], "TRY-EFT-2026-10-0412", timezone.localdate())
         # MOE: awaiting authorisation.
-        ids = list(settle.eligible_invoices(moe, "OMR", soon).values_list("pk", flat=True))
+        ids = list(settle.eligible_invoices(moe, "MUR", soon).values_list("pk", flat=True))
         if ids:
-            si = settle.create_instruction(users["f.finance"], moe, "OMR", soon, ids)
+            si = settle.create_instruction(users["f.finance"], moe, "MUR", soon, ids)
             settle.submit_for_authorisation(si, users["f.finance"], DEMO_PIN)

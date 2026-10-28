@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% load gov humanize %}{% block title %}Admin console{% endblock %}
+{% block content %}{% include "integrations/_head.html" %}{% include "integrations/_tabs.html" %}
+{% if chain %}<div class="callout {% if chain.ok %}ok{% else %}danger{% endif %}"><strong>{% if chain.ok %}Audit chain intact{% else %}Audit chain broken at entry #{{ chain.bad }}{% endif %}</strong>{{ chain.count }} entries verified.</div>{% endif %}
+<div class="grid cols-3">
+  <div class="card"><div class="card-head"><h2>{% icon "settings" %} Database</h2><span class="badge badge-{% if h.db.ok %}ok{% else %}danger{% endif %}">{% if h.db.ok %}Connected{% else %}Error{% endif %}</span></div>
+    <dl class="props"><dt>Engine</dt><dd>{{ h.db.version|default:h.db.vendor }}</dd><dt>Database</dt><dd class="mono">{{ h.db.name|truncatechars:40 }}</dd>
+    <dt>Size</dt><dd>{{ h.db.size|filesizeformat|default:"—" }}</dd>{% if h.db.connections %}<dt>Connections</dt><dd>{{ h.db.connections }}</dd>{% endif %}
+    <dt>Migrations</dt><dd>{% if h.db.pending_migrations %}<span class="badge badge-danger">{{ h.db.pending_migrations }} pending</span>{% else %}<span class="badge badge-ok">Up to date</span>{% endif %}</dd>
+    <dt>Records</dt><dd>{{ h.counts.invoices|intcomma }} invoices · {{ h.counts.users }} users · {{ h.counts.audit|intcomma }} audit entries</dd></dl>
+    {% if h.db.warning %}<p class="callout warn mt">{{ h.db.warning }}</p>{% endif %}{% if h.db.error %}<p class="callout danger mt">{{ h.db.error }}</p>{% endif %}</div>
+  <div class="card"><div class="card-head"><h2>{% icon "file" %} Document storage</h2><span class="badge badge-{% if h.storage.free_pct > 15 %}ok{% else %}danger{% endif %}">{{ h.storage.free_pct }}% free</span></div>
+    <dl class="props"><dt>Stored files</dt><dd>{{ h.storage.files|intcomma }}{% if h.storage.truncated %}+{% endif %}</dd><dt>Used</dt><dd>{{ h.storage.bytes|filesizeformat }}</dd>
+    <dt>Disk free</dt><dd>{{ h.storage.free|filesizeformat }} of {{ h.storage.total|filesizeformat }}</dd></dl></div>
+  <div class="card"><div class="card-head"><h2>{% icon "clock" %} Scheduler</h2><span class="badge badge-{% if h.scheduler.ok %}ok{% else %}danger{% endif %}">{% if h.scheduler.ok %}Running{% else %}Not running{% endif %}</span></div>
+    <dl class="props"><dt>Last run</dt><dd>{{ h.scheduler.last|date:"d M Y H:i"|default:"never" }}</dd><dt>Does</dt><dd>SLA reminders &amp; escalation, due-date alerts, overdue flags, OCR queue</dd></dl>
+    {% if not h.scheduler.ok %}<p class="muted"><small>Run <code>manage.py run_scheduler --loop 300</code> (the <code>scheduler</code> container).</small></p>{% endif %}</div>
+  <div class="card"><div class="card-head"><h2>{% icon "scan" %} OCR engine</h2><span class="badge badge-{% if h.ocr.languages %}ok{% else %}danger{% endif %}">{% if h.ocr.languages %}Ready{% else %}Unavailable{% endif %}</span></div>
+    <dl class="props"><dt>Engine</dt><dd>{{ h.ocr.engine }}</dd><dt>Installed languages</dt><dd>{{ h.ocr.languages|join:", "|default:"—" }}</dd>
+    <dt>Configured</dt><dd>{{ h.ocr.configured }}</dd><dt>Queue</dt><dd>{{ h.ocr.queue }} document{{ h.ocr.queue|pluralize }} waiting</dd></dl></div>
+  <div class="card"><div class="card-head"><h2>{% icon "key" %} Signing CA</h2>{% if h.ca.days_left %}<span class="badge badge-{% if h.ca.days_left > 180 %}ok{% else %}warn{% endif %}">{{ h.ca.days_left }} days left</span>{% endif %}</div>
+    {% if h.ca.error %}<p class="callout danger">{{ h.ca.error }}</p>{% else %}<dl class="props"><dt>Subject</dt><dd>{{ h.ca.subject }}</dd><dt>Expires</dt><dd>{{ h.ca.expires|date:"d M Y" }}</dd></dl>{% endif %}</div>
+  <div class="card"><div class="card-head"><h2>{% icon "shield" %} Audit trail</h2></div>
+    <p>Hash-chained, append-only log of every action.</p><a class="btn btn-sm" href="?verify=1">Verify integrity now</a></div>
+</div>
+<div class="grid cols-3 mt">
+  <a class="card kpi tone-{% if h.email.enabled %}ok{% else %}warn{% endif %}" href="{% url 'console:email' %}"><div class="label">E-mail (SMTP)</div><div class="value">{% if h.email.enabled %}On{% else %}Off{% endif %}</div><div class="sub">{{ h.email.host|default:"not configured" }} · 24 h: {{ h.email.sent }} sent, {{ h.email.failed }} failed</div></a>
+  <a class="card kpi tone-{% if h.sms.enabled %}ok{% else %}warn{% endif %}" href="{% url 'console:sms' %}"><div class="label">SMS gateway</div><div class="value">{% if h.sms.enabled %}On{% else %}Off{% endif %}</div><div class="sub">{{ h.sms.provider }} · 24 h: {{ h.sms.sent }} sent, {{ h.sms.failed }} failed</div></a>
+  <a class="card kpi tone-{% if h.api.enabled %}ok{% else %}warn{% endif %}" href="{% url 'console:api' %}"><div class="label">API &amp; MCP</div><div class="value">{{ h.api.clients }} client{{ h.api.clients|pluralize }}</div><div class="sub">API {% if h.api.enabled %}on{% else %}off{% endif %} · MCP {% if h.api.mcp %}on{% else %}off{% endif %} · 24 h: {{ h.api.requests }} calls, {{ h.api.errors }} errors</div></a>
+</div>
+<div class="card mt"><h2>Environment</h2><dl class="props"><dt>Mode</dt><dd>{{ h.env.environment }}{% if h.env.debug %} <span class="badge badge-warn">DEBUG on</span>{% endif %}</dd><dt>Time zone</dt><dd>{{ h.env.timezone }}</dd><dt>Default currency</dt><dd>{{ h.env.currency }}</dd></dl></div>
+{% endblock %}

@@ -62,7 +62,7 @@ def test_bank_details_need_second_admin(client, tree, provider):
     change = BankDetailsChange.objects.get()
     client.post(reverse("providers:bank_decide", args=[provider.pk, change.pk]), {"decision": "approve"})
     provider.refresh_from_db()
-    assert provider.bank_iban == "OM810180000001299123456"  # own request not applied
+    assert provider.bank_iban == "MU31MCBL0901000000440011000MUR"  # own request not applied
     client.post(reverse("accounts:logout"))
     sign_in(client, a2)
     client.post(reverse("providers:bank_decide", args=[provider.pk, change.pk]), {"decision": "approve"})

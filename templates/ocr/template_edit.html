@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}{{ provider.name }} OCR template{% endblock %}
+{% block head %}<script src="{% static 'js/ocr.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'ocr:templates' %}">OCR templates</a></div>
+<h1>{{ provider.name }}</h1><p>Choose a field, then drag a box around where its value is printed. Zones are anchored to the nearest label so slightly shifted scans still line up.</p></div></div>
+{% if not sample %}<div class="card empty">No analysed invoice from this provider yet. Scan one through <a href="{% url 'imports:list' %}">Scan &amp; import</a>, then come back.</div>
+{% else %}
+<form method="post" id="zone-form">{% csrf_token %}
+<div class="ocr-layout">
+  <div class="card"><div class="card-head"><h2>Sample: {{ sample.original_name }}</h2>
+    {% if docs|length > 1 %}<span class="muted"><small>Other samples:</small> {% for d in docs %}{% if d.pk != sample.pk %}<a href="?doc={{ d.pk }}">{{ d.original_name|truncatechars:22 }}</a>{% if not forloop.last %} · {% endif %}{% endif %}{% endfor %}</span>{% endif %}</div>
+    {% with doc=sample editor=True %}{% for page in pages %}{% include "ocr/_page.html" %}{% endfor %}{% endwith %}
+  </div>
+  <div class="stack"><div class="card"><h2>Fields</h2>
+    <div class="editor-fields" id="editor-fields">{% for f, label in fields %}<button type="button" class="btn btn-sm" data-field="{{ f }}">{{ label }}</button>{% endfor %}</div>
+    <p class="muted" id="editor-status"><small>Select a field to start drawing.</small></p>
+    <button type="button" class="btn btn-sm btn-danger" id="zone-clear">Remove zone of selected field</button>
+    <div class="mt"><label><input type="checkbox" name="is_active" {% if template.is_active %}checked{% endif %}> Use this template when reading {{ provider.short_code }} invoices</label></div>
+    <input type="hidden" name="zones" id="zones-input">
+    {{ zones_json|json_script:"zones-data" }}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Save template</button></div>
+    <p class="muted"><small>Learned from {{ template.learned_from }} confirmed invoice{{ template.learned_from|pluralize }}{% if template.updated_by %} · last change by {{ template.updated_by }}{% endif %}.</small></p>
+  </div></div>
+</div></form>{% endif %}
+{% endblock %}

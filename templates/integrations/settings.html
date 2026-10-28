@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Settings · Admin console{% endblock %}
+{% block content %}{% with heading="System" accent="settings" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
+<div class="split"><div class="card"><div class="card-head"><h2>{{ title }}</h2></div>
+<form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
+<div class="form-grid">{% for f in form %}<div class="{% if f.widget_type == 'checkboxselectmultiple' %}wide{% endif %}">{% if f.widget_type == 'checkbox' %}<label>{{ f }} {{ f.label }}</label>{% else %}{{ f.label_tag }}{{ f }}{% endif %}
+<span class="helptext">{{ f.help_text }}{% if f.name in overridden %} · <strong>set in console</strong>{% else %} · environment default{% endif %}</span>{{ f.errors }}</div>{% endfor %}</div>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div></form></div>
+<div class="card"><h2>Groups</h2><div class="stack">{% for slug, name in groups %}<div><a class="btn btn-sm {% if slug == current %}btn-primary{% endif %}" href="{% url 'console:settings_group' slug %}">{{ name }}</a></div>{% endfor %}</div>
+<p class="muted mt"><small>Values saved here override the server environment and take effect on every server process within seconds. Secrets (IBAN, passwords, tokens) are stored encrypted and never displayed again.</small></p></div></div>
+{% endblock %}

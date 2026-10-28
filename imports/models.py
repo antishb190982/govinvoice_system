@@ -60,6 +60,7 @@ class ImportBatch(models.Model):
 
 class ImportRow(models.Model):
     class Status(models.TextChoices):
+        ANALYSING = "analysing", "Analysing document"
         VALID = "valid", "Ready"
         INVALID = "invalid", "Has errors"
         COMMITTED = "committed", "Imported"
@@ -75,6 +76,15 @@ class ImportRow(models.Model):
     errors = models.JSONField(default=list)
     status = models.CharField(max_length=10, choices=Status.choices)
     include = models.BooleanField(default=True)
+    ocr_document = models.ForeignKey("ocr.OcrDocument", null=True, blank=True, on_delete=models.SET_NULL,
+                                     related_name="import_rows")
+    confidence = models.JSONField(default=dict, blank=True)
+    warnings = models.JSONField(default=list, blank=True)
+    # Low-confidence extractions must be checked and confirmed by a person before import.
+    needs_review = models.BooleanField(default=False)
+    confirmed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+                                     related_name="+")
+    confirmed_at = models.DateTimeField(null=True, blank=True)
     invoice = models.ForeignKey("invoices.Invoice", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
 
     class Meta:

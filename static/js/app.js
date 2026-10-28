@@ -7,12 +7,12 @@
   }
 
   // Validated categorical order: distinguishable for common colour-vision deficiencies.
-  var PALETTE = ["#0b6e99", "#d97706", "#0f9d74", "#9b4dca", "#d1435b", "#5b6b85", "#2f9fd8", "#a47c1b", "#3d8b3d"];
+  var PALETTE = ["#2b3fd6", "#46bfc9", "#f08c2e", "#8b5cf6", "#e5484d", "#64709b", "#5b8cff", "#c9a227", "#1f9d6b"];
   var UTILITY_COLOURS = {
-    electricity: "#d97706", water: "#0b6e99", gas: "#d1435b", telecom: "#9b4dca", internet: "#2f9fd8",
-    waste: "#5b6b85", fuel: "#a47c1b", cooling: "#0f9d74", other: "#8c96a8",
-    in_approval: "#2f6fd8", approved: "#0f9d74", scheduled: "#9b4dca", other_status: "#8c96a8",
-    amount: "#0b6e99", consumption: "#d97706", total: "#0b6e99"
+    electricity: "#f08c2e", water: "#2b8fd6", gas: "#e5484d", telecom: "#8b5cf6", internet: "#46bfc9",
+    waste: "#64709b", fuel: "#c9a227", cooling: "#1f9d6b", other: "#9aa1c4",
+    in_approval: "#2b3fd6", approved: "#1f9d6b", scheduled: "#8b5cf6", other_status: "#9aa1c4",
+    amount: "#2b3fd6", consumption: "#46bfc9", total: "#2b3fd6"
   };
 
   function colourFor(key, i) {
@@ -127,11 +127,22 @@
   }
 
   function wireMenu() {
-    var btn = document.querySelector(".menu-toggle");
-    if (!btn) return;
-    btn.addEventListener("click", function () {
+    var btn = document.querySelector(".nav-toggle");
+    if (btn) btn.addEventListener("click", function () {
       var open = document.body.classList.toggle("nav-open");
       btn.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    var menus = document.querySelectorAll("details.menu");
+    menus.forEach(function (m) {
+      m.addEventListener("toggle", function () {
+        if (m.open) menus.forEach(function (o) { if (o !== m) o.open = false; });
+      });
+    });
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest("details.menu")) menus.forEach(function (m) { m.open = false; });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") menus.forEach(function (m) { m.open = false; });
     });
   }
 

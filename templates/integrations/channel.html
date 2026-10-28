@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}{{ title }} · Admin console{% endblock %}
+{% block content %}{% with heading=title accent="" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
+<div class="split"><div class="card"><div class="card-head"><h2>{{ title }}</h2></div><p class="muted">{{ intro }}</p>
+<form method="post" novalidate autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="save">{% include "includes/form_errors.html" %}
+<div class="form-grid">{% for f in form %}<div class="{% if f.name == 'SMS_BODY_TEMPLATE' %}wide{% endif %}">{% if f.widget_type == 'checkbox' %}<label>{{ f }} {{ f.label }}</label>{% else %}{{ f.label_tag }}{{ f }}{% endif %}<span class="helptext">{{ f.help_text }}</span>{{ f.errors }}</div>{% endfor %}</div>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div></form></div>
+<div class="stack"><div class="card"><h2>Send a test</h2><form method="post">{% csrf_token %}<input type="hidden" name="action" value="test">{{ test.to.label_tag }}{{ test.to }}
+<div class="form-actions"><button class="btn" type="submit">Send test</button></div></form></div>
+<div class="card"><div class="card-head"><h2>Recent deliveries</h2><a href="{% url 'console:logs' %}?kind=messages">All</a></div>
+<table><tbody>{% for m in log %}<tr><td><span class="status-dot {% if m.status == 'sent' %}ok{% elif m.status == 'failed' %}danger{% else %}warn{% endif %}"></span>{{ m.recipient }}<br><small class="muted">{{ m.subject|truncatechars:40 }}</small>{% if m.error %}<br><small class="muted">{{ m.error|truncatechars:80 }}</small>{% endif %}</td><td class="nowrap"><small>{{ m.created_at|date:"d M H:i" }}</small></td></tr>
+{% empty %}<tr><td class="empty">Nothing sent yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+{% endblock %}

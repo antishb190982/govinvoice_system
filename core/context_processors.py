@@ -8,7 +8,8 @@ def app_context(request):
     user = getattr(request, "user", None)
     ctx = {"DEFAULT_CURRENCY": settings.DEFAULT_CURRENCY, "ENVIRONMENT": settings.ENVIRONMENT,
            "IDLE_TIMEOUT_MINUTES": settings.SESSION_IDLE_TIMEOUT_MINUTES,
-           "DUE_SOON_DAYS": settings.DUE_SOON_DAYS}
+           "DUE_SOON_DAYS": settings.DUE_SOON_DAYS, "BRAND_NAME": settings.BRAND_NAME,
+           "BRAND_TAGLINE": settings.BRAND_TAGLINE}
     if user is None or not user.is_authenticated or not request.session.get("otp_verified"):
         return ctx
     roles = set(Role.values) if user.is_superuser else set(active_memberships(user).values_list("role", flat=True))
