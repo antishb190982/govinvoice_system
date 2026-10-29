@@ -1,6 +1,6 @@
-{% extends "base.html" %}{% load gov static %}{% block title %}Import invoices{% endblock %}
+{% extends "base.html" %}{% load gov static %}{% block title %}Upload Utility Records{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Import invoices</h1><p>Upload a provider statement (XLSX, XLS, CSV), or PDF invoices, scans and phone photos. OCR finds the provider, account and amounts; everything is staged for review before any invoice is created.</p></div>
+<div class="page-head"><div><h1>Upload Utility Records</h1><p>Upload a provider statement (XLSX, XLS, CSV), or PDF invoices, scans and phone photos. OCR finds the provider, account and amounts; everything is staged for review before any invoice is created.</p></div>
 <div class="actions"><a class="btn" href="{% url 'imports:registration_queue' %}">Registration requests</a><a class="btn" href="{% url 'imports:template' %}">Download CSV template</a></div></div>
 <div class="grid cols-2">
 <div class="card"><h2>Upload</h2><form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}

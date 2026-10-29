@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head ins-head"><div><h1>{{ section_title }} overview</h1>{% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
 <p class="ins-stamp">Generated {{ generated_at|date:"j M Y, H:i" }}</p></div>
-{% with sk=request.resolver_match.kwargs.section %}<div class="actions"><a class="btn" href="{{ records_url }}">Open all records</a>{% if can.capture %}{% if sk == "invoices" or sk == "imports" %}<a class="btn" href="{% url 'imports:list' %}">Import invoices</a><a class="btn btn-primary" href="{% url 'invoices:create' %}">Record manually</a>{% elif sk == "batches" %}<a class="btn btn-primary" href="{% url 'operations:prepare_new' %}">Prepare batch</a>{% endif %}{% endif %}</div>{% endwith %}</div>
+{% with sk=request.resolver_match.kwargs.section %}<div class="actions"><a class="btn" href="{{ records_url }}">Open all records</a>{% if can.capture %}{% if sk == "invoices" or sk == "imports" %}<a class="btn" href="{% url 'imports:list' %}">Upload Utility Records</a><a class="btn btn-primary" href="{% url 'invoices:create' %}">Record manually</a>{% elif sk == "batches" %}<a class="btn btn-primary" href="{% url 'operations:prepare_new' %}">Prepare batch</a>{% endif %}{% endif %}</div>{% endwith %}</div>
 
 <section aria-labelledby="ins-queues"><h2 id="ins-queues" class="ins-h">Action queues</h2>
 {% if cards %}<ul class="ins-cards">{% for c in cards %}<li><a class="card kpi ins-card{% if c.tone %} tone-{{ c.tone }}{% endif %}" href="{{ c.url }}">

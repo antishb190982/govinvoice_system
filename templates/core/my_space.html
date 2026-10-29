@@ -3,8 +3,9 @@
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'core:dashboard' %}">Overview</a> / My space</div>
 <h1>My space</h1>
-<p>Your providers, batches, invoices, services and folders. Assigned tasks, schedules and anomalies live under the Work tab.</p></div>
-<div class="ms-head-actions"><a class="btn btn-primary btn-sm" href="{% url 'core:space_folder_new' %}">New folder</a></div></div>
+<p>See what needs attention, who owns it, and what is due next.</p></div>
+<div class="ms-head-actions"><a class="btn btn-sm" href="{% url 'core:space_folder_new' %}">New folder</a>
+{% if can.capture %}<a class="btn btn-primary btn-sm" href="{% url 'imports:list' %}?clear_provider=1">Upload Utility Records</a>{% endif %}</div></div>
 
 {% if personal_space_tabs %}{% include "includes/personal_space_tabs.html" %}{% else %}<nav class="mw-tabs" aria-label="My space areas">
 {% for t in tabs %}<a class="mw-tab{% if t.key == tab %} is-active{% endif %}" href="{{ t.url }}"{% if t.key == tab %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
@@ -14,8 +15,8 @@
   {% include "includes/form_errors.html" with form=filter_form %}
   <input type="hidden" name="tab" value="{{ tab }}">
   <input type="hidden" name="folder" value="{{ folder_filter }}">
-  {% for field in filter_form.visible_fields %}{% if field.name == "provider" %}<input type="hidden" name="provider" value="{{ field.value|default_if_none:'' }}">{% else %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
-    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>{% endif %}{% endfor %}
+  {% for field in filter_form.visible_fields %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>{% endfor %}
   {% for h in filter_form.hidden_fields %}{{ h }}{% endfor %}
   <div class="mw-filter-actions"><button class="btn btn-primary btn-sm" type="submit">Apply filters</button>
   <a class="btn btn-sm" href="{% url 'core:my_space' %}?tab={{ tab|urlencode }}&amp;clear_provider=1">Clear filters</a></div>
@@ -33,6 +34,10 @@
 {% for f in folders %}<li class="ms-folder">
   <div class="ms-folder-main">{% if f.url %}<a href="{{ f.url }}">{{ f.label }}</a>{% else %}<span class="muted">{{ f.label }}</span>{% endif %}{% if f.description %}<p>{{ f.description }}</p>{% endif %}</div>
   <div class="ms-folder-actions">
+    <form method="post" action="{{ f.pin_url }}">{% csrf_token %}
+      <input type="hidden" name="pinned" value="{% if f.is_pinned %}0{% else %}1{% endif %}">
+      <button class="btn btn-sm" type="submit" aria-label="{% if f.is_pinned %}Unpin{% else %}Pin{% endif %} {{ f.label }} {% if f.is_pinned %}from{% else %}to{% endif %} navigation"{% if not f.url and not f.is_pinned %} disabled{% endif %}>{% if f.is_pinned %}Unpin{% else %}Pin to navigation{% endif %}</button>
+    </form>
     {% if f.edit_url %}<a class="btn btn-sm" href="{{ f.edit_url }}">Edit</a>{% endif %}
     {% if f.remove_url %}<form method="post" action="{{ f.remove_url }}" data-confirm="Remove the folder “{{ f.label }}”? Linked records are not deleted.">{% csrf_token %}
       <label class="ms-confirm" for="rm-{{ f.pk }}"><input id="rm-{{ f.pk }}" type="checkbox" name="confirm" value="1" required> Confirm</label>
@@ -42,7 +47,7 @@
 </div>
 {% else %}
 <div class="card mw-list">
-<div class="card-head"><h2>{% for t in tabs %}{% if t.key == tab %}{{ t.label }}{% endif %}{% endfor %}</h2>
+<div class="card-head"><h2>{% if tab == "overview" %}Assigned work &amp; recent items{% else %}{% for t in tabs %}{% if t.key == tab %}{{ t.label }}{% endif %}{% endfor %}{% endif %}</h2>
 <span class="muted">{% if page %}{{ page.paginator.count }} record{{ page.paginator.count|pluralize }}{% else %}{{ rows|length }} record{{ rows|length|pluralize }}{% endif %}</span></div>
 <div class="mw-table-wrap"><table class="mw-table"><thead><tr><th scope="col">Item</th><th scope="col">Unit / provider</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Detail and next action</th><th scope="col">Due</th></tr></thead><tbody>
 {% for r in rows %}<tr class="{% if r.overdue %}row-danger{% endif %}">

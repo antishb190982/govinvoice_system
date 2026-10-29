@@ -28,9 +28,12 @@ from workflow.models import ApprovalTask
 @never_cache
 def activity(request):
     from operations.workspace import counts_for
+    from core.attention import attention_summary
     notes = request.user.notifications
+    attention = attention_summary(request.user)
     return JsonResponse({
-        "unread_notifications": notes.filter(read_at__isnull=True).count(),
+        "unread_notifications": attention["unread_count"],
+        "attention": attention,
         "pending_approvals": pending_for(request.user).filter(
             invoice__batch_memberships__active=True).values(
             "invoice__batch_memberships__batch_id").distinct().count(),

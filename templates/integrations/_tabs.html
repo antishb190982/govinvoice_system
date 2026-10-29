@@ -3,6 +3,7 @@
   <a href="{% url 'console:settings' %}" class="{% if tab == 'settings' %}active{% endif %}">Settings</a>
   <a href="{% url 'console:gateways' %}" class="{% if tab == 'gateways' %}active{% endif %}"{% if tab == 'gateways' %} aria-current="page"{% endif %}>Gateway centre</a>
   <a href="{% url 'console:email' %}" class="{% if tab == 'email' %}active{% endif %}">E-mail (SMTP)</a>
+  <a href="{% url 'console:incoming' %}" class="{% if tab == 'incoming' %}active{% endif %}">Incoming e-bills</a>
   <a href="{% url 'console:sms' %}" class="{% if tab == 'sms' %}active{% endif %}">SMS</a>
   <a href="{% url 'console:api' %}" class="{% if tab == 'api' %}active{% endif %}">API &amp; MCP clients</a>
   <a href="{% url 'console:logs' %}" class="{% if tab == 'logs' %}active{% endif %}">Integration logs</a>

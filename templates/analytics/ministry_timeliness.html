@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Ministry timeliness{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs">Reports / Ministry performance</div><h1>Ministry timeliness</h1><p>Identify recurring late handoffs and inspect the associated billed surcharges.</p></div>
+<div class="actions">{% if summary_csv %}<a class="btn" href="{{ summary_csv }}">Download ministry report</a><a class="btn btn-primary" href="{{ evidence_csv }}">Download invoice evidence</a>{% endif %}</div></div>
+<form method="get" class="card filters timeliness-filters">
+{% include "includes/form_errors.html" with form=form %}
+{% for field in form %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}
+<button class="btn btn-primary" type="submit">Apply filters</button><a class="btn" href="{% url 'core:ministry_timeliness' %}?clear_provider=1">Reset</a>
+</form>
+{% if totals %}
+<nav class="mw-tabs" aria-label="Ministry timeliness views"><a class="mw-tab{% if tab == 'overview' %} is-active{% endif %}" href="{{ overview_url }}">Overview</a><a class="mw-tab{% if tab == 'invoices' %} is-active{% endif %}" href="{{ evidence_url }}">Invoice evidence</a></nav>
+<div class="report-context">{{ data.start|date:"j M Y" }} – {{ data.end|date:"j M Y" }} · Invoice issue-date cohort · {{ currency }} · Authorised records only</div>
+<section class="grid cols-4 hero-tiles" aria-label="Timeliness summary">
+<div class="kpi"><div class="label">Invoices monitored</div><div class="value">{{ totals.invoices }}</div><div class="sub">{{ totals.missing_receipts }} missing / {{ totals.invalid_receipts }} anomalous receipt dates</div></div>
+<a class="kpi" href="{{ evidence_url }}"><div class="label">Late receipt or submission</div><div class="value">{{ totals.late }}</div><div class="sub">Each invoice counted once</div></a>
+<div class="kpi"><div class="label">Repeat delays</div><div class="value">{{ totals.repeat }}</div><div class="sub">Ministries with {{ data.threshold }}+ late invoices</div></div>
+<div class="kpi tone-warn"><div class="label">Surcharges on late invoices</div><div class="value">{{ totals.late_surcharge|money }}</div><div class="sub">{{ currency }} · billed, before waivers/refunds</div></div>
+</section>
+<details class="card report-method"><summary>How this report is measured</summary>
+<p>Late receipt means a valid recorded receipt date is after the due date. Late submission means the recorded approval-submission date is after the due date. Recording delays identify invoices entered more than seven days after receipt. Future receipt dates and dates before issue are excluded from receipt-lateness measures. Missing or invalid dates are not assumed timely.</p>
+<p>Ministry roll-ups use the invoice's recorded organisational unit, within your access scope. A partial ministry scope is not a whole-ministry total. Dates and surcharges show an association, not proof of who caused a delay or charge. Billed surcharges are already included in invoice totals; this report does not add them again or net off waivers and refunds. Cancelled invoices are excluded.</p></details>
+{% if tab == "overview" %}
+<section class="card"><div class="card-head"><h2>Ministry performance</h2><span class="muted">Click a ministry for invoice evidence</span></div>
+<div class="table-wrap"><table><thead><tr><th>Ministry</th><th>Invoices</th><th>Late receipts</th><th>Late submissions</th><th>Late invoices</th><th>Late rate</th><th>Recording delays</th><th>Missing receipts</th><th>Surcharges · {{ currency }}</th><th>On late invoices · {{ currency }}</th></tr></thead><tbody>
+{% for r in rows %}<tr><td><a href="{{ r.url }}">{{ r.name }}</a>{% if r.repeat %}<br><span class="badge badge-warn">Repeat delays</span>{% endif %}</td><td>{{ r.invoices }}</td><td>{{ r.late_receipts }} / {{ r.known_receipts }}</td><td>{{ r.late_submissions }} / {{ r.submitted }}</td><td>{{ r.late }}</td><td>{{ r.late_rate }}%</td><td>{{ r.recording_delays }}</td><td>{{ r.missing_receipts }}</td><td class="nowrap">{{ r.surcharge|money }}</td><td class="nowrap">{{ r.late_surcharge|money }}</td></tr>
+{% empty %}<tr><td colspan="10">No invoices match the selected period, currency and access scope.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<section class="card"><h2>Monthly trend</h2><div class="table-wrap"><table><thead><tr><th>Invoice issue month</th><th>Invoices</th><th>Late invoices</th><th>Billed surcharges · {{ currency }}</th></tr></thead><tbody>{% for m in monthly %}<tr><td>{{ m.month }}</td><td>{{ m.invoices }}</td><td>{{ m.late }}</td><td>{{ m.surcharge|money }}</td></tr>{% empty %}<tr><td colspan="4">No monthly records in this cohort.</td></tr>{% endfor %}</tbody></table></div></section>
+{% else %}
+<section class="card"><div class="card-head"><h2>Invoice evidence</h2><span>{{ page.paginator.count }} records</span></div>
+<div class="table-wrap"><table><thead><tr><th>Invoice / ministry</th><th>Provider</th><th>Receipt</th><th>Due</th><th>Submitted</th><th>Checks</th><th>Surcharge · {{ currency }}</th></tr></thead><tbody>
+{% for r in page %}<tr><td><a href="{{ r.invoice.get_absolute_url }}">{{ r.invoice.reference }}</a><br><small>{{ r.ministry }} / {{ r.invoice.org_unit.name }}</small></td><td>{{ r.invoice.provider }}</td><td>{{ r.invoice.received_date|date:"j M Y"|default:"Not recorded" }}</td><td>{{ r.invoice.due_date|date:"j M Y" }}</td><td>{{ r.submitted_date|date:"j M Y"|default:"Not submitted" }}</td><td>{% if r.received_late %}<span class="badge badge-danger">Late receipt</span>{% endif %} {% if r.submitted_late %}<span class="badge badge-danger">Late submission</span>{% endif %} {% if r.recording_delay %}<span class="badge badge-warn">Recording delay</span>{% endif %}{% if not r.late and not r.recording_delay %}<span class="muted">No recorded delay</span>{% endif %}</td><td>{{ r.invoice.surcharge_amount|money }}</td></tr>
+{% empty %}<tr><td colspan="7">No matching invoice evidence in your authorised scope.</td></tr>{% endfor %}</tbody></table></div>
+{% include "includes/pagination.html" %}</section>
+{% endif %}{% endif %}
+{% endblock %}

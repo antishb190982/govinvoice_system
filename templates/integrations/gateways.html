@@ -2,6 +2,7 @@
 {% block content %}{% with heading="Gateway" accent="centre" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
 <div class="callout info"><strong>How to read this page</strong> “Submitted” means the e-mail server or SMS provider accepted the message — it does not confirm the recipient received it. In preview environments e-mail is kept locally and never leaves the server. External channels stay disabled until they are fully configured.</div>
 <div class="split">
+<section class="card"><div class="card-head"><h2>Incoming e-bills</h2><span class="badge badge-info">Trusted relay intake</span></div><p>Dedicated mailboxes, authorised sender-to-provider rules and automatic invoice staging. A mail relay must be connected separately.</p><a class="btn btn-primary" href="{% url 'console:incoming' %}">Configure mailbox &amp; view history</a></section>
 {% for key, ch in channels.items %}<section class="card" aria-labelledby="gw-{{ key }}"><div class="card-head"><h2 id="gw-{{ key }}">{% if key == 'email' %}E-mail (SMTP){% else %}SMS{% endif %}</h2><span class="badge {% if ch.ready %}badge-ok{% else %}badge-warn{% endif %}">{% if ch.ready %}Ready{% else %}Not configured{% endif %}</span></div>
 <p>{{ ch.label }}</p>
 <div class="form-actions"><a class="btn btn-primary" href="{% if key == 'email' %}{% url 'console:email' %}{% else %}{% url 'console:sms' %}{% endif %}">Configure &amp; test</a><a class="btn" href="{% url 'console:logs' %}?kind=messages">Delivery logs</a></div></section>{% endfor %}

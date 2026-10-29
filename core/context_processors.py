@@ -45,6 +45,13 @@ def app_context(request):
     })
     from core.my_work import dashboard_overdue
     ctx["dashboard_overdue"] = dashboard_overdue(request)
+    from core.attention import attention_summary
+    ctx["attention"] = attention_summary(user, ctx["unread_notifications"])
     from core.navigation import navigation_context
     ctx.update(navigation_context(request))
+    from core.models import SpaceFolder
+    from core.space_folders import folder_links
+    ctx["pinned_space_folders"] = [folder for folder in folder_links(
+        SpaceFolder.objects.filter(owner=user, is_pinned=True).select_related("org_unit", "provider"),
+        user) if folder["url"]]
     return ctx

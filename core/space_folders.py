@@ -16,8 +16,9 @@ from org.access import units_for
 class SpaceFolderForm(forms.ModelForm):
     class Meta:
         model = SpaceFolder
-        fields = ["label", "destination", "org_unit", "provider", "notes"]
-        labels = {"destination": "GovBills folder", "org_unit": "Ministry / unit"}
+        fields = ["label", "destination", "org_unit", "provider", "notes", "is_pinned"]
+        labels = {"destination": "GovBills folder", "org_unit": "Ministry / unit",
+                  "is_pinned": "Pin to left navigation"}
 
     def __init__(self, *args, user, **kwargs):
         self.user = user
@@ -34,9 +35,24 @@ class SpaceFolderForm(forms.ModelForm):
         return value
 
 
-def folder_link(folder, user):
-    available = ((not folder.org_unit_id or units_for(user).filter(pk=folder.org_unit_id).exists())
-        and (not folder.provider_id or available_providers(user).filter(pk=folder.provider_id).exists()))
+def folder_links(folders, user):
+    """Resolve a set of personal shortcuts without a permission query per folder."""
+    folders = list(folders)
+    unit_ids = set(units_for(user).filter(pk__in={f.org_unit_id for f in folders if f.org_unit_id})
+                   .values_list("pk", flat=True)) if any(f.org_unit_id for f in folders) else set()
+    provider_ids = set(available_providers(user).filter(pk__in={f.provider_id for f in folders if f.provider_id})
+                       .values_list("pk", flat=True)) if any(f.provider_id for f in folders) else set()
+    return [folder_link(folder, user, unit_ids=unit_ids, provider_ids=provider_ids) for folder in folders]
+
+
+def folder_link(folder, user, *, unit_ids=None, provider_ids=None):
+    unit_ok = not folder.org_unit_id or (
+        folder.org_unit_id in unit_ids if unit_ids is not None else
+        units_for(user).filter(pk=folder.org_unit_id).exists())
+    provider_ok = not folder.provider_id or (
+        folder.provider_id in provider_ids if provider_ids is not None else
+        available_providers(user).filter(pk=folder.provider_id).exists())
+    available = unit_ok and provider_ok
     params = {"tab": folder.destination if folder.destination in {"invoices", "services"} else "batches"}
     if params["tab"] == "batches":
         params["folder"] = folder.destination
@@ -47,6 +63,8 @@ def folder_link(folder, user):
     else:
         params["clear_provider"] = "1"
     return {"pk": folder.pk, "label": folder.label,
+        "is_pinned": folder.is_pinned,
+        "pin_url": reverse("core:space_folder_pin", args=[folder.pk]),
         "url": reverse("core:my_space") + "?" + urlencode(params) if available else "",
         "description": (folder.notes or folder.get_destination_display()) if available else "Access changed. Edit or remove this shortcut.",
         "edit_url": reverse("core:space_folder_edit", args=[folder.pk]),
@@ -64,10 +82,32 @@ def folder_form(request, pk=None):
             saved.save()
             AuditEvent.record("space.folder_updated" if pk else "space.folder_linked", obj=saved,
                 actor=request.user, data={"destination": saved.destination, "unit": saved.org_unit_id,
-                                         "provider": saved.provider_id})
+                                         "provider": saved.provider_id, "is_pinned": saved.is_pinned})
         messages.success(request, "Folder linked to your space." if not pk else "Folder link updated.")
         return redirect(reverse("core:my_space") + "?tab=folders")
     return render(request, "core/space_folder.html", {"form": form, "folder": folder})
+
+
+@login_required
+@require_POST
+def folder_pin(request, pk):
+    value = request.POST.get("pinned")
+    with transaction.atomic():
+        folder = get_object_or_404(SpaceFolder.objects.select_for_update(), owner=request.user, pk=pk)
+        if value not in {"0", "1"}:
+            messages.error(request, "Choose Pin or Unpin for this folder.")
+        elif value == "1" and not folder_link(folder, request.user)["url"]:
+            messages.error(request, "This folder is no longer available. Update its filters before pinning.")
+        else:
+            pinned = value == "1"
+            if folder.is_pinned != pinned:
+                folder.is_pinned = pinned
+                folder.save(update_fields=["is_pinned", "updated_at"])
+                AuditEvent.record("space.folder_pinned" if pinned else "space.folder_unpinned",
+                                  obj=folder, actor=request.user)
+            messages.success(request, "Folder pinned to your navigation." if pinned else
+                             "Folder unpinned. Its linked records are unchanged.")
+    return redirect(reverse("core:my_space") + "?tab=folders")
 
 
 @login_required

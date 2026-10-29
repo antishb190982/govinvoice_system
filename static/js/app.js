@@ -206,6 +206,7 @@
         .then(function (d) {
           if (!d) return;
           setCount(document.querySelectorAll("[data-notification-count]"), d.unread_notifications);
+          if (d.attention) document.dispatchEvent(new CustomEvent("govbills:attention", { detail: d.attention }));
           if (d.pending_approvals !== undefined) setCount(document.querySelectorAll("[data-approval-count]"), d.pending_approvals);
           if (d.batch_folders) document.querySelectorAll("[data-batch-folder]").forEach(function (el) {
             var k = el.getAttribute("data-batch-folder");
@@ -215,7 +216,7 @@
           if (lastId !== null && id && id !== lastId && notice) {
             var t = notice.querySelector("[data-activity-text]");
             if (t) t.textContent = "New activity: " + (Number(d.unread_notifications) || 0) + " unread";
-            notice.hidden = false;
+            // New activity is shown in the header bell, not a repeated page banner.
           }
           if (id !== undefined) lastId = id;
         })

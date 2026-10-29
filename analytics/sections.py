@@ -8,7 +8,7 @@ from django.urls import reverse
 SECTIONS = {
     "invoices": ("Invoices", "invoices:list", "Invoice register"),
     "batches": ("Batch workspace", "operations:workspace", "Batch folders"),
-    "imports": ("Invoice intake", "imports:list", "Imports"),
+    "imports": ("Upload Utility Records", "imports:list", "Uploaded records"),
     "approvals": ("My approvals", "workflow:inbox", "Approval queue"),
     "settlements": ("Settlements", "settlements:list", "Settlement register"),
     "reconciliation": ("Provider reconciliation", "reconciliation:index", "Statement records"),

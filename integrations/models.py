@@ -1,4 +1,5 @@
 import hashlib
+from integrations.inbound_models import EbillDelivery, EbillMailbox, EbillSender  # noqa: F401
 import secrets
 
 from django.conf import settings
@@ -27,6 +28,7 @@ class ApiClient(models.Model):
     """A system allowed to call the REST API or the MCP server with a bearer token."""
 
     SCOPES = [
+        ("mail:ingest", "Receive e-bills from a trusted mail relay"),
         ("invoices:read", "Read invoices"),
         ("invoices:write", "Submit invoices (provider e-invoicing)"),
         ("providers:read", "Read providers and accounts"),

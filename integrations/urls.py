@@ -1,8 +1,16 @@
 from django.urls import path
 
 from integrations import api, console, mcp
+from integrations import inbound, inbound_admin
 
 console_patterns = ([
+    path("incoming/", inbound_admin.incoming, name="incoming"),
+    path("incoming/<int:pk>/", inbound_admin.incoming, name="incoming_mailbox"),
+    path("incoming/<int:pk>/rules/<int:rule_pk>/", inbound_admin.incoming, name="incoming_rule"),
+    path("incoming/<int:pk>/rules/<int:rule_pk>/toggle/", inbound_admin.toggle_sender, name="incoming_rule_toggle"),
+    path("incoming/messages/<int:pk>/", inbound_admin.delivery, name="incoming_delivery"),
+    path("incoming/messages/<int:pk>/retry/", inbound_admin.retry, name="incoming_retry"),
+    path("incoming/messages/<int:pk>/source/", inbound_admin.download, name="incoming_download"),
     path("", console.overview, name="overview"),
     path("gateways/", console.gateways, name="gateways"),
     path("settings/", console.settings_view, name="settings"),
@@ -16,6 +24,7 @@ console_patterns = ([
 ], "console")
 
 api_patterns = ([
+    path("mail/receive", inbound.receive, name="mail_receive"),
     path("health", api.health, name="health"),
     path("openapi.json", api.openapi, name="openapi"),
     path("invoices", api.invoices, name="invoices"),

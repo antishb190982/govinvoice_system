@@ -1,0 +1,24 @@
+{% load gov %}
+<details class="menu attention-menu">
+  <summary class="nav-icon attention-toggle" aria-label="Notifications: {{ attention.unread_count|default:0 }} unread alerts and {{ attention.overdue_count|default:0 }} overdue work items">
+    {% icon "bell" 20 %}
+    <span class="dot" data-attention-count{% if not attention.total %} hidden{% endif %}>{{ attention.total|default:0 }}</span>
+  </summary>
+  <div class="menu-panel attention-panel">
+    <div class="attention-heading"><strong>Notifications</strong><span><span data-attention-overdue-count>{{ attention.overdue_count|default:0 }}</span> overdue</span></div>
+    <div class="attention-tabs" role="tablist" aria-label="Notification categories">
+      <button type="button" id="attention-all-tab" role="tab" aria-controls="attention-all" aria-selected="true" data-attention-tab="all">All <span data-attention-count>{{ attention.total|default:0 }}</span></button>
+      <button type="button" id="attention-overdue-tab" role="tab" aria-controls="attention-overdue" aria-selected="false" data-attention-tab="overdue">Overdue <span data-attention-overdue-count>{{ attention.overdue_count|default:0 }}</span></button>
+    </div>
+    <div id="attention-all" role="tabpanel" aria-labelledby="attention-all-tab" data-attention-feed="all" class="attention-list">
+      {% for item in attention.overdue %}{% include "includes/attention_item.html" %}{% endfor %}
+      {% for item in attention.alerts %}{% include "includes/attention_item.html" %}{% endfor %}
+      {% if not attention.total %}<p class="attention-empty">You're up to date. No unread alerts or overdue work.</p>{% endif %}
+    </div>
+    <div id="attention-overdue" role="tabpanel" aria-labelledby="attention-overdue-tab" data-attention-feed="overdue" class="attention-list" hidden>
+      {% for item in attention.overdue %}{% include "includes/attention_item.html" %}{% empty %}<p class="attention-empty">No overdue work in your authorised scope.</p>{% endfor %}
+    </div>
+    <p class="attention-explanation">All providers in your authorised scope. Overdue entries are live; recorded alerts may describe earlier events. Counts are work items, not unique invoices.</p>
+    <div class="attention-footer"><a href="{% url 'core:notifications' %}">All alerts</a><a href="{{ attention.overdue_url }}">Open overdue queue →</a></div>
+  </div>
+</details>

@@ -344,6 +344,22 @@ class ApiClientForm(forms.ModelForm):
         self.fields["org_unit"].label_from_instance = lambda u: u.indented_name
         self.fields["rate_limit_per_minute"].initial = settings.API_DEFAULT_RATE_PER_MINUTE
         self.fields["expires_at"].initial = date.today() + timedelta(days=365)
+        self.fields["capture_user"] = forms.ModelChoiceField(
+            queryset=User.objects.filter(is_active=True, is_superuser=False).order_by("username"),
+            required=False, label="Invoice processing identity (mail relays only)",
+            help_text="For e-bill relays, select an existing clerk or unit administrator. Its capture permissions must fit within the client's organisational scope.")
+
+    def clean(self):
+        data = super().clean()
+        if "mail:ingest" in data.get("scopes", []):
+            from integrations.inbound import relay_problem
+            if not data.get("capture_user"):
+                self.add_error("capture_user", "Select the identity that will stage received invoices.")
+            elif problem := relay_problem(ApiClient(
+                    scopes=data["scopes"], service_user=data["capture_user"],
+                    org_unit=data.get("org_unit"), expires_at=data.get("expires_at"))):
+                self.add_error("capture_user", problem)
+        return data
 
     def clean_allowed_ips(self):
         import ipaddress
@@ -364,9 +380,11 @@ def api_clients(request):
     token = None
     if request.method == "POST" and form.is_valid():
         client = form.save(commit=False)
-        username = f"api:{slugify(client.name)[:40]}"
-        service_user, _ = User.objects.get_or_create(username=username, defaults={
-            "full_name": f"API client – {client.name}", "email": f"{slugify(client.name)}@api.invalid", "is_active": False})
+        service_user = form.cleaned_data.get("capture_user") if "mail:ingest" in client.scopes else None
+        if service_user is None:
+            username = f"api:{slugify(client.name)[:40]}"
+            service_user, _ = User.objects.get_or_create(username=username, defaults={
+                "full_name": f"API client – {client.name}", "email": f"{slugify(client.name)}@api.invalid", "is_active": False})
         client.service_user, client.created_by = service_user, request.user
         token = client.issue_token()
         client.save()

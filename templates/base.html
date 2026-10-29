@@ -1,5 +1,5 @@
 {% load static gov %}<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +14,8 @@
   <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
   {% block head %}{% endblock %}
+  <link rel="stylesheet" href="{% static 'css/workspace.css' %}">
+  <script src="{% static 'js/workspace.js' %}" defer></script>
 </head>
 <body class="{% block body_class %}{% endblock %}" data-idle-minutes="{{ IDLE_TIMEOUT_MINUTES }}"{% if request.user.is_authenticated %} data-activity-url="{% url 'core:activity' %}"{% endif %}>
 {% firstof nav_app request.resolver_match.app_name "" as resolved_nav_app %}
@@ -24,14 +26,22 @@
 <aside class="sidebar" id="app-sidebar" aria-label="Main navigation" tabindex="-1">
   <div class="sidebar-head"><a class="brand" href="{% url 'core:dashboard' %}" aria-label="{{ BRAND_NAME }} home">{% brand_mark %}</a>
   <button class="side-close" type="button" data-nav-close aria-label="Close navigation menu">{% icon "arrow" 18 %}</button></div>
-  <nav class="side-nav">
+  <div class="sidebar-context">
+    <span class="workspace-eyebrow">Working in</span>
+    <strong>{% if request.user.is_superuser %}All ministries{% elif nav_units %}{% for u in nav_units|slice:":2" %}{{ u }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if nav_units|length > 2 %} +{{ nav_units|length|add:"-2" }} more{% endif %}{% else %}Your authorised workspace{% endif %}</strong>
+    <small>{% icon "shield" 13 %} Role-scoped access</small>
+  </div>
+  <nav class="side-nav" aria-label="Sections">
   <p class="side-group">My workspace</p>
   <a class="side-link{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' or not app %} is-active{% endif %}" href="{% url 'core:dashboard' %}?clear_provider=1"{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' %} aria-current="page"{% endif %}>{% icon "home" %}<span>Operations overview</span></a>
   <a class="side-link{% if app == 'core' and url == 'my_space' or app == 'core' and url == 'my_work' or app == 'core' and 'work_schedule' in url or app == 'core' and 'space_folder' in url %} is-active{% endif %}" href="{% url 'core:my_space' %}?clear_provider=1"{% if app == 'core' and url == 'my_space' or app == 'core' and url == 'my_work' %} aria-current="page"{% endif %}>{% icon "check" %}<span>My space</span></a>
+  {% if pinned_space_folders %}<div class="side-folders" aria-label="Pinned My Space folders">
+    {% for folder in pinned_space_folders %}<a class="side-sublink pinned-space-link" href="{{ folder.url }}" title="{{ folder.description }}"><span>{{ folder.label }}</span></a>{% endfor %}
+  </div>{% endif %}
   <a class="side-link{% if url == 'notifications' %} is-active{% endif %}" href="{% url 'core:notifications' %}"{% if url == 'notifications' %} aria-current="page"{% endif %}>{% icon "bell" %}<span>Notifications</span><span class="side-count" data-notification-count{% if not unread_notifications %} hidden{% endif %}>{{ unread_notifications|default:0 }}</span></a>
   <p class="side-group">Bills &amp; batches</p>
   <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'invoices' or app == 'invoices' and url != 'surcharges' and url != 'surcharge' %} is-active{% endif %}" href="{% url 'core:section_overview' section='invoices' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'invoices' or app == 'invoices' and url != 'surcharges' and url != 'surcharge' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Invoices</span></a>
-  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'imports' or app == 'imports' %} is-active{% endif %}" href="{% url 'core:section_overview' section='imports' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'imports' or app == 'imports' %} aria-current="page"{% endif %}>{% icon "scan" %}<span>Invoice intake</span></a>
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'imports' or app == 'imports' %} is-active{% endif %}" href="{% url 'core:section_overview' section='imports' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'imports' or app == 'imports' %} aria-current="page"{% endif %}>{% icon "scan" %}<span>Upload Utility Records</span></a>
   <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'batches' or app == 'operations' and 'batch' in url or app == 'operations' and url == 'workspace' or app == 'operations' and 'prepare' in url %} is-active{% endif %}" href="{% url 'core:section_overview' section='batches' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'batches' or app == 'operations' and 'batch' in url or app == 'operations' and url == 'workspace' or app == 'operations' and 'prepare' in url %} aria-current="page"{% endif %}>{% icon "file" %}<span>Batches</span></a>
   <div class="side-folders" aria-label="Batch folder shortcuts">
     {% with fc=batch_folder_counts cur=request.GET.folder %}
@@ -56,6 +66,7 @@
   {% if can.bank %}<a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'bank' or app == 'reconciliation' and '/bank/' in request.path %} is-active{% endif %}" href="{% url 'core:section_overview' section='bank' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'bank' or app == 'reconciliation' and '/bank/' in request.path %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Bank reconciliation</span></a>{% endif %}
   <a class="side-link{% if url == 'surcharges' or url == 'surcharge' %} is-active{% endif %}" href="{% url 'invoices:surcharges' %}?clear_provider=1"{% if url == 'surcharges' or url == 'surcharge' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Surcharge monitor</span></a>
   <p class="side-group">Reports</p>
+  <a class="side-link{% if url == 'ministry_timeliness' %} is-active{% endif %}" href="{% url 'core:ministry_timeliness' %}?clear_provider=1">{% icon "clock" %}<span>Ministry timeliness</span></a>
   <a class="side-link{% if url == 'analytics' or url == 'section_overview' and request.resolver_match.kwargs.section == 'analytics' %} is-active{% endif %}" href="{% url 'core:section_overview' section='analytics' %}?clear_provider=1"{% if url == 'analytics' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Historical dashboards</span></a>
   <a class="side-link{% if url == 'sla' %} is-active{% endif %}" href="{% url 'workflow:sla' %}?clear_provider=1"{% if url == 'sla' %} aria-current="page"{% endif %}>{% icon "clock" %}<span>SLA monitor</span></a>
   <p class="side-group">Administration</p>
@@ -67,6 +78,11 @@
   {% if can.sysadmin %}<a class="side-link{% if app == 'console' and url != 'gateways' %} is-active{% endif %}" href="{% url 'console:overview' %}"{% if app == 'console' and url != 'gateways' %} aria-current="page"{% endif %}>{% icon "settings" %}<span>Admin console</span></a>
   <a class="side-link{% if app == 'console' and url == 'gateways' %} is-active{% endif %}" href="{% url 'console:gateways' %}"{% if app == 'console' and url == 'gateways' %} aria-current="page"{% endif %}>{% icon "bell" %}<span>Gateway centre</span></a>{% endif %}
   </nav>
+  <a class="sidebar-identity" href="{% url 'accounts:profile' %}">
+    <span class="workspace-avatar" aria-hidden="true">{{ request.user.full_name|first|upper }}</span>
+    <span><strong>{{ request.user.full_name }}</strong><small>My profile and sign-in</small>{% if ENVIRONMENT != "production" %}<small class="workspace-environment">{{ ENVIRONMENT }} environment</small>{% endif %}</span>
+    {% icon "chevron" 14 %}
+  </a>
 </aside>
 <button class="shell-backdrop" type="button" data-nav-close tabindex="-1" aria-hidden="true"></button>
 <div class="shell-main">
@@ -76,7 +92,7 @@
   <a class="brand shell-brand" href="{% url 'core:dashboard' %}" aria-label="{{ BRAND_NAME }} home">{% brand_mark %}</a>
   <div class="shell-context" aria-label="Record context">{% if batch.ministry %}<span class="ctx-label">Ministry</span> {{ batch.ministry }}{% elif si.org_unit %}<span class="ctx-label">Unit</span> {{ si.org_unit }}{% elif invoice.org_unit %}<span class="ctx-label">Unit</span> {{ invoice.org_unit }}{% elif account.org_unit %}<span class="ctx-label">Unit</span> {{ account.org_unit }}{% elif case.org_unit %}<span class="ctx-label">Unit</span> {{ case.org_unit }}{% elif request.user.is_superuser %}<span class="ctx-label">Scope</span> All ministries{% elif nav_units %}<span class="ctx-label">Your units</span> {% for u in nav_units|slice:":2" %}{{ u }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if nav_units|length > 2 %} +{{ nav_units|length|add:"-2" }}{% endif %}{% endif %}</div>
   <div class="nav-right">
-    <a class="nav-icon" href="{% url 'core:notifications' %}" aria-label="Notifications">{% icon "bell" 20 %}<span class="dot" data-notification-count{% if not unread_notifications %} hidden{% endif %}>{{ unread_notifications|default:0 }}</span></a>
+    {% include "includes/attention_menu.html" %}
     <details class="menu profile-menu"><summary class="nav-user">{% icon "user" 18 %}<span class="name">{{ request.user.full_name }}</span> {% icon "chevron" 14 %}</summary>
       <div class="menu-panel">
         <a href="{% url 'accounts:profile' %}">{% icon "user" %}<span>My profile<small>Password and sign-in</small></span></a>
@@ -87,10 +103,8 @@
 </header>
 <main class="content" id="content"{% if request.user.is_authenticated %} data-activity-url="{% url 'core:activity' %}"{% endif %}>
   <div class="activity-notice" id="activity-notice" role="status" aria-live="polite" hidden><span class="activity-pulse" aria-hidden="true"></span><span data-activity-text>New activity</span> <a href="{% url 'core:notifications' %}">View notifications</a></div>
-  {% if ENVIRONMENT != "production" %}<span class="env-badge">{{ ENVIRONMENT }} environment</span>{% endif %}
   {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
-  {% include "includes/section_tabs.html" %}
-  {% if dashboard_overdue %}{% include "includes/dashboard_overdue.html" %}{% endif %}
+  {% if not hide_provider_tabs %}{% if url != "my_space" and url != "ministry_timeliness" or tab == "folders" %}{% include "includes/section_tabs.html" %}{% endif %}{% endif %}
   {% block content %}{% endblock %}
 </main>
 <footer class="footer"><span>{{ BRAND_TAGLINE }}</span><span>Activity is recorded in a tamper-evident audit trail.</span></footer>

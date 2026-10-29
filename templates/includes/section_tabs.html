@@ -4,7 +4,7 @@
   <a href="{{ t.records_url }}"{% if t.active == 'records' %} class="active" aria-current="page"{% endif %}>{{ t.records_label }}</a>
   {% elif provider_workspace_tabs %}{% for pt in provider_workspace_tabs %}<a href="{{ pt.url }}"{% if pt.active %} class="active" aria-current="page"{% endif %}>{{ pt.label }}</a>{% endfor %}
   {% else %}
-  <span class="tab-context">{{ request.resolver_match.app_name|capfirst }} / {{ request.resolver_match.url_name|cut:"_"|capfirst }}</span>{% endif %}
+  <span class="tab-context">Workspace</span>{% endif %}
   <form class="provider-picker" method="get" action="{{ request.path }}">
     {% for key, value in provider_filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
     <label for="utility-provider">Utility provider</label>

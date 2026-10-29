@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}E-bill delivery {{ delivery.pk }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs">Administration / Incoming e-bills</div><h1>{{ delivery.subject|default:"E-bill delivery" }}</h1><p>Delivery {{ delivery.pk }} · {{ delivery.get_state_display }}</p></div><div class="actions"><a class="btn" href="{% url 'console:incoming_mailbox' delivery.mailbox_id %}">Mailbox &amp; history</a><a class="btn" href="{% url 'console:incoming_download' delivery.pk %}">Download original message</a></div></div>
+<section class="card"><h2>Processing result</h2><p>{{ delivery.reason }}</p><div class="grid cols-2">
+<div><strong>Dedicated mailbox</strong><p>{{ delivery.mailbox.address }}</p><strong>From / authenticated sender</strong><p>{{ delivery.sender|default:"Invalid From address" }}<br>{{ delivery.authenticated_sender|default:"No authenticated sender" }}</p><strong>Mapped utility provider</strong><p>{{ delivery.provider|default:"Unmapped" }}</p></div>
+<div><strong>Trusted receipt / recorded</strong><p>{{ delivery.received_at|date:"j M Y H:i:s T" }}<br>{{ delivery.recorded_at|date:"j M Y H:i:s T" }}</p><strong>Trusted relay checks</strong><p>Sender authentication: {{ delivery.authentication_passed|yesno:"Passed,Not passed" }}<br>Attachment scan: {{ delivery.attachments_clean|yesno:"Clean attested,Not attested" }}</p></div>
+</div><p class="muted">Message SHA-256: <code style="overflow-wrap:anywhere">{{ delivery.sha256 }}</code></p><p class="muted">Original messages may contain untrusted content. Download only for an authorised investigation; they are never rendered as live HTML here.</p>
+{% if can_retry %}<form method="post" action="{% url 'console:incoming_retry' delivery.pk %}">{% csrf_token %}<button class="btn btn-primary">Stage / retry safe attachments</button><small class="muted">Current sender rules and permissions are rechecked. This does not approve or settle invoices.</small></form>{% endif %}
+</section>
+<section class="card"><h2>Invoice intake records</h2><ul>{% for batch in batches %}<li><a href="{% url 'imports:batch' batch.pk %}">Intake {{ batch.pk }} — {{ batch.get_status_display }}</a></li>{% empty %}<li>No invoice attachments have been staged.</li>{% endfor %}</ul><a href="{% url 'core:audit' %}">Inspect audit trail</a></section>
+{% endblock %}

@@ -7,7 +7,7 @@ from django.urls import reverse
 
 from core.models import SpaceFolder
 from core.my_work import WorkFilter
-from core.space_folders import folder_link
+from core.space_folders import folder_links
 from core.utils import paginate
 from core.work_queries import apply_scope, personal_tasks, row_for
 from invoices.models import Invoice
@@ -97,8 +97,8 @@ def my_space(request):
     context = {"tab": tab, "folder_filter": folder, "filter_form": form, "rows": [], "cards": [], "page": None,
         "tabs": [{"key": key, "label": label, "url": space_url(params, tab=key, folder="all")}
                  for key, label in TABS.items()],
-        "folders": [folder_link(obj, request.user) for obj in SpaceFolder.objects.filter(
-            owner=request.user).select_related("org_unit", "provider")],
+        "folders": folder_links(SpaceFolder.objects.filter(
+            owner=request.user).select_related("org_unit", "provider"), request.user),
         "scope_note": "Your owned and workflow-role-responsible batches and invoices; services/providers in your authorised units. Folder links do not change ownership or permissions."}
     if form.is_valid():
         tasks = personal_tasks(request.user, form.cleaned_data)

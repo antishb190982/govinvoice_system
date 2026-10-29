@@ -19,6 +19,7 @@ class SpaceFolder(models.Model):
     org_unit = models.ForeignKey("org.OrgUnit", null=True, blank=True, on_delete=models.PROTECT)
     provider = models.ForeignKey("providers.Provider", null=True, blank=True, on_delete=models.PROTECT)
     notes = models.CharField(max_length=250, blank=True)
+    is_pinned = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
