@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block title %}{{ target.full_name }}{% endblock %}
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'accounts:user_list' %}">Users</a></div><h1>{{ target.full_name }}</h1><p>{{ target.username }} · {{ target.email }}</p></div>
-<div class="actions">{% if can_edit_profile and target != request.user and target.has_two_factor %}<form method="post" class="inline-form" data-confirm="Reset this user's two-step verification? They will have to enrol again.">{% csrf_token %}<input type="hidden" name="form" value="reset_2fa"><button class="btn btn-danger" type="submit">Reset 2FA</button></form>{% endif %}</div></div>
+<div class="actions">{% if target == request.user %}<a class="btn" href="{% url 'accounts:password_change' %}">Change my password</a>{% elif can_manage_password %}<a class="btn" href="{% url 'accounts:password_admin' target.pk %}?mode=set">Set password</a><a class="btn" href="{% url 'accounts:password_admin' target.pk %}?mode=reset">Reset password</a>{% endif %}{% if can_edit_profile and target != request.user and target.has_two_factor %}<form method="post" class="inline-form" data-confirm="Reset this user's two-step verification? They will have to enrol again.">{% csrf_token %}<input type="hidden" name="form" value="reset_2fa"><button class="btn btn-danger" type="submit">Reset 2FA</button></form>{% endif %}</div></div>
 <div class="grid cols-2">
 <div class="card"><h2>Details</h2>{% if can_edit_profile %}<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="form" value="edit">
 <div class="form-grid">{{ edit_form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div></form>{% else %}

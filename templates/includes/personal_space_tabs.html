@@ -1,0 +1,1 @@
+{% if personal_space_tabs %}<nav class="mw-tabs ps-tabs" aria-label="My space areas">{% for t in personal_space_tabs %}<a class="mw-tab{% if t.active %} is-active{% endif %}" href="{{ t.url }}"{% if t.active %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}</nav>{% endif %}

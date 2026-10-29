@@ -13,9 +13,10 @@
         {% if n.current %}<span class="badge {% if n.state == 'blocked' or n.state == 'overdue' %}badge-danger{% else %}badge-info{% endif %}">Current step</span>{% endif %}
       </div>
       {% if n.role %}<p class="journey-role">{{ n.role }}</p>{% endif %}
+      {% if n.acted_by_you %}<span class="badge badge-ok">Acted by you</span>{% elif n.assigned_to_you %}<span class="badge badge-info">Assigned to you</span>{% elif n.your_role %}<span class="badge badge-info">Your role</span>{% elif n.handoff %}<span class="badge">Current handoff</span>{% endif %}
       {% if n.current and n.owners %}<p class="journey-meta"><strong>Next action:</strong> {% for owner in n.owners|slice:":3" %}{{ owner.full_name|default:owner.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if n.owner_count > 3 %} and {{ n.owner_count|add:"-3" }} more{% endif %}</p>{% endif %}
       {% if n.due_at and n.state != "complete" and n.state != "cancelled" %}<p class="journey-meta">Due {{ n.due_at|date:"d M Y, H:i" }}</p>{% endif %}
-      {% if n.date %}<p class="journey-meta">{% if n.decided_by %}{{ n.decided_by }} · {% endif %}{{ n.date|date:"d M Y, H:i" }}</p>{% endif %}
+      {% if n.date %}<p class="journey-meta">{% if n.decided_by %}{{ n.decided_by }} · {% endif %}{% if n.date_only %}{{ n.date|date:"d M Y" }}{% else %}{{ n.date|date:"d M Y, H:i" }}{% endif %}</p>{% endif %}
       {% if n.reasons %}<ul class="journey-blockers">{% for reason in n.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>{% endif %}
       {% if n.watermark_copy %}
         <dl class="journey-copy-meta"><dt>Batch</dt><dd>{{ n.batch_reference }}</dd><dt>Processing started</dt><dd>{{ n.processing_started_at|date:"d M Y, H:i"|default:"Not recorded" }}</dd><dt>Settlement</dt><dd>{{ n.settlement_reference }}</dd><dt>Bank reference</dt><dd>{{ n.bank_reference }}</dd></dl>

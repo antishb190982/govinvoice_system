@@ -164,3 +164,8 @@ def handler403(request, exception=None):
 def handler404(request, exception=None):
     return render(request, "404.html", status=404)
 
+
+def favicon(request):
+    from django.templatetags.static import static
+    return redirect(static("favicon.svg"))
+

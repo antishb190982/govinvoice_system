@@ -115,6 +115,13 @@ class BankRow(models.Model):
     reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
     review_reason = models.TextField(blank=True)
     reviewed_fingerprint = models.CharField(max_length=64, blank=True)
+    assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.PROTECT, related_name="bank_exception_cases")
+    resolution_due_date = models.DateField(null=True, blank=True, db_index=True)
+    case_note = models.TextField(blank=True)
+    assigned_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.PROTECT, related_name="+")
+    assigned_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["statement_id", "line_number"]

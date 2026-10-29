@@ -1,0 +1,44 @@
+.mw-overdue-heading{position:relative}.mw-overdue-heading summary{cursor:pointer;padding-right:145px;font-size:.85rem;font-weight:600;line-height:1.6}.mw-overdue-total{font-size:.75rem;font-weight:400;margin-inline-start:8px}.mw-overdue-open{position:absolute;right:0;top:2px;font-size:.75rem}.mw-overdue .mw-ov-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-top:10px}.mw-overdue .mw-ov-card{padding:9px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}.mw-overdue .mw-count{font-size:1rem;flex-shrink:0}.mw-overdue .mw-label{font-size:.62rem;line-height:1.4}.mw-overdue .mw-note{margin-bottom:0;font-size:.65rem}.mw-overdue .mw-empty{padding:6px 0;margin:4px 0;font-size:.72rem}@media(max-width:600px){.mw-overdue-heading summary{padding-right:112px;font-size:.78rem}.mw-overdue-open{font-size:.65rem}.mw-overdue-total{display:block;margin-inline-start:16px}.mw-overdue .mw-ov-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mw-head-actions{display:flex;gap:.5rem;align-items:flex-start}
+.mw-tabs{display:flex;flex-wrap:wrap;gap:.25rem;align-items:center;border-bottom:1px solid var(--line);margin-bottom:1rem}
+.mw-tab{padding:.5rem .8rem;font-size:.85rem;color:var(--muted);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px}
+.mw-tab:hover{color:var(--ink)}
+.mw-tab.is-active{color:var(--brand);border-bottom-color:var(--brand);font-weight:600}
+.mw-modes{margin-left:auto;display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:.35rem}
+.mw-mode{padding:.25rem .65rem;font-size:.78rem;color:var(--muted);text-decoration:none}
+.mw-mode.is-active{background:var(--brand-soft);color:var(--brand);font-weight:600}
+.mw-filters{display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:flex-end;margin-bottom:1rem;padding:.85rem 1rem}
+.mw-filters .field{margin:0;min-width:200px;flex:1 1 200px}
+.mw-filter-actions{display:flex;gap:.5rem;flex-wrap:wrap}
+.mw-note{flex-basis:100%;margin:.4rem 0 0;font-size:.78rem;color:var(--muted)}
+.mw-cards,.mw-ov-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:.65rem;margin-bottom:1rem}
+.mw-card,.mw-ov-card{display:flex;flex-direction:column;gap:.15rem;padding:.7rem .9rem;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line-strong);border-radius:var(--radius);color:var(--ink);text-decoration:none;transition:transform .15s ease,box-shadow .15s ease}
+.mw-card:hover,.mw-ov-card:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.mw-card.has-work{border-left-color:var(--brand)}
+.mw-card.has-overdue,.mw-ov-card.has-overdue{border-left-color:var(--danger)}
+.mw-card.is-active{border-color:var(--brand);background:var(--brand-soft)}
+.mw-label{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.mw-count{font-size:1.45rem;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.mw-sub{font-size:.76rem;color:var(--muted)}
+.mw-flag{color:var(--danger);font-weight:600}
+.mw-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.mw-table{width:100%;min-width:760px;font-size:.85rem}
+.mw-kind{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.mw-unowned{display:inline-block;padding:.05rem .4rem;border-radius:4px;background:var(--warn-soft);color:var(--warn);font-size:.76rem;font-weight:600}
+.mw-detail{font-size:.83rem}
+.mw-inactive td{opacity:.65}
+.mw-inactive td.mw-actions{opacity:1}
+.mw-actions form{display:flex;gap:.35rem;margin:0 0 .35rem;flex-wrap:wrap}
+.mw-complete input[type=text]{min-width:120px;flex:1;font-size:.8rem;padding:.25rem .45rem}
+.mw-empty{padding:1.2rem;text-align:center;color:var(--muted);font-size:.85rem}
+.mw-sched-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:1rem;align-items:start}
+.mw-sched-form{padding:1rem}
+.mw-check{display:flex;flex-direction:row-reverse;justify-content:flex-end;gap:.5rem;align-items:center}
+.mw-runs{list-style:none;margin:0;padding:0 1rem 1rem 1.9rem;border-left:2px solid var(--line);margin-left:1rem}
+.mw-runs li{margin-bottom:.7rem;font-size:.85rem}
+.mw-runs time{display:block;font-size:.76rem;color:var(--muted)}
+.mw-runs p{margin:.2rem 0 0}
+.mw-overdue{margin-bottom:1rem;padding-bottom:.6rem}
+.mw-overdue .mw-ov-cards{padding:0 1rem;margin-bottom:.4rem}
+.mw-overdue .mw-note{padding:0 1rem}
+@media (max-width:768px){.mw-sched-grid{grid-template-columns:1fr}.mw-cards,.mw-ov-cards{grid-template-columns:1fr 1fr}.mw-modes{margin-left:0}}

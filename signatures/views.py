@@ -4,7 +4,8 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
+from django.core.files.base import ContentFile
 
 from core.files import validate_upload
 from core.models import AuditEvent
@@ -38,6 +39,55 @@ class VerifyForm(forms.Form):
     document = forms.FileField(label="Signed PDF")
 
 
+class AppearanceForm(forms.Form):
+    image = forms.FileField(label="Signature image (PNG or JPEG)", required=False)
+    pin = forms.CharField(label="Signing PIN", widget=forms.PasswordInput(attrs={"autocomplete": "off"}))
+    confirm = forms.BooleanField(label="I confirm this is my signature image")
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def appearance(request):
+    from signatures.appearance import normalise_image
+
+    identity = services.active_identity(request.user)
+    if not identity or not identity.is_usable:
+        raise PermissionDenied("Set up a valid signing certificate first.")
+    if request.method == "GET":
+        if not identity.signature_image:
+            from django.http import Http404
+            raise Http404
+        with identity.signature_image.open("rb") as source:
+            response = HttpResponse(source.read(), content_type="image/png")
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+    form = AppearanceForm(request.POST, request.FILES)
+    if form.is_valid():
+        try:
+            services.check_pin(request.user, form.cleaned_data["pin"])
+            old_hash = identity.signature_image_sha256
+            if request.POST.get("action") == "remove":
+                identity.signature_image = ""
+                identity.signature_image_sha256 = ""
+            else:
+                upload = form.cleaned_data["image"]
+                if not upload:
+                    raise ValidationError("Choose a PNG or JPEG signature image.")
+                data, digest = normalise_image(upload)
+                identity.signature_image.save("signature.png", ContentFile(data), save=False)
+                identity.signature_image_sha256 = digest
+            identity.save(update_fields=["signature_image", "signature_image_sha256"])
+            AuditEvent.record("signature.appearance_changed", obj=identity, actor=request.user,
+                              data={"previous_sha256": old_hash, "sha256": identity.signature_image_sha256})
+        except (ValidationError, OSError) as exc:
+            form.add_error(None, exc if isinstance(exc, ValidationError) else "Signature image storage is unavailable.")
+        else:
+            messages.success(request, "Signature image updated for future approvals. Historical approvals are unchanged.")
+            return redirect("signatures:mine")
+    return render(request, "signatures/appearance.html", {"form": form, "identity": identity})
+
+
 @login_required
 def my_identity(request):
     user = request.user
@@ -66,6 +116,7 @@ def my_identity(request):
         "identity": services.active_identity(user),
         "history": SigningIdentity.objects.filter(user=user),
         "enroll_form": enroll_form, "import_form": import_form,
+        "appearance_form": AppearanceForm(),
     })
 
 

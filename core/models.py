@@ -2,6 +2,8 @@ import hashlib
 import json
 
 from django.conf import settings
+from core.work_models import ProcessingCompletion, ProcessingSchedule  # noqa: F401
+from core.space_models import SpaceFolder  # noqa: F401
 from django.core.exceptions import PermissionDenied
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction

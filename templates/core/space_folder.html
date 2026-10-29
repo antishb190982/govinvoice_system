@@ -1,0 +1,19 @@
+{% extends "base.html" %}{% block title %}{% if folder %}Edit folder{% else %}New folder{% endif %}{% endblock %}
+{% block body_class %}my-space-page{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'core:my_space' %}">My space</a> / <a href="{% url 'core:my_space' %}?tab=folders">Folders</a></div>
+<h1>{% if folder %}Edit “{{ folder }}”{% else %}New folder{% endif %}</h1>
+<p>Folders are personal shortcuts. They never change record ownership, access or approval routing.</p></div></div>
+<form method="post" class="card ms-form" novalidate>{% csrf_token %}
+  {% include "includes/form_errors.html" with form=form %}
+  {% for h in form.hidden_fields %}{{ h }}{% endfor %}
+  {% for field in form.visible_fields %}<div class="field">
+    {% if field.widget_type == "checkbox" %}<label class="ms-check" for="{{ field.id_for_label }}">{{ field }} {{ field.label }}</label>
+    {% else %}<label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} <span aria-hidden="true">*</span>{% endif %}</label>{{ field }}{% endif %}
+    {% if field.help_text %}<small id="{{ field.auto_id }}_help">{{ field.help_text }}</small>{% endif %}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>{% endfor %}
+  <div class="form-actions"><button class="btn btn-primary" type="submit">{% if folder %}Save folder{% else %}Create folder{% endif %}</button>
+  <a class="btn" href="{% url 'core:my_space' %}?tab=folders">Cancel</a></div>
+</form>
+{% endblock %}

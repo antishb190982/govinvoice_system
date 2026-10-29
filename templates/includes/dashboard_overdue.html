@@ -1,0 +1,13 @@
+<section class="card mw-overdue" aria-label="Overdue work">
+  <div class="mw-overdue-heading">
+    <details{% if dashboard_overdue.total_count %} open{% endif %}>
+      <summary>Overdue work <span class="mw-overdue-total">{{ dashboard_overdue.total_count }} work item{{ dashboard_overdue.total_count|pluralize }}</span></summary>
+      <div class="mw-ov-cards">
+        {% for c in dashboard_overdue.cards %}{% if c.count or not dashboard_overdue.total_count %}<a class="mw-ov-card{% if c.count %} has-overdue{% endif %}" href="{{ c.url }}"><span class="mw-label">{{ c.label }}</span><span class="mw-count">{{ c.count }}</span></a>{% endif %}{% endfor %}
+      </div>
+      {% if not dashboard_overdue.total_count %}<p class="mw-empty">No recorded deadlines are overdue. Undated exceptions remain in the operational work queues.</p>{% endif %}
+      <p class="mw-note">Counts are work items, not unique invoices: one invoice can appear in more than one category. {{ dashboard_overdue.scope_note }}</p>
+    </details>
+    <a class="mw-overdue-open" href="{{ dashboard_overdue.url }}">Open overdue queue</a>
+  </div>
+</section>

@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% load gov %}{% block title %}Dashboard{% endblock %}{% block body_class %}hero-tall{% endblock %}
 {% block content %}
+{% include "includes/operations_tabs.html" %}
 <div class="page-head"><div><h1 class="display">Utility payables, <span class="accent">under control</span></h1><p>Good day, {{ request.user.full_name|default:request.user.username }} · your units · amounts in {{ currency }}</p></div>
 <div class="actions">{% if can.capture %}<a class="btn" href="{% url 'imports:list' %}">Import invoices</a><a class="btn btn-primary" href="{% url 'invoices:create' %}">Record invoice</a>{% endif %}{% if can.settle %}<a class="btn btn-primary" href="{% url 'settlements:new' %}">New settlement instruction</a>{% endif %}</div></div>
 

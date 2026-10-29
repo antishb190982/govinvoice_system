@@ -77,3 +77,20 @@ def invoice_map(request, pk):
     context = invoice_process(invoice, request.user)
     context["can_configure"] = has_role(request.user, invoice.org_unit, [Role.UNIT_ADMIN])
     return render(request, "workflow/process.html", context)
+
+
+@login_required
+def batch_map(request, pk):
+    """A department may inspect its own invoices, not a sibling's batch evidence."""
+    from operations.models import InvoiceBatch
+    from workflow.journey import batch_journey
+
+    visible = scope(Invoice.objects.filter(
+        batch_memberships__batch_id=pk, batch_memberships__active=True), request.user)
+    batch = get_object_or_404(InvoiceBatch.objects.filter(
+        pk=pk, members__active=True, members__invoice__in=visible,
+    ).select_related("provider", "ministry", "org_unit").distinct())
+    return render(request, "workflow/batch_process.html", {
+        "batch": batch, "batch_journey": batch_journey(batch, request.user, request.GET),
+        "department_only": True,
+    })

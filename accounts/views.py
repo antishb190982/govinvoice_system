@@ -207,6 +207,8 @@ def user_detail(request, pk):
     target = get_object_or_404(_manageable_users(request.user), pk=pk)
     allowed_units = units_for(request.user, [Role.UNIT_ADMIN])
     can_edit_profile = request.user.is_superuser or not target.memberships.exclude(org_unit__in=allowed_units).exists()
+    from accounts.password_admin import may_change_password
+    can_manage_password = may_change_password(request.user, target)
     edit_form = UserEditForm(request.POST if request.POST.get("form") == "edit" else None, instance=target)
     role_form = MembershipForm(request.POST if request.POST.get("form") == "role" else None,
                                allowed_units=allowed_units)
@@ -221,6 +223,7 @@ def user_detail(request, pk):
                     "target": target, "edit_form": edit_form, "role_form": role_form,
                     "memberships": target.memberships.filter(org_unit__in=allowed_units).select_related("org_unit"),
                     "allowed_unit_ids": set(allowed_units.values_list("pk", flat=True)), "can_edit_profile": can_edit_profile,
+                    "can_manage_password": can_manage_password,
                 })
             changed = edit_form.changed_data
             edit_form.save()
@@ -269,5 +272,6 @@ def user_detail(request, pk):
         "target": target, "edit_form": edit_form, "role_form": role_form,
         "memberships": target.memberships.filter(org_unit__in=allowed_units).select_related("org_unit"),
         "can_edit_profile": can_edit_profile,
+        "can_manage_password": can_manage_password,
         "allowed_unit_ids": set(allowed_units.values_list("pk", flat=True)),
     })

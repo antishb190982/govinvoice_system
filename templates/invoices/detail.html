@@ -1,13 +1,14 @@
 {% extends "base.html" %}{% load static gov operations_ui %}{% block title %}{{ invoice.reference }}{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
 {% block content %}
+{% if invoice.org_unit.code == "STAMP-DEMO" %}<div class="callout warn"><strong>DEMONSTRATION RECORD</strong>The source may be a user-supplied bill, but the recorded approvals and signature images are for testing only. This is not a real ministry approval or proof of payment.</div>{% endif %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'invoices:list' %}">Invoices</a> / {{ invoice.reference }}</div>
 <h1>{{ invoice.provider.name }} · {{ invoice.amount_total|money:invoice.currency }}</h1>
 <p>{% status_badge invoice %} Invoice {{ invoice.invoice_number }} · due <strong>{{ invoice.due_date|date:"d M Y" }}</strong>{% with d=invoice.due_date|days_until %}{% if invoice.is_unpaid %} ({% if d < 0 %}overdue{% elif d == 0 %}today{% else %}in {{ d }} days{% endif %}){% endif %}{% endwith %}</p></div>
 <div class="actions">
   <a class="btn" href="{% url 'workflow:process' invoice.pk %}">Process map</a>
   <a class="btn" href="{% url 'reconciliation:index' %}?q={{ invoice.reference|urlencode }}&amp;state=all">Reconcile</a>
-  {% if approval_evidence %}<a class="btn btn-primary" href="{% url 'invoices:approved_copy' invoice.pk %}">{% icon "file" %} Download watermarked PDF</a>{% endif %}
+  {% if approval_evidence %}<a class="btn btn-primary" href="{% url 'invoices:approved_copy' invoice.pk %}">{% icon "file" %} Download stamped invoice PDF</a>{% endif %}
   {% if invoice.document %}<a class="btn" href="{% url 'invoices:document' invoice.pk %}" target="_blank" rel="noopener">Original document</a>{% endif %}
   {% if my_task and batch_membership %}<a class="btn btn-primary" href="{% url 'workflow:batch_review' batch_membership.batch.pk %}">Review batch approval</a>{% endif %}
   {% if can_capture and invoice.is_editable %}<a class="btn" href="{% url 'invoices:edit' invoice.pk %}">Edit</a>{% endif %}

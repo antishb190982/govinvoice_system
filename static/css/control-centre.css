@@ -1,0 +1,24 @@
+.control-centre .cc-filters{display:flex;flex-wrap:wrap;gap:.75rem 1rem;align-items:flex-end;margin-bottom:1rem;padding:.85rem 1rem}
+.control-centre .cc-filters .field{margin:0;min-width:200px;flex:1 1 200px}
+.control-centre .cc-filters .errorlist.nonfield{flex-basis:100%}
+.cc-filter-actions{display:flex;gap:.5rem}
+.cc-queues{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.75rem;margin-bottom:1rem}
+.cc-card{display:flex;flex-direction:column;gap:.2rem;padding:.8rem .95rem;background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line-strong);border-radius:var(--radius);color:var(--ink);text-decoration:none;transition:transform .15s ease,box-shadow .15s ease}
+.cc-card:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.cc-card.has-work{border-left-color:var(--royal,var(--brand))}
+.cc-card.is-active{border-color:var(--brand);border-left-color:var(--brand);background:var(--brand-soft)}
+.cc-label{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.cc-count{font-size:1.6rem;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.cc-sub{font-size:.78rem;color:var(--muted)}
+.cc-flag{color:var(--warn);font-weight:600}
+.cc-kind{display:block;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.cc-unowned{display:inline-block;padding:.05rem .4rem;border-radius:4px;background:var(--warn-soft);color:var(--warn);font-size:.78rem;font-weight:600}
+.cc-blocker{color:var(--danger);font-weight:600;font-size:.85rem}
+.cc-notes{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1rem}
+.cc-link-card{display:flex;justify-content:space-between;align-items:center;gap:1rem;margin-bottom:1rem}
+.case-owner{display:grid;grid-template-columns:auto 1fr;gap:.3rem 1rem;margin:0 0 .75rem}
+.case-history{list-style:none;margin:0;padding:0;border-left:2px solid var(--line);padding-left:.9rem}
+.case-history li{margin-bottom:.7rem}
+.case-history time{font-size:.78rem;color:var(--muted)}
+@media (max-width:768px){.cc-notes{grid-template-columns:1fr}.cc-queues{grid-template-columns:1fr 1fr}}
+.cc-scope-note{flex-basis:100%;margin:0;font-size:.78rem;color:var(--muted)}

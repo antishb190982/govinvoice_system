@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block title %}{% if schedule %}Edit schedule{% else %}New schedule{% endif %}{% endblock %}
+{% block body_class %}my-work-page{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'core:my_work' %}">My work</a> / <a href="{% url 'core:my_work' %}?tab=schedules">Schedules</a> / {% if schedule %}{{ schedule }}{% else %}New{% endif %}</div>
+<h1>{% if schedule %}Edit schedule{% else %}New work schedule{% endif %}</h1>
+<p>A schedule reminds owners to perform a recurring check. Completing it records the run only; it never approves or pays an invoice.</p></div></div>
+<div class="mw-sched-grid">
+<form method="post" class="card mw-sched-form">{% csrf_token %}
+  {% include "includes/form_errors.html" with form=form %}
+  <div class="callout info mw-sched-rules"><strong>How cycles work</strong><p>Missed cycles are kept as overdue, not skipped. Marking a schedule done advances it by one cycle only, so each missed cycle needs its own completion. A one-off schedule that has been completed must be given a new due date before it can be resumed.</p></div>
+  {% for field in form.visible_fields %}<div class="field{% if field.field.widget.input_type == 'checkbox' %} mw-check{% endif %}">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+    {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>{% endfor %}
+  {% for h in form.hidden_fields %}{{ h }}{% endfor %}
+  <div class="mw-filter-actions"><button class="btn btn-primary btn-sm" type="submit">Save schedule</button><a class="btn btn-sm" href="{% url 'core:my_work' %}?tab=schedules">Cancel</a></div>
+</form>
+<aside class="card mw-history" aria-label="Completion history"><div class="card-head"><h2>Completion history</h2></div>
+{% if schedule %}{% if runs %}<ol class="mw-runs">{% for r in runs %}<li><strong>Due {{ r.due_date|date:"d M Y" }}</strong><time>Completed {{ r.completed_at|date:"d M Y H:i" }}</time>{% if r.note %}<p>{{ r.note }}</p>{% endif %}</li>{% endfor %}</ol>
+{% else %}<p class="mw-empty">No completions recorded yet.</p>{% endif %}
+{% else %}<p class="mw-empty">History appears after the schedule is saved and first completed.</p>{% endif %}
+</aside></div>
+{% endblock %}

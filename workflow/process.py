@@ -51,12 +51,14 @@ def invoice_process(invoice, viewer):
         ownership = owners(invoice.org_unit, [Role.CLERK, Role.UNIT_ADMIN])
         reasons.extend(ownership.pop("reasons"))
         nodes.append(node("Review / correction and submission", Role.CLERK.label, "blocked" if reasons else "active",
-                          True, reasons=reasons, url=invoice.get_absolute_url(), **ownership))
+                          True, reasons=reasons, url=invoice.get_absolute_url(),
+                          stage_roles=[Role.CLERK, Role.UNIT_ADMIN], **ownership))
         if policy:
             for step in policy.steps.order_by("order"):
                 if step.min_amount <= invoice.amount_total:
                     nodes.append(node(step.name, step.get_role_display(), signature=step.requires_signature,
-                                      sla=step.sla_hours, preview=True, threshold=step.min_amount))
+                                      sla=step.sla_hours, preview=True, threshold=step.min_amount,
+                                      stage_roles=[step.role]))
     submitters = set(AuditEvent.objects.filter(action="invoice.submitted", object_type="invoices.invoice",
                                                 object_id=str(invoice.pk)).values_list("actor_id", flat=True))
     decided = {task.decided_by_id for task in latest if task.decided_by_id}
@@ -119,6 +121,8 @@ def invoice_process(invoice, viewer):
             copy_missing.append(f"Approver for {decision['name']} is not recorded.")
         if not decision["at"]:
             copy_missing.append(f"Approval date for {decision['name']} is not recorded.")
+        if not decision.get("signature_image_recorded"):
+            copy_missing.append(f"Signature image for {decision['name']} was not recorded at approval.")
     nodes.append(node(
         "Watermarked invoice copy", "Approved invoice evidence",
         "complete" if copy_evidence else "cancelled" if invoice.status == Invoice.Status.CANCELLED else "waiting",
@@ -152,7 +156,7 @@ def invoice_process(invoice, viewer):
         ]
         for label, role, current, complete, signed in phases:
             part = node(label, role.label, "complete" if complete else "active" if current else "waiting",
-                        current, url=payment_url, signature=signed)
+                        current, url=payment_url, signature=signed, stage_roles=[role])
             if current:
                 excluded = []
                 if auth_current and instruction:
@@ -175,7 +179,7 @@ def invoice_process(invoice, viewer):
         label = "Cancelled" if invoice.status == Invoice.Status.CANCELLED else \
             "Closed — no payment required" if invoice.amount_total == 0 else "Paid (invoice ledger)"
         nodes.append(node(label, state="cancelled" if invoice.status == Invoice.Status.CANCELLED else "complete",
-                          date=invoice.paid_at, payment_reference=invoice.payment_reference))
+                          date=invoice.paid_at, date_only=True, payment_reference=invoice.payment_reference))
     current = next((n for n in nodes if n["current"]), nodes[-1])
     from reconciliation.services import report
     reconciliation = report(invoice)
@@ -183,6 +187,7 @@ def invoice_process(invoice, viewer):
         checkpoint = node("Provider statement reconciliation", "Finance / unit administrator",
                           "complete" if reconciliation["valid"] else "blocked",
                           not reconciliation["valid"],
+                          stage_roles=[Role.FINANCE, Role.UNIT_ADMIN],
                           url=reverse("reconciliation:index") + "?q=" + invoice.reference,
                           reasons=[] if reconciliation["valid"] else [reconciliation["reason"]])
         evidence = reconciliation["row"]
@@ -199,7 +204,10 @@ def invoice_process(invoice, viewer):
     attention = list(current["reasons"])
     if not terminal and invoice.processing["priority"] in ["overdue", "urgent"]:
         attention.append("Invoice payment timing requires urgent attention.")
-    return {"invoice": invoice, "nodes": nodes, "current": current, "attention": attention,
+    from workflow.journey import department_context
+    return {**department_context(invoice, viewer, nodes),
+            "invoice": invoice, "nodes": nodes, "current": current, "attention": attention,
             "needs_attention": bool(attention), "tasks": tasks, "round": latest_round,
             "policy": policy, "instruction": instruction, "instruction_url": payment_url,
+            "batch_journey_url": reverse("workflow:batch_process", args=[active_member.batch_id]) if active_member else "",
             "terminal": terminal, "now": timezone.now()}

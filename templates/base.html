@@ -4,16 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <title>{% block title %}{{ BRAND_NAME }}{% endblock %} · {{ BRAND_NAME }}</title>
   <link rel="preload" href="{% static 'fonts/poppins-latin-500-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
   <link rel="stylesheet" href="{% static 'css/shell.css' %}">
+  <link rel="stylesheet" href="{% static 'css/my-work.css' %}">
+  <link rel="stylesheet" href="{% static 'css/my-space.css' %}">
   <script src="{% static 'vendor/chart.umd.min.js' %}" defer></script>
   <script src="{% static 'js/app.js' %}" defer></script>
   {% block head %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}" data-idle-minutes="{{ IDLE_TIMEOUT_MINUTES }}"{% if request.user.is_authenticated %} data-activity-url="{% url 'core:activity' %}"{% endif %}>
-{% with app=nav_app|default:request.resolver_match.app_name url=nav_url|default:request.resolver_match.url_name %}
+{% firstof nav_app request.resolver_match.app_name "" as resolved_nav_app %}
+{% firstof nav_url request.resolver_match.url_name "" as resolved_nav_url %}
+{% with app=resolved_nav_app url=resolved_nav_url %}
 {% url 'providers:accounts' as accounts_url %}
 <div class="app-shell">
 <aside class="sidebar" id="app-sidebar" aria-label="Main navigation" tabindex="-1">
@@ -21,41 +26,38 @@
   <button class="side-close" type="button" data-nav-close aria-label="Close navigation menu">{% icon "arrow" 18 %}</button></div>
   <nav class="side-nav">
   <p class="side-group">My workspace</p>
-  <a class="side-link{% if app == 'core' and url == 'dashboard' or not app %} is-active{% endif %}" href="{% url 'core:dashboard' %}"{% if app == 'core' and url == 'dashboard' or not app %} aria-current="page"{% endif %}>{% icon "home" %}<span>Overview</span></a>
+  <a class="side-link{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' or not app %} is-active{% endif %}" href="{% url 'core:dashboard' %}?clear_provider=1"{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' %} aria-current="page"{% endif %}>{% icon "home" %}<span>Operations overview</span></a>
+  <a class="side-link{% if app == 'core' and url == 'my_space' or app == 'core' and url == 'my_work' or app == 'core' and 'work_schedule' in url or app == 'core' and 'space_folder' in url %} is-active{% endif %}" href="{% url 'core:my_space' %}?clear_provider=1"{% if app == 'core' and url == 'my_space' or app == 'core' and url == 'my_work' %} aria-current="page"{% endif %}>{% icon "check" %}<span>My space</span></a>
   <a class="side-link{% if url == 'notifications' %} is-active{% endif %}" href="{% url 'core:notifications' %}"{% if url == 'notifications' %} aria-current="page"{% endif %}>{% icon "bell" %}<span>Notifications</span><span class="side-count" data-notification-count{% if not unread_notifications %} hidden{% endif %}>{{ unread_notifications|default:0 }}</span></a>
   <p class="side-group">Bills &amp; batches</p>
-  {% if can.capture %}<a class="side-link{% if url == 'prepare' or url == 'prepare_new' %} is-active{% endif %}" href="{% url 'operations:prepare_new' %}">{% icon "file" %}<span>Prepare batch</span></a>{% endif %}
-  <a class="side-link{% if app == 'invoices' and url != 'create' and url != 'surcharges' and url != 'surcharge' %} is-active{% endif %}" href="{% url 'invoices:list' %}?status=open"{% if app == 'invoices' and url != 'create' and url != 'surcharges' and url != 'surcharge' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Invoice register</span></a>
-  {% if can.capture %}<a class="side-link{% if app == 'imports' %} is-active{% endif %}" href="{% url 'imports:list' %}"{% if app == 'imports' %} aria-current="page"{% endif %}>{% icon "scan" %}<span>Import invoices</span></a>
-  <a class="side-link{% if app == 'invoices' and url == 'create' %} is-active{% endif %}" href="{% url 'invoices:create' %}"{% if app == 'invoices' and url == 'create' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Record manually</span></a>{% endif %}
-  <a class="side-link{% if app == 'ocr' %} is-active{% endif %}" href="{% url 'ocr:templates' %}"{% if app == 'ocr' %} aria-current="page"{% endif %}>{% icon "spark" %}<span>OCR templates</span></a>
-  <a class="side-link{% if app == 'operations' and url == 'workspace' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=preparation"{% if app == 'operations' and url == 'workspace' %} aria-current="page"{% endif %}>{% icon "file" %}<span>My batch workspace</span></a>
-  <div class="side-folders" aria-label="Batch folders">
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'invoices' or app == 'invoices' and url != 'surcharges' and url != 'surcharge' %} is-active{% endif %}" href="{% url 'core:section_overview' section='invoices' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'invoices' or app == 'invoices' and url != 'surcharges' and url != 'surcharge' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Invoices</span></a>
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'imports' or app == 'imports' %} is-active{% endif %}" href="{% url 'core:section_overview' section='imports' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'imports' or app == 'imports' %} aria-current="page"{% endif %}>{% icon "scan" %}<span>Invoice intake</span></a>
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'batches' or app == 'operations' and 'batch' in url or app == 'operations' and url == 'workspace' or app == 'operations' and 'prepare' in url %} is-active{% endif %}" href="{% url 'core:section_overview' section='batches' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'batches' or app == 'operations' and 'batch' in url or app == 'operations' and url == 'workspace' or app == 'operations' and 'prepare' in url %} aria-current="page"{% endif %}>{% icon "file" %}<span>Batches</span></a>
+  <div class="side-folders" aria-label="Batch folder shortcuts">
     {% with fc=batch_folder_counts cur=request.GET.folder %}
-    <a class="side-sublink{% if url == 'workspace' and cur == 'preparation' or url == 'workspace' and not cur %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=preparation"><span>Preparation</span><span class="side-subcount" data-batch-folder="preparation">{{ fc.preparation|default:0 }}</span></a>
-    <a class="side-sublink{% if url == 'workspace' and cur == 'work' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=work"><span>Work in progress</span><span class="side-subcount" data-batch-folder="work">{{ fc.work|default:0 }}</span></a>
-    <a class="side-sublink{% if url == 'workspace' and cur == 'rejected' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=rejected"><span>Rejected</span><span class="side-subcount is-alert" data-batch-folder="rejected">{{ fc.rejected|default:0 }}</span></a>
-    <a class="side-sublink{% if url == 'workspace' and cur == 'completed' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=completed"><span>Completed</span><span class="side-subcount" data-batch-folder="completed">{{ fc.completed|default:0 }}</span></a>
-    <a class="side-sublink{% if url == 'workspace' and cur == 'all' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=all"><span>All folders</span><span class="side-subcount" data-batch-folder="all">{{ fc.all|default:0 }}</span></a>
+    <a class="side-sublink{% if url == 'workspace' and cur == 'preparation' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=preparation&amp;clear_provider=1"><span>Preparation</span><span class="side-subcount" data-batch-folder="preparation">{{ fc.preparation|default:0 }}</span></a>
+    <a class="side-sublink{% if url == 'workspace' and cur == 'work' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=work&amp;clear_provider=1"><span>Work in progress</span><span class="side-subcount" data-batch-folder="work">{{ fc.work|default:0 }}</span></a>
+    <a class="side-sublink{% if url == 'workspace' and cur == 'rejected' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=rejected&amp;clear_provider=1"><span>Rejected</span><span class="side-subcount is-alert" data-batch-folder="rejected">{{ fc.rejected|default:0 }}</span></a>
+    <a class="side-sublink{% if url == 'workspace' and cur == 'completed' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=completed&amp;clear_provider=1"><span>Completed</span><span class="side-subcount" data-batch-folder="completed">{{ fc.completed|default:0 }}</span></a>
+    <a class="side-sublink{% if url == 'workspace' and cur == 'all' %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder=all&amp;clear_provider=1"><span>All folders</span><span class="side-subcount" data-batch-folder="all">{{ fc.all|default:0 }}</span></a>
     {% endwith %}
   </div>
-  <a class="side-link{% if app == 'operations' and 'batch' in url %} is-active{% endif %}" href="{% url 'operations:batches' %}"{% if app == 'operations' and 'batch' in url %} aria-current="page"{% endif %}>{% icon "file" %}<span>All batches register</span></a>
-  <a class="side-link{% if app == 'operations' and 'case' in url or app == 'operations' and url == 'document' %} is-active{% endif %}" href="{% url 'operations:cases' %}"{% if app == 'operations' and 'case' in url or app == 'operations' and url == 'document' %} aria-current="page"{% endif %}>{% icon "shield" %}<span>Dispute basket</span></a>
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'disputes' or app == 'operations' and 'case' in url or app == 'operations' and url == 'document' %} is-active{% endif %}" href="{% url 'core:section_overview' section='disputes' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'disputes' or app == 'operations' and 'case' in url or app == 'operations' and url == 'document' %} aria-current="page"{% endif %}>{% icon "shield" %}<span>Disputes</span></a>
+  <a class="side-link{% if app == 'ocr' %} is-active{% endif %}" href="{% url 'ocr:templates' %}"{% if app == 'ocr' %} aria-current="page"{% endif %}>{% icon "spark" %}<span>OCR templates</span></a>
   <p class="side-group">Service accounts</p>
-  {% if accounts_url %}<a class="side-link{% if app == 'providers' and url == 'accounts' or app == 'providers' and 'account' in url %} is-active{% endif %}" href="{{ accounts_url }}"{% if app == 'providers' and url == 'accounts' or app == 'providers' and 'account' in url %} aria-current="page"{% endif %}>{% icon "building" %}<span>Account register</span></a>{% endif %}
-  <a class="side-link{% if app == 'providers' and 'account' not in url %} is-active{% endif %}" href="{% url 'providers:list' %}"{% if app == 'providers' and 'account' not in url %} aria-current="page"{% endif %}>{% icon "building" %}<span>Providers catalogue</span></a>
-  <a class="side-link{% if url == 'visibility' %} is-active{% endif %}" href="{% url 'providers:visibility' %}">{% icon "chart" %}<span>Provider visibility</span></a>
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'accounts' or app == 'providers' and 'account' in url %} is-active{% endif %}" href="{% url 'core:section_overview' section='accounts' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'accounts' or app == 'providers' and 'account' in url %} aria-current="page"{% endif %}>{% icon "building" %}<span>Service accounts</span></a>
+  <a class="side-link{% if app == 'providers' and 'account' not in url %} is-active{% endif %}" href="{% url 'providers:visibility' %}?clear_provider=1"{% if app == 'providers' and 'account' not in url %} aria-current="page"{% endif %}>{% icon "building" %}<span>Utility providers</span></a>
   <p class="side-group">Approvals</p>
-  {% if can.approve %}<a class="side-link{% if app == 'workflow' and url == 'inbox' or app == 'workflow' and url == 'task' %} is-active{% endif %}" href="{% url 'workflow:inbox' %}"{% if app == 'workflow' and url == 'inbox' or app == 'workflow' and url == 'task' %} aria-current="page"{% endif %}>{% icon "check" %}<span>Approval inbox</span><span class="side-count" data-approval-count{% if not pending_approvals %} hidden{% endif %}>{{ pending_approvals|default:0 }}</span></a>{% endif %}
-  <a class="side-link{% if url == 'processes' or url == 'process' %} is-active{% endif %}" href="{% url 'workflow:processes' %}"{% if url == 'processes' or url == 'process' %} aria-current="page"{% endif %}>{% icon "clock" %}<span>Workflow monitor</span></a>
+  {% if can.approve %}<a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'approvals' or app == 'workflow' and url == 'inbox' or app == 'workflow' and url == 'task' %} is-active{% endif %}" href="{% url 'core:section_overview' section='approvals' %}?clear_provider=1">{% icon "check" %}<span>Approvals</span><span class="side-count" data-approval-count{% if not pending_approvals %} hidden{% endif %}>{{ pending_approvals|default:0 }}</span></a>{% endif %}
+  <a class="side-link{% if url == 'processes' or url == 'process' %} is-active{% endif %}" href="{% url 'workflow:processes' %}?clear_provider=1"{% if url == 'processes' or url == 'process' %} aria-current="page"{% endif %}>{% icon "clock" %}<span>Workflow monitor</span></a>
   <p class="side-group">Finance</p>
-  <a class="side-link{% if app == 'settlements' %} is-active{% endif %}" href="{% url 'settlements:list' %}"{% if app == 'settlements' %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Settlements &amp; groups</span></a>
-  <a class="side-link{% if app == 'reconciliation' and '/bank/' not in request.path %} is-active{% endif %}" href="{% url 'reconciliation:index' %}"{% if app == 'reconciliation' and '/bank/' not in request.path %} aria-current="page"{% endif %}>{% icon "check" %}<span>Invoice reconciliation</span></a>
-  {% if can.bank %}<a class="side-link{% if '/bank/' in request.path and app == 'reconciliation' %} is-active{% endif %}" href="{% url 'reconciliation:bank_index' %}"{% if '/bank/' in request.path and app == 'reconciliation' %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Bank reconciliation</span></a>{% endif %}
-  <a class="side-link{% if url == 'surcharges' or url == 'surcharge' %} is-active{% endif %}" href="{% url 'invoices:surcharges' %}"{% if url == 'surcharges' or url == 'surcharge' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Surcharge monitor</span></a>
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'settlements' or app == 'settlements' %} is-active{% endif %}" href="{% url 'core:section_overview' section='settlements' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'settlements' or app == 'settlements' %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Settlements</span></a>
+  <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'reconciliation' or app == 'reconciliation' and '/bank/' not in request.path %} is-active{% endif %}" href="{% url 'core:section_overview' section='reconciliation' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'reconciliation' or app == 'reconciliation' and '/bank/' not in request.path %} aria-current="page"{% endif %}>{% icon "check" %}<span>Provider reconciliation</span></a>
+  {% if can.bank %}<a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'bank' or app == 'reconciliation' and '/bank/' in request.path %} is-active{% endif %}" href="{% url 'core:section_overview' section='bank' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'bank' or app == 'reconciliation' and '/bank/' in request.path %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Bank reconciliation</span></a>{% endif %}
+  <a class="side-link{% if url == 'surcharges' or url == 'surcharge' %} is-active{% endif %}" href="{% url 'invoices:surcharges' %}?clear_provider=1"{% if url == 'surcharges' or url == 'surcharge' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Surcharge monitor</span></a>
   <p class="side-group">Reports</p>
-  <a class="side-link{% if url == 'analytics' %} is-active{% endif %}" href="{% url 'analytics' %}"{% if url == 'analytics' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Historical dashboards</span></a>
-  <a class="side-link{% if url == 'sla' %} is-active{% endif %}" href="{% url 'workflow:sla' %}"{% if url == 'sla' %} aria-current="page"{% endif %}>{% icon "clock" %}<span>SLA monitor</span></a>
+  <a class="side-link{% if url == 'analytics' or url == 'section_overview' and request.resolver_match.kwargs.section == 'analytics' %} is-active{% endif %}" href="{% url 'core:section_overview' section='analytics' %}?clear_provider=1"{% if url == 'analytics' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Historical dashboards</span></a>
+  <a class="side-link{% if url == 'sla' %} is-active{% endif %}" href="{% url 'workflow:sla' %}?clear_provider=1"{% if url == 'sla' %} aria-current="page"{% endif %}>{% icon "clock" %}<span>SLA monitor</span></a>
   <p class="side-group">Administration</p>
   <a class="side-link{% if url == 'policies' or url == 'policy' or url == 'policy_new' or url == 'policy_edit' %} is-active{% endif %}" href="{% url 'workflow:policies' %}"{% if url == 'policies' or url == 'policy' or url == 'policy_new' or url == 'policy_edit' %} aria-current="page"{% endif %}>{% icon "settings" %}<span>Workflow configuration</span></a>
   <a class="side-link{% if app == 'org' %} is-active{% endif %}" href="{% url 'org:tree' %}"{% if app == 'org' %} aria-current="page"{% endif %}>{% icon "home" %}<span>Ministries &amp; units</span></a>
@@ -88,6 +90,7 @@
   {% if ENVIRONMENT != "production" %}<span class="env-badge">{{ ENVIRONMENT }} environment</span>{% endif %}
   {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
   {% include "includes/section_tabs.html" %}
+  {% if dashboard_overdue %}{% include "includes/dashboard_overdue.html" %}{% endif %}
   {% block content %}{% endblock %}
 </main>
 <footer class="footer"><span>{{ BRAND_TAGLINE }}</span><span>Activity is recorded in a tamper-evident audit trail.</span></footer>

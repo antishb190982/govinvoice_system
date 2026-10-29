@@ -137,11 +137,22 @@ def sign_payload(user, pin, payload, purpose):
     if identity is None:
         raise ValidationError("This step needs a digital signature. Set up your signing certificate first.")
     key = unlock_key(identity, pin)
+    appearance = identity.signature_image.name
+    appearance_hash = identity.signature_image_sha256
+    if appearance:
+        with identity.signature_image.open("rb") as source:
+            image = source.read(2 * 1024 * 1024)
+        if not appearance_hash or hashlib.sha256(image).hexdigest() != appearance_hash:
+            raise ValidationError("Your signature image has changed. Upload it again before signing.")
+        # Add metadata only for new image-bearing signatures. Legacy signed
+        # payloads and existing invoice fingerprints remain unchanged.
+        payload = {**payload, "signature_appearance": {"sha256": appearance_hash}}
     data = canonical_json(payload).encode()
     sig, algorithm = _sign_bytes(key, data)
     return Signature.objects.create(
         identity=identity, purpose=purpose, payload=payload, payload_sha256=hashlib.sha256(data).hexdigest(),
         algorithm=algorithm, signature=sig, signed_at=timezone.now(),
+        appearance_image=appearance, appearance_sha256=appearance_hash if appearance else "",
     )
 
 

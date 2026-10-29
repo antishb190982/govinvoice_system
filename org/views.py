@@ -5,10 +5,12 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from urllib.parse import urlencode
 
 from core.models import AuditEvent
 from invoices.models import Invoice
-from org.access import can_view, has_role, units_for
+from org.access import can_view, has_role, units_for, scope
 from org.models import OrgUnit, Role
 
 
@@ -29,11 +31,33 @@ class OrgUnitForm(forms.ModelForm):
 
 @login_required
 def tree(request):
+    from providers.models import ServiceAccount
+    provider = getattr(request, "utility_provider", None)
+    account_filter = Q(service_accounts__provider=provider) if provider else Q()
+    invoice_filter = Q(invoices__provider=provider) if provider else Q()
     units = units_for(request.user).annotate(
-        accounts=Count("service_accounts", distinct=True),
-        unpaid=Sum("invoices__amount_total", filter=Q(invoices__status__in=Invoice.UNPAID)),
+        accounts=Count("service_accounts", filter=account_filter, distinct=True),
+        unpaid_count=Count("invoices", filter=Q(invoices__status__in=Invoice.UNPAID) & invoice_filter, distinct=True),
     ).order_by("path")
-    return render(request, "org/tree.html", {"units": units})
+    root = reverse("org:tree")
+    params = {"provider": provider.pk} if provider else {}
+    def link(route, **extra):
+        values = {**params, **extra}
+        return route + ("?" + urlencode(values) if values else "")
+    if request.GET.get("active") == "1":
+        units = units.filter(is_active=True)
+    cards = [
+        {"label": "Accessible units", "count": units_for(request.user).count(), "url": link(root, view="records")},
+        {"label": "Active units", "count": units_for(request.user).filter(is_active=True).count(),
+         "url": link(root, view="records", active="1")},
+        {"label": "Allocated services", "count": scope(ServiceAccount.objects.all(), request.user).count(),
+         "url": link(reverse("core:section_overview", args=["accounts"]))},
+        {"label": "Unpaid invoices", "count": scope(Invoice.objects.filter(status__in=Invoice.UNPAID), request.user).count(),
+         "url": link(reverse("invoices:list"), status="open")},
+    ]
+    return render(request, "org/tree.html", {"units": units, "org_dashboard_cards": cards,
+        "org_view": "records" if request.GET.get("view") == "records" else "overview",
+        "org_overview_url": link(root, view="overview"), "org_records_url": link(root, view="records")})
 
 
 @login_required

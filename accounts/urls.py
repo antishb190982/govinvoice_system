@@ -1,10 +1,12 @@
 from django.urls import path
+from accounts.password_admin import password_admin
 
 from accounts import views
 
 app_name = "accounts"
 
 urlpatterns = [
+    path("users/<int:pk>/password/", password_admin, name="password_admin"),
     path("login/", views.login_view, name="login"),
     path("logout/", views.logout_view, name="logout"),
     path("2fa/verify/", views.otp_verify, name="otp_verify"),

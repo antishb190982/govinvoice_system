@@ -91,7 +91,9 @@ def batch(request, pk):
             return redirect(item)
         except ValidationError as exc:
             error = " ".join(exc.messages)
+    from workflow.journey import batch_journey
     return render(request, "operations/batch.html", {
+        "batch_journey": batch_journey(item, request.user, request.GET),
         "batch": item, "members": members, "error": error,
         "gross_total": sum((m.invoice.amount_total for m in members if m.active), Decimal("0")),
         "payable_total": sum((m.payable for m in members if m.active), Decimal("0")),

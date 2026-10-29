@@ -32,7 +32,9 @@ def filter_provider(qs):
 
 
 def activate(request):
-    selected = request.session.get("utility_provider")
+    # Each page starts at All providers. Only explicit URL filters scope it;
+    # drill-through links carry those filters, never a hidden session selection.
+    selected = None
     provider_scoped = (request.GET.get("provider", "").isdigit()
                        and not request.path.rstrip("/").endswith("/providers/accounts/new"))
     explicit = "utility_provider" in request.GET or provider_scoped

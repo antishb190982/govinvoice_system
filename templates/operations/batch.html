@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% load static gov %}{% block title %}{{ batch.reference }}{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}"><link rel="stylesheet" href="{% static 'css/process.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:batches' %}">Processing batches</a> / {{ batch.reference }}</div>
 <h1>{{ batch.reference }} · {{ batch.name }}</h1>
@@ -14,6 +14,7 @@
 <div class="ops-kpi"><span>Current payable</span><strong>{{ payable_total|money:batch.currency }}</strong></div>
 <div class="ops-kpi{% if held_count %} warn{% endif %}"><span>On hold</span><strong>{{ held_count }}</strong></div>
 </div>
+{% include "workflow/_batch_journey.html" %}
 <div class="split"><div class="stack">
 <div class="card"><h2>Members</h2><div class="table-wrap"><table class="ops-table"><thead><tr><th>Invoice</th><th>Unit / owner</th><th>Due</th><th>Status</th><th class="num">At batching</th><th class="num">Gross</th><th class="num">Payable</th><th>Membership</th></tr></thead><tbody>
 {% for m in members %}<tr><td><a href="{{ m.invoice.get_absolute_url }}">{{ m.invoice.reference }}</a><br><small class="muted">{{ m.invoice.invoice_number }}</small></td><td>{{ m.invoice.org_unit.code }}<br>{{ m.invoice.processing_owner|default:m.invoice.created_by }}</td><td class="nowrap">{{ m.invoice.due_date|date:"d M Y" }}</td>

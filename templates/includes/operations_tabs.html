@@ -1,0 +1,1 @@
+{% if operations_tabs %}<nav class="mw-tabs ops-tabs" aria-label="Operations overview views">{% for t in operations_tabs %}<a class="mw-tab{% if t.active %} is-active{% endif %}" href="{{ t.url }}"{% if t.active %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}</nav>{% endif %}

@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block title %}Signature stamp image{% endblock %}
+{% block content %}<div class="page-head"><div><h1>Signature stamp image</h1><p>Only your own image can be changed. Previous signed approvals keep their recorded image.</p></div></div>
+<section class="card"><form method="post" enctype="multipart/form-data" action="{% url 'signatures:appearance' %}">{% csrf_token %}{{ form.as_div }}<div class="form-actions"><button class="btn btn-primary" type="submit">Save signature image</button><a class="btn" href="{% url 'signatures:mine' %}">Back to my signature</a></div></form></section>{% endblock %}

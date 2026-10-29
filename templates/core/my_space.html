@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% block title %}My space{% endblock %}
+{% block body_class %}my-work-page my-space-page{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'core:dashboard' %}">Overview</a> / My space</div>
+<h1>My space</h1>
+<p>Your providers, batches, invoices, services and folders. Assigned tasks, schedules and anomalies live under the Work tab.</p></div>
+<div class="ms-head-actions"><a class="btn btn-primary btn-sm" href="{% url 'core:space_folder_new' %}">New folder</a></div></div>
+
+{% if personal_space_tabs %}{% include "includes/personal_space_tabs.html" %}{% else %}<nav class="mw-tabs" aria-label="My space areas">
+{% for t in tabs %}<a class="mw-tab{% if t.key == tab %} is-active{% endif %}" href="{{ t.url }}"{% if t.key == tab %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
+</nav>{% endif %}
+
+{% if filter_form and tab != "folders" %}<form method="get" class="mw-filters ms-filters card" aria-label="Filter my space">
+  {% include "includes/form_errors.html" with form=filter_form %}
+  <input type="hidden" name="tab" value="{{ tab }}">
+  <input type="hidden" name="folder" value="{{ folder_filter }}">
+  {% for field in filter_form.visible_fields %}{% if field.name == "provider" %}<input type="hidden" name="provider" value="{{ field.value|default_if_none:'' }}">{% else %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>{% endif %}{% endfor %}
+  {% for h in filter_form.hidden_fields %}{{ h }}{% endfor %}
+  <div class="mw-filter-actions"><button class="btn btn-primary btn-sm" type="submit">Apply filters</button>
+  <a class="btn btn-sm" href="{% url 'core:my_space' %}?tab={{ tab|urlencode }}&amp;clear_provider=1">Clear filters</a></div>
+  {% if scope_note %}<p class="mw-note">{{ scope_note }}</p>{% endif %}
+</form>{% elif scope_note %}<p class="mw-note">{{ scope_note }}</p>{% endif %}
+
+{% if cards %}<section class="ms-cards" aria-label="My responsibilities">
+{% for c in cards %}<a class="ms-card{% if c.count %} has-work{% endif %}" href="{{ c.url }}"><span class="mw-label">{{ c.label }}</span><span class="mw-count">{{ c.count }}</span></a>{% endfor %}
+</section>{% endif %}
+
+{% if tab == "folders" %}
+<div class="card">
+<div class="card-head"><h2>My folders</h2><span class="muted">{{ folders|length }} folder{{ folders|length|pluralize }}</span></div>
+{% if folders %}<ul class="ms-folders">
+{% for f in folders %}<li class="ms-folder">
+  <div class="ms-folder-main">{% if f.url %}<a href="{{ f.url }}">{{ f.label }}</a>{% else %}<span class="muted">{{ f.label }}</span>{% endif %}{% if f.description %}<p>{{ f.description }}</p>{% endif %}</div>
+  <div class="ms-folder-actions">
+    {% if f.edit_url %}<a class="btn btn-sm" href="{{ f.edit_url }}">Edit</a>{% endif %}
+    {% if f.remove_url %}<form method="post" action="{{ f.remove_url }}" data-confirm="Remove the folder “{{ f.label }}”? Linked records are not deleted.">{% csrf_token %}
+      <label class="ms-confirm" for="rm-{{ f.pk }}"><input id="rm-{{ f.pk }}" type="checkbox" name="confirm" value="1" required> Confirm</label>
+      <button class="btn btn-sm btn-danger" type="submit">Remove</button></form>{% endif %}
+  </div></li>{% endfor %}
+</ul>{% else %}<p class="mw-empty"><strong>No folders yet.</strong><br><a href="{% url 'core:space_folder_new' %}">Create a folder</a> to group the records you follow.</p>{% endif %}
+</div>
+{% else %}
+<div class="card mw-list">
+<div class="card-head"><h2>{% for t in tabs %}{% if t.key == tab %}{{ t.label }}{% endif %}{% endfor %}</h2>
+<span class="muted">{% if page %}{{ page.paginator.count }} record{{ page.paginator.count|pluralize }}{% else %}{{ rows|length }} record{{ rows|length|pluralize }}{% endif %}</span></div>
+<div class="mw-table-wrap"><table class="mw-table"><thead><tr><th scope="col">Item</th><th scope="col">Unit / provider</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Detail and next action</th><th scope="col">Due</th></tr></thead><tbody>
+{% for r in rows %}<tr class="{% if r.overdue %}row-danger{% endif %}">
+  <td>{% if r.kind %}<span class="mw-kind">{{ r.kind }}</span>{% endif %}{% if r.url %}<a href="{{ r.url }}">{{ r.title }}</a>{% else %}{{ r.title }}{% endif %}</td>
+  <td>{{ r.unit|default:"—" }}<br><small class="muted">{{ r.provider|default:"—" }}</small></td>
+  <td>{% if r.owner %}{{ r.owner }}{% else %}<span class="mw-unowned">Unassigned</span>{% endif %}</td>
+  <td>{{ r.status|default:"—" }}</td>
+  <td>{% if r.detail %}<span class="mw-detail">{{ r.detail }}</span><br>{% endif %}<small>{{ r.next_action|default:"—" }}</small></td>
+  <td class="nowrap">{% if r.overdue %}<span class="badge badge-danger">Overdue</span><br>{% endif %}<small>{{ r.due_label|default:"No deadline" }}</small></td>
+</tr>{% empty %}<tr><td colspan="6" class="mw-empty"><strong>Nothing assigned to you here.</strong><br>No records in your scope match these filters.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if page and page.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Pages">
+  <span>{{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }}</span>
+  {% if page.has_previous %}<a class="btn btn-sm" href="?tab={{ tab|urlencode }}&amp;folder={{ folder_filter|urlencode }}&amp;org_unit={{ request.GET.org_unit|urlencode }}&amp;provider={{ request.GET.provider|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  {% if page.has_next %}<a class="btn btn-sm" href="?tab={{ tab|urlencode }}&amp;folder={{ folder_filter|urlencode }}&amp;org_unit={{ request.GET.org_unit|urlencode }}&amp;provider={{ request.GET.provider|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

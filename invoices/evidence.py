@@ -14,7 +14,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, Image
 
 from invoices.models import Invoice
 from workflow.models import ApprovalTask
@@ -25,11 +25,14 @@ def approval_evidence(invoice):
         Invoice.Status.APPROVED, Invoice.Status.SCHEDULED, Invoice.Status.PAID, Invoice.Status.DISPUTED,
     }:
         return None
-    tasks = list(invoice.approval_tasks.select_related("decided_by").order_by("-round", "order"))
+    tasks = list(invoice.approval_tasks.select_related("decided_by", "signature__identity").order_by("-round", "order"))
     latest_round = tasks[0].round if tasks else None
     decisions = [
         {"name": t.name, "role": t.get_role_display(),
-         "person": str(t.decided_by) if t.decided_by else "Not recorded", "at": t.decided_at}
+         "person": str(t.decided_by) if t.decided_by else "Not recorded", "at": t.decided_at,
+         "signature": getattr(t, "signature", None), "task_id": t.pk,
+         "person_id": t.decided_by_id,
+         "signature_image_recorded": bool(getattr(t, "signature", None) and t.signature.appearance_image)}
         for t in tasks if t.round == latest_round and t.status == ApprovalTask.Status.APPROVED
     ]
     # Canceled instructions must never supply a bank reference or override
@@ -44,9 +47,11 @@ def approval_evidence(invoice):
     executed = bool(instruction and instruction.status == "executed")
     return {
         "approved_at": invoice.approved_at, "recorded_by": str(invoice.created_by),
+        "demonstration": invoice.org_unit.code == "STAMP-DEMO",
         "recorded_at": invoice.created_at, "received_date": invoice.received_date,
         "submitted_at": invoice.submitted_at, "decisions": decisions, "round": latest_round,
         "batch_reference": batch.reference if batch else "Not assigned",
+        "batch_name": batch.name if batch else "Not assigned",
         "processing_started_at": batch.started_at if batch else None,
         "settlement_reference": instruction.reference if instruction else "Not prepared",
         "settlement_group": instruction.group_reference if instruction else None,
@@ -88,6 +93,7 @@ def _record_rows(invoice, evidence):
     rows += [
         ("Approved", display_date(e["approved_at"])),
         ("Batch number", e["batch_reference"]),
+        ("Batch name", e["batch_name"]),
         ("Batch processing started", display_date(e["processing_started_at"])),
         ("Settlement instruction", f"{e['settlement_reference']} / {e['settlement_status']}"),
         ("Finance processing", f"{e['finance_prepared_by']} / {display_date(e['finance_prepared_at'])}"),
@@ -109,6 +115,10 @@ def _record_pdf(invoice, evidence):
         "Derived operational copy, not a new digital signature. The original invoice and signed "
         "approval/settlement evidence remain unchanged. Provider acceptance is not bank execution.",
         styles["Normal"]))
+    if evidence.get("demonstration"):
+        story.append(Paragraph("DEMONSTRATION ONLY: The stamp is not a real organisational approval "
+                               "or proof of payment, even when the source is a user-supplied bill.", styles["Normal"]))
+    story += [Spacer(1, 12), _approval_table(invoice, evidence), Spacer(1, 12)]
     if not invoice.document:
         story.append(Paragraph("No original invoice document is attached to this record.", styles["Normal"]))
     for label, value in _record_rows(invoice, evidence):
@@ -118,36 +128,96 @@ def _record_pdf(invoice, evidence):
     return output.getvalue()
 
 
-def _stamp(invoice, evidence, page_number, total):
-    output = io.BytesIO()
-    c = canvas.Canvas(output, pagesize=A4)
-    w, h = A4
-    c.setFillColor(colors.HexColor("#124d59"))
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(30, h - 24, f"GOVBILLS - APPROVAL COPY / {invoice.reference}")
-    lines = [
-        f"Approved: {display_date(evidence['approved_at'])} | Current status: {invoice.get_status_display()}",
+def _approval_table(invoice, evidence, limit=None):
+    """Boxed stamp; images come only from each decision's signed snapshot."""
+    from signatures.appearance import signature_appearance
+
+    style = getSampleStyleSheet()["Normal"]
+    style.fontSize, style.leading = 7.5, 10
+
+    def text(value):
+        return Paragraph(escape(str(value)), style)
+
+    rows = [
+        [text("GOVBILLS - DEMONSTRATION APPROVAL STAMP - NOT A REAL APPROVAL OR PAYMENT"
+              if evidence.get("demonstration") else "GOVBILLS - APPROVAL STAMP"), "", ""],
+        [text(f"Batch: {evidence['batch_reference']} | {evidence['batch_name']}"), "", ""],
+        [text(f"Approved: {display_date(evidence['approved_at'])} | Status: {invoice.get_status_display()}"), "", ""],
+        [text("Step / responsibility"), text("User approved / date and time"), text("Recorded signature image")],
     ]
-    for d in evidence["decisions"][:4]:
-        lines.append(f"{d['name']}: {d['person']} / {display_date(d['at'])}")
-    if not evidence["decisions"]:
-        lines.append("Reviewer / approver: not recorded in available workflow history")
-    lines += [
-        f"Batch: {evidence['batch_reference']} | Processing: {display_date(evidence['processing_started_at'])}",
+    decisions = evidence["decisions"][:limit] if limit else evidence["decisions"]
+    for decision in decisions:
+        signature = decision.get("signature")
+        if "_image_bytes" not in decision:
+            if signature:
+                if (signature.identity.user_id != decision["person_id"]
+                        or signature.payload.get("task", {}).get("id") != decision["task_id"]
+                        or signature.payload.get("decision") != "approve"):
+                    raise ValidationError("The approval signature does not match its recorded approver and task.")
+                decision["_image_bytes"], decision["_image_status"] = signature_appearance(signature)
+            else:
+                decision["_image_bytes"], decision["_image_status"] = None, "No signed image recorded"
+        data = decision["_image_bytes"]
+        if data:
+            width, height = ImageReader(io.BytesIO(data)).getSize()
+            scale = min(112 / width, 36 / height)
+            picture = Image(io.BytesIO(data), width=width * scale, height=height * scale)
+        else:
+            picture = text(decision["_image_status"])
+        rows.append([text(f"{decision['name']} ({decision['role']})"),
+                     text(f"{decision['person']} | {display_date(decision['at'])}"), picture])
+    if not decisions:
+        rows.append([text("Reviewer / approver not recorded in available workflow history"), "", ""])
+    if limit and len(evidence["decisions"]) > limit:
+        rows.append([text("Additional decisions and signature images appear in the full approval record."), "", ""])
+    metadata_start = len(rows)
+    for line in [
+        f"Processing started: {display_date(evidence['processing_started_at'])}",
         f"Bank settlement reference: {evidence['bank_reference']}",
         f"Settlement: {evidence['settlement_reference']} / {evidence['settlement_status']}",
         f"Settled: {display_date(evidence['settled_at'])}",
-        f"Original page {page_number} of {total}. Full approval record follows the source pages.",
-        "Derived copy only. Original files and digital signatures have not been changed.",
+        "Visual stamp on a derived copy - not a new digital signature. Original evidence is unchanged.",
+    ]:
+        rows.append([text(line), "", ""])
+    table = Table(rows, colWidths=[125, 268, 130], hAlign="LEFT")
+    commands = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#dbeafe")),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f5f8ff")),
+        ("BOX", (0, 0), (-1, -1), 1.2, colors.HexColor("#2455a4")),
+        ("LINEBELOW", (0, 3), (-1, 3), .5, colors.HexColor("#9eb9df")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 7),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 7),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]
-    # Paragraph wraps long names/references rather than clipping audit evidence.
-    style = getSampleStyleSheet()["Normal"]
-    style.fontSize, style.leading = 8, 10
-    p = Paragraph("<br/>".join(escape(line) for line in lines), style)
-    _, height = p.wrap(w - 60, 200)
-    p.drawOn(c, 30, 20)
+    for index in [0, 1, 2, *range(metadata_start, len(rows))]:
+        commands.append(("SPAN", (0, index), (-1, index)))
+    if not decisions:
+        commands.append(("SPAN", (0, 4), (-1, 4)))
+    if limit and len(evidence["decisions"]) > limit:
+        commands.append(("SPAN", (0, metadata_start - 1), (-1, metadata_start - 1)))
+    table.setStyle(TableStyle(commands))
+    return table
+
+
+def _stamp(invoice, evidence, page_number, total):
+    output = io.BytesIO()
+    table = _approval_table(invoice, evidence, limit=4)
+    w, h = A4
+    _, height = table.wrap(w - 72, h)
+    footer = height + 48
+    # Add a dedicated stamp area below the source, instead of placing the
+    # signature or stamp on top of provider amounts, account numbers or barcodes.
+    c = canvas.Canvas(output, pagesize=(w, h + footer))
+    c.setFillColor(colors.HexColor("#124d59"))
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(36, h + footer - 24, f"GOVBILLS - APPROVAL COPY / {invoice.reference}")
+    table.drawOn(c, 36, 32)
+    c.setFont("Helvetica", 7)
+    c.drawString(36, 18, f"Original page {page_number} of {total}. Full approval record follows the source pages.")
     c.save()
-    return output.getvalue(), max(165, height + 35)
+    return output.getvalue(), footer
 
 
 def render_approved_copy(invoice, evidence):
@@ -183,11 +253,11 @@ def render_approved_copy(invoice, evidence):
                 page.transfer_rotation_to_content()
                 stamp_data, footer = _stamp(invoice, evidence, index, len(pages))
                 w, h = A4
-                target = writer.add_blank_page(width=w, height=h)
+                target = writer.add_blank_page(width=w, height=h + footer)
                 box = page.cropbox
-                scale = min((w - 60) / float(box.width), (h - footer - 45) / float(box.height))
+                scale = min((w - 60) / float(box.width), (h - 45) / float(box.height))
                 tx = (w - float(box.width) * scale) / 2
-                ty = footer + (h - footer - 45 - float(box.height) * scale) / 2
+                ty = footer + (h - 45 - float(box.height) * scale) / 2
                 target.merge_transformed_page(page, Transformation().translate(
                     -float(box.left), -float(box.bottom)).scale(scale).translate(tx, ty))
                 target.merge_page(PdfReader(io.BytesIO(stamp_data)).pages[0])

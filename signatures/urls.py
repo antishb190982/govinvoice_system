@@ -5,6 +5,7 @@ from signatures import views
 app_name = "signatures"
 
 urlpatterns = [
+    path("appearance/", views.appearance, name="appearance"),
     path("", views.my_identity, name="mine"),
     path("revoke/", views.revoke_mine, name="revoke"),
     path("verify/", views.verify, name="verify"),

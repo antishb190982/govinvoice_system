@@ -19,7 +19,7 @@
 {% if cur.owners %}<br><small>Owners: {% for o in cur.owners %}{{ o.full_name|default:o.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if cur.owner_count > cur.owners|length %} and others ({{ cur.owner_count }}){% endif %}</small>{% endif %}</p>
 {% if p.attention %}<ul class="attn">{% for a in p.attention %}<li>{{ a }}</li>{% endfor %}</ul>{% endif %}
 <a class="btn btn-sm mt" href="{% url 'workflow:process' inv.pk %}">Open process map</a></div>
-{% include "workflow/_process_map.html" with nodes=p.nodes mini=True label=inv.reference %}
+<details class="journey-collapse"><summary><strong>Department journey</strong><span class="muted">{{ p.journey_scope }} · Expand journey</span></summary>{% include "workflow/_journey.html" with nodes=p.department_nodes label=inv.reference %}</details>
 </section>{% endwith %}
 {% empty %}<p class="empty">No invoices match these filters.</p>{% endfor %}
 {% if page %}{% include "includes/pagination.html" %}{% endif %}</div>{% endif %}

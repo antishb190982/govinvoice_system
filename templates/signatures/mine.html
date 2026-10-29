@@ -1,8 +1,12 @@
-{% extends "base.html" %}{% block title %}My digital signature{% endblock %}
+{% extends "base.html" %}{% load static %}{% block title %}My digital signature{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/signatures.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head"><div><h1>My digital signature</h1><p>Used to sign approvals and settlement instructions. Your private key is protected by your signing PIN and never leaves the server unencrypted.</p></div>
 <div class="actions"><a class="btn" href="{% url 'signatures:ca' %}">Download CA certificate</a><a class="btn" href="{% url 'signatures:verify' %}">Verify a signed PDF</a></div></div>
 {% if identity %}
+<section class="card"><h2>Approval stamp signature image</h2><p class="muted">Upload your own signature image for future signed approvals. The image is visual; the recorded digital signature provides verification. Changing or removing it does not alter historical approvals.</p>
+{% if identity.signature_image %}<img class="signature-image-preview" src="{% url 'signatures:appearance' %}" alt="Your signature stamp image" width="280"><p class="muted">Image configured for this certificate.</p>{% else %}<p class="muted">No signature image configured. Approval stamps will explicitly show that the image was not recorded.</p>{% endif %}
+<form method="post" enctype="multipart/form-data" action="{% url 'signatures:appearance' %}">{% csrf_token %}{{ appearance_form.as_div }}<div class="form-actions"><button class="btn btn-primary" type="submit">Save signature image</button>{% if identity.signature_image %}<button class="btn" type="submit" name="action" value="remove" data-confirm="Remove the image for future approvals? Historical signatures will be retained.">Remove for future approvals</button>{% endif %}</div></form></section>
 <div class="card"><div class="card-head"><h2>Active certificate</h2>{% if identity.is_locked %}<span class="badge badge-danger">Locked (wrong PIN)</span>{% elif identity.is_usable %}<span class="badge badge-ok">Valid</span>{% else %}<span class="badge badge-danger">Not valid</span>{% endif %}</div>
 <dl class="props"><dt>Subject</dt><dd>{{ identity.subject }}</dd><dt>Issuer</dt><dd>{{ identity.issuer }}</dd><dt>Source</dt><dd>{{ identity.get_source_display }}</dd>
 <dt>Serial</dt><dd class="mono">{{ identity.serial_number }}</dd><dt>SHA-256 fingerprint</dt><dd class="mono">{{ identity.fingerprint_sha256 }}</dd>

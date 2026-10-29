@@ -96,8 +96,29 @@ def statement(request, pk):
 def row(request, pk):
     require_any_role(request.user, bank.READERS)
     item = get_object_or_404(rows_for(request.user), pk=pk)
+    from core.models import AuditEvent
+    from reconciliation.cases import CaseForm, update_case
+    can_assign = has_role(request.user, item.statement.org_unit, bank.MANAGERS)
+    case_form = CaseForm(
+        request.POST if request.method == "POST" and request.POST.get("action") == "assign_case" else None,
+        row=item) if can_assign and item.status == BankRow.Status.EXCEPTION else None
+    if request.method == "POST" and request.POST.get("action") == "assign_case":
+        if not can_assign:
+            from django.core.exceptions import PermissionDenied
+            raise PermissionDenied
+        if case_form is None:
+            messages.error(request, "This transaction is no longer an unresolved exception.")
+            return redirect(item)
+        if case_form.is_valid():
+            try:
+                update_case(item, request.user, case_form.cleaned_data["assigned_to"],
+                    case_form.cleaned_data["resolution_due_date"], case_form.cleaned_data["note"])
+                messages.success(request, "Exception ownership and deadline saved. No payment or matching status was changed.")
+                return redirect(item)
+            except ValidationError as exc:
+                case_form.add_error(None, exc)
     error = ""
-    if request.method == "POST":
+    if request.method == "POST" and request.POST.get("action") != "assign_case":
         reason = request.POST.get("reason", "").strip()
         if len(reason) > 2000:
             error = "Review reason must not exceed 2,000 characters."
@@ -114,6 +135,9 @@ def row(request, pk):
             except ValidationError as exc:
                 error = " ".join(exc.messages)
     return render(request, "reconciliation/bank_row.html", {
+        "case_form": case_form,
+        "case_events": AuditEvent.objects.filter(object_type=item._meta.label_lower,
+            object_id=str(item.pk), action="bank.case_updated").order_by("-sequence")[:30],
         "row": item, "error": error, "can_manage": has_role(request.user, item.statement.org_unit, bank.MANAGERS),
         "can_review_date": request.user.pk != item.statement.uploaded_by_id and
                            has_role(request.user, item.statement.org_unit, bank.MANAGERS),

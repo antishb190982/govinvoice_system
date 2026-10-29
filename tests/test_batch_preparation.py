@@ -19,6 +19,83 @@ def sign_in(client, user):
     session.save()
 
 
+def upload_preparation(people, tree, provider):
+    return BatchPreparation.objects.create(name="Folder intake preparation", org_unit=tree["moh"],
+        provider=provider, currency="MUR", prepared_by=people["clerk"])
+
+
+def test_wizard_exposes_folder_selection_and_confirmation(client, people, tree, provider):
+    prep = upload_preparation(people, tree, provider)
+    sign_in(client, people["clerk"])
+    response = client.get(prep.get_absolute_url())
+    assert response.status_code == 200
+    assert b"webkitdirectory" in response.content
+    assert b"folder-intake.js" in response.content
+    assert b'name="confirm_processing"' in response.content
+    assert b"Confirm and process invoice files" in response.content
+    assert b"data-intake-summary" in response.content
+    selection = client.get(prep.get_absolute_url() + "?step=select")
+    assert b"Load files or a folder" in selection.content
+
+
+@pytest.mark.parametrize("field", ["folder_files", "files"])
+def test_wizard_does_not_process_any_files_without_confirmation(client, people, tree, provider, account, field):
+    from django.utils import timezone
+    from imports.models import ImportBatch
+    from tests.test_bulk_intake import csv_file
+    prep = upload_preparation(people, tree, provider)
+    sign_in(client, people["clerk"])
+    before = ImportBatch.objects.count()
+    response = client.post(prep.get_absolute_url() + "?step=select", {
+        "action": "upload", "provider": provider.pk, "received_date": timezone.localdate().isoformat(),
+        field: csv_file(), "folder_paths": '["Invoices/October/BULK-1.csv"]' if field == "folder_files" else "",
+    })
+    assert response.status_code == 200
+    assert response.context["step"] == "source"
+    assert "confirm_processing" in response.context["upload_form"].errors
+    assert ImportBatch.objects.count() == before
+    assert not prep.imports.exists()
+    assert not Invoice.objects.exists()
+    assert not AuditEvent.objects.filter(action="batch.preparation_intake_confirmed").exists()
+
+
+@pytest.mark.parametrize("registration", [False, True])
+def test_confirmed_folder_intake_stages_for_review_and_records_confirmation(client, people, tree, provider, account,
+                                                                          registration):
+    from django.utils import timezone
+    from tests.test_bulk_intake import csv_file
+    prep = upload_preparation(people, tree, provider)
+    sign_in(client, people["clerk"])
+    response = client.post(prep.get_absolute_url(), {
+        "action": "upload", "provider": provider.pk, "received_date": timezone.localdate().isoformat(),
+        "folder_files": csv_file(), "folder_paths": '["Invoices/October/BULK-1.csv"]',
+        "confirm_processing": "on", "intake_route": "registration" if registration else "",
+    })
+    assert response.status_code == 302
+    assert prep.imports.count() == 1
+    assert prep.imports.first().rows.count() == 1
+    assert prep.imports.first().registration_mode == registration
+    assert not Invoice.objects.exists()  # Intake confirmation never bypasses invoice review/commit.
+    event = AuditEvent.objects.get(action="batch.preparation_intake_confirmed")
+    assert event.actor == people["clerk"]
+    assert event.data["folder_files"] == 1
+    assert event.data["import_batches"] == [prep.imports.first().pk]
+
+
+def test_folder_confirmation_does_not_bypass_path_checks(client, people, tree, provider, account):
+    from django.utils import timezone
+    from tests.test_bulk_intake import csv_file
+    prep = upload_preparation(people, tree, provider)
+    sign_in(client, people["clerk"])
+    response = client.post(prep.get_absolute_url(), {
+        "action": "upload", "provider": provider.pk, "received_date": timezone.localdate().isoformat(),
+        "folder_files": csv_file(), "folder_paths": '["../BULK-1.csv"]', "confirm_processing": "on",
+    })
+    assert response.status_code == 200
+    assert response.context["error"]
+    assert not prep.imports.exists()
+
+
 def test_wizard_selects_allocated_invoices_and_audits_both_owners(client, tree, people, provider, account,
                                                                  make_invoice):
     clerk = people["clerk"]

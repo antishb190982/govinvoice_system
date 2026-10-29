@@ -1,0 +1,7 @@
+.signature-image-preview {
+  display: block;
+  max-width: min(100%, 280px);
+  max-height: 100px;
+  height: auto;
+  object-fit: contain;
+}

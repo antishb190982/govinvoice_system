@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from core.files import private_upload_path
 
 
 class SigningIdentity(models.Model):
@@ -30,6 +31,8 @@ class SigningIdentity(models.Model):
     failed_pin_attempts = models.PositiveSmallIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    signature_image = models.FileField(upload_to=private_upload_path("signature-appearances"), blank=True)
+    signature_image_sha256 = models.CharField(max_length=64, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -57,6 +60,8 @@ class Signature(models.Model):
     algorithm = models.CharField(max_length=40)
     signature = models.BinaryField()
     signed_at = models.DateTimeField()
+    appearance_image = models.FileField(upload_to=private_upload_path("signature-appearances"), blank=True)
+    appearance_sha256 = models.CharField(max_length=64, blank=True)
     approval_task = models.OneToOneField("workflow.ApprovalTask", null=True, blank=True, on_delete=models.PROTECT,
                                          related_name="signature")
 

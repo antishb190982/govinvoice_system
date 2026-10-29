@@ -17,6 +17,20 @@ from org.access import has_role
 from org.access import can_view
 
 
+class PreparationUploadForm(UploadForm):
+    confirm_processing = forms.BooleanField(
+        label="I am sure I want to process these selected files as new invoice submissions.",
+        error_messages={"required": "Confirm that you want to process the selected invoice files before continuing."},
+        help_text="Duplicate, account-registration and invoice-review checks still apply. This does not approve or pay invoices.",
+    )
+
+    def clean(self):
+        data = super().clean()
+        if not data.get("files") and not data.get("folder_files"):
+            raise ValidationError("Choose invoice files, a folder or a ZIP before processing.")
+        return data
+
+
 def owned_preparation(user, pk):
     prep = get_object_or_404(BatchPreparation.objects.select_related("org_unit", "provider", "prepared_by"), pk=pk)
     if prep.prepared_by_id != user.pk or not has_role(user, prep.org_unit, PROCESSORS):
@@ -65,7 +79,7 @@ def prepare_new(request):
                 prep.save(update_fields=["selected_invoice_ids"])
             AuditEvent.record("batch.preparation_started", obj=prep, actor=request.user,
                 org_unit_id=prep.org_unit_id, data={"provider": prep.provider_id})
-            return redirect(f"{prep.get_absolute_url()}?step={'confirm' if prep.selected_invoice_ids else 'select'}")
+            return redirect(f"{prep.get_absolute_url()}?step={'confirm' if prep.selected_invoice_ids else 'source'}")
     return render(request, "operations/prepare_setup.html", {"form": form,
         "source_invoice": source_invoice})
 
@@ -96,7 +110,7 @@ def prepare(request, pk):
     step = request.GET.get("step", "source")
     if step not in {"source", "select", "confirm"}:
         step = "source"
-    upload = UploadForm(request.POST or None, request.FILES or None,
+    upload = PreparationUploadForm(request.POST or None, request.FILES or None,
                         initial={"provider": prep.provider_id})
     upload.fields["provider"].queryset = upload.fields["provider"].queryset.filter(pk=prep.provider_id)
     upload.fields["provider"].required = True
@@ -104,14 +118,23 @@ def prepare(request, pk):
     error = None
     if request.method == "POST":
         action = request.POST.get("action")
+        if action == "upload":
+            step = "source"
         try:
             if action == "upload" and upload.is_valid():
                 d = upload.cleaned_data
                 folder = d["folder_files"]
                 apply_folder_paths(folder, d["folder_paths"])
-                batches, skipped = stage_uploads(request.user, d["files"] + folder,
-                    prep.provider, received_date=d["received_date"])
-                prep.imports.add(*batches)
+                with transaction.atomic():
+                    batches, skipped = stage_uploads(request.user, d["files"] + folder,
+                        prep.provider, received_date=d["received_date"])
+                    prep.imports.add(*batches)
+                    AuditEvent.record("batch.preparation_intake_confirmed", obj=prep, actor=request.user,
+                        org_unit_id=prep.org_unit_id, data={
+                            "provider": prep.provider_id, "folder_files": len(folder),
+                            "other_files": len(d["files"]), "import_batches": [b.pk for b in batches],
+                            "received_date": d["received_date"].isoformat(),
+                        })
                 if request.POST.get("intake_route") == "registration":
                     from imports.registration import registration_url
                     from imports.models import ImportBatch

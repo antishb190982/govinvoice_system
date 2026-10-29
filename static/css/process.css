@@ -1,3 +1,8 @@
+.journey-collapse > summary { cursor: pointer; padding: 8px 0; font-size: .88rem; }
+.journey-collapse > summary strong { margin-right: 12px; }
+.journey-collapse > summary .muted { font-size: .76rem; overflow-wrap: anywhere; }
+.journey-collapse[open] > summary { margin-bottom: 12px; border-bottom: 1px solid var(--line); padding-bottom: 12px; }
+.journey-collapse > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; }
 /* Process maps, workflow editor and monitor. Extends app.css tokens; no inline styles (CSP). */
 .page-head.registration-head { color: #fff; }
 

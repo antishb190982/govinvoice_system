@@ -1,0 +1,55 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Control centre{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/control-centre.css' %}">{% endblock %}
+{% block body_class %}control-centre{% endblock %}
+{% block content %}
+{% include "includes/operations_tabs.html" %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'core:dashboard' %}">Operations overview</a> / Action queues</div>
+<h1>Action queues</h1>
+<p>Open work across your units, grouped into queues. Every figure is a count of live records in your scope as of {{ now|date:"d M Y H:i" }}.</p></div></div>
+
+<form method="get" class="cc-filters card" aria-label="Filter work queues">
+  {% include "includes/form_errors.html" with form=filter_form %}
+  {% if active_queue %}<input type="hidden" name="queue" value="{{ active_queue }}">{% endif %}
+  {% for field in filter_form.visible_fields %}<div class="field">
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>{% endfor %}
+  {% for h in filter_form.hidden_fields %}{{ h }}{% endfor %}
+  <div class="cc-filter-actions"><button class="btn btn-primary btn-sm" type="submit">Apply filters</button>
+  <a class="btn btn-sm" href="{% url 'core:control_centre' %}?clear_provider=1{% if active_queue %}&amp;queue={{ active_queue|urlencode }}{% endif %}">Clear filters</a></div>
+  <p class="help cc-scope-note">Exception owner only filters the provider and bank exception queues. Unallocated imports appear only when the unit filter is set to All my units.</p>
+</form>
+
+<section class="cc-queues" aria-label="Work queues">
+{% for c in cards %}<a class="cc-card{% if c.key == active_queue %} is-active{% endif %}{% if c.count %} has-work{% endif %}" href="{{ c.url }}"{% if c.key == active_queue %} aria-current="true"{% endif %}>
+  <span class="cc-label">{{ c.label }}</span>
+  <span class="cc-count">{{ c.count }}</span>
+  <span class="cc-sub">{% if c.unassigned %}<span class="cc-flag">{{ c.unassigned }} unassigned</span>{% elif c.count %}Responsibility recorded{% else %}Nothing open{% endif %}{% if c.overdue %} · <span class="cc-flag">{{ c.overdue }} overdue</span>{% endif %}</span>
+</a>{% empty %}<p class="empty">No queues are available for your role.</p>{% endfor %}
+</section>
+
+<div class="card cc-list">
+<div class="card-head"><h2>{% if active_queue %}{% for c in cards %}{% if c.key == active_queue %}{{ c.label }}{% endif %}{% endfor %}{% else %}Most urgent across all queues{% endif %}</h2>
+<span class="muted">{% if active_queue %}{{ total_count }} record{{ total_count|pluralize }} · <a href="{% url 'core:control_centre' %}?org_unit={{ request.GET.org_unit|urlencode }}&amp;provider={{ request.GET.provider|urlencode }}&amp;assignment={{ request.GET.assignment|urlencode }}">Back to overview</a>{% else %}Showing {{ rows|length }} of {{ total_count }} · choose a queue above to see all{% endif %}</span></div>
+<div class="table-wrap"><table class="cc-table"><thead><tr><th scope="col">Item</th><th scope="col">Unit / provider</th><th scope="col">Stage</th><th scope="col">Owner</th><th scope="col">Blocker and next action</th><th scope="col">Due</th></tr></thead><tbody>
+{% for r in rows %}<tr class="{% if r.overdue %}row-danger{% endif %}">
+  <td><span class="cc-kind">{{ r.kind }}</span><a href="{{ r.url }}">{{ r.title }}</a></td>
+  <td>{{ r.unit|default:"—" }}<br><small class="muted">{{ r.provider|default:"—" }}</small></td>
+  <td>{{ r.stage|default:"—" }}</td>
+  <td>{% if r.owner %}{{ r.owner }}{% else %}<span class="cc-unowned">Unassigned</span>{% endif %}</td>
+  <td>{% if r.blocker %}<strong class="cc-blocker">{{ r.blocker }}</strong><br>{% endif %}<small>{{ r.next_action|default:"—" }}</small></td>
+  <td class="nowrap">{% if r.overdue %}<span class="badge badge-danger">Overdue</span><br>{% endif %}<small>{{ r.due_label|default:"No deadline" }}</small></td>
+</tr>{% empty %}<tr><td colspan="6" class="empty">{% if active_queue %}This queue is clear for the selected filters.{% else %}No open work in your scope for the selected filters.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if page and page.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Pages">
+  <span>{{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }}</span>
+  {% if page.has_previous %}<a class="btn btn-sm" href="?queue={{ active_queue|urlencode }}&amp;org_unit={{ request.GET.org_unit|urlencode }}&amp;provider={{ request.GET.provider|urlencode }}&amp;assignment={{ request.GET.assignment|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  {% if page.has_next %}<a class="btn btn-sm" href="?queue={{ active_queue|urlencode }}&amp;org_unit={{ request.GET.org_unit|urlencode }}&amp;provider={{ request.GET.provider|urlencode }}&amp;assignment={{ request.GET.assignment|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>{% endif %}
+</div>
+
+<div class="cc-notes">
+  <div class="callout info"><strong>Awaiting and unassigned</strong><p>"Awaiting" means the record is waiting on a person or an external step (an approver, a provider, a bank file). "Unassigned" means nobody has taken ownership yet; it does not mean the work is stalled by the system. Assign an owner from the record itself.</p></div>
+  <div class="callout warn"><strong>Bank exceptions are not proof of payment</strong><p>A bank exception records a mismatch between a statement line and a settlement. Assigning or resolving it does not confirm that funds left the account, and it never changes invoice or payment status.</p></div>
+</div>
+{% endblock %}

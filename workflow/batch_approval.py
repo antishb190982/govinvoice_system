@@ -88,6 +88,8 @@ def review(request, pk):
         else:
             messages.success(request, f"Batch decision recorded for every invoice in {batch.reference}.")
             return redirect(batch)
+    from workflow.journey import batch_journey
     return render(request, "workflow/batch_review.html", {"batch": batch, "tasks": tasks,
+        "batch_journey": batch_journey(batch, request.user, request.GET),
         "members": batch.members.filter(active=True).select_related("invoice__service_account"),
         "block_reason": error, "form": form})

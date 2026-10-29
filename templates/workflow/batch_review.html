@@ -1,8 +1,10 @@
-{% extends "base.html" %}{% load gov %}
+{% extends "base.html" %}{% load static gov %}
 {% block title %}Review {{ batch.reference }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/process.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'workflow:inbox' %}">Batch approvals</a> / {{ batch.reference }}</div><h1>{{ batch.reference }}</h1><p>{{ batch.name }} · {{ batch.provider.name }} · {{ batch.ministry }} · {{ batch.currency }}. A decision applies to the entire batch.</p></div></div>
 {% if block_reason %}<div class="callout warn" role="status">{{ block_reason }}</div>{% endif %}
+{% include "workflow/_batch_journey.html" %}
 <section class="card"><h2>Invoices in this decision</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Allocated account</th><th>Due date</th><th>Approval stage</th><th>Amount</th><th>Evidence</th></tr></thead><tbody>
 {% for member in members %}<tr><td><a href="{{ member.invoice.get_absolute_url }}">{{ member.invoice.reference }}</a><br>{{ member.invoice.invoice_number }} · {{ member.invoice.get_status_display }}</td><td>{{ member.invoice.service_account.account_number }}<br>{{ member.invoice.org_unit }}</td><td>{{ member.invoice.due_date|date:"d M Y" }}</td><td>{% for task in tasks %}{% if task.invoice_id == member.invoice_id %}{{ task.name }}{% if task.requires_signature %} · Signature required{% endif %}{% endif %}{% endfor %}</td><td>{{ member.original_amount|money:batch.currency }}</td><td><a href="{% url 'workflow:process' member.invoice_id %}">Workflow map</a> · <a href="{{ member.invoice.get_absolute_url }}">Invoice record</a></td></tr>
 {% empty %}<tr><td colspan="6">No active invoices.</td></tr>{% endfor %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}{% load gov %}{% block title %}My work{% endblock %}
+{% block body_class %}my-work-page{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'core:my_space' %}">My space</a> / Work</div>
+<h1>My space · Work</h1>
+<p>Tasks, recurring schedules, anomalies and overdue items in your scope. Counts are live records; nothing here approves or pays anything automatically.</p></div>
+<div class="mw-head-actions"><a class="btn btn-primary btn-sm" href="{% url 'core:work_schedule_new' %}">New schedule</a></div></div>
+
+{% include "includes/personal_space_tabs.html" %}
+<nav class="mw-tabs" aria-label="Work type">
+{% for t in tabs %}<a class="mw-tab{% if t.key == tab %} is-active{% endif %}" href="{{ t.url }}"{% if t.key == tab %} aria-current="page"{% endif %}>{{ t.label }}</a>{% endfor %}
+<span class="mw-modes" role="group" aria-label="View mode">{% for m in modes %}<a class="mw-mode{% if m.key == mode %} is-active{% endif %}" href="{{ m.url }}"{% if m.key == mode %} aria-current="true"{% endif %}>{{ m.label }}</a>{% endfor %}</span>
+</nav>
+
+<form method="get" class="mw-filters card" aria-label="Filter my work">
+  {% include "includes/form_errors.html" with form=filter_form %}
+  <input type="hidden" name="tab" value="{{ tab }}"><input type="hidden" name="mode" value="{{ mode }}">{% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+  {% for field in filter_form.visible_fields %}{% if field.name == "provider" %}<input type="hidden" name="provider" value="{{ field.value|default_if_none:'' }}">{% else %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>{% endif %}{% endfor %}
+  {% for h in filter_form.hidden_fields %}{{ h }}{% endfor %}
+  <div class="mw-filter-actions"><button class="btn btn-primary btn-sm" type="submit">Apply filters</button>
+  <a class="btn btn-sm" href="{% url 'core:my_work' %}?clear_provider=1&amp;tab={{ tab|urlencode }}&amp;mode={{ mode|urlencode }}">Clear filters</a></div>
+  {% if scope_note %}<p class="mw-note">{{ scope_note }}</p>{% endif %}
+</form>
+
+{% if cards %}<section class="mw-cards" aria-label="Categories">
+{% for c in cards %}<a class="mw-card{% if c.key == category %} is-active{% endif %}{% if c.overdue %} has-overdue{% elif c.count %} has-work{% endif %}" href="{{ c.url }}"{% if c.key == category %} aria-current="true"{% endif %}>
+  <span class="mw-label">{{ c.label }}</span><span class="mw-count">{{ c.count }}</span>
+  <span class="mw-sub">{% if c.overdue %}<span class="mw-flag">{{ c.overdue }} overdue</span>{% elif c.count %}Open{% else %}Nothing open{% endif %}</span>
+</a>{% endfor %}
+</section>{% endif %}
+
+<div class="card mw-list">
+<div class="card-head"><h2>{% for t in tabs %}{% if t.key == tab %}{{ t.label }}{% endif %}{% endfor %}{% if category %}{% for c in cards %}{% if c.key == category %} · {{ c.label }}{% endif %}{% endfor %}{% endif %}</h2>
+<span class="muted">{% if mode == "dashboard" %}Showing {{ rows|length }} of {{ total_count }}{% if total_count > rows|length %} · switch to list view to see all{% endif %}{% else %}{{ total_count }} record{{ total_count|pluralize }}{% endif %}</span></div>
+<div class="mw-table-wrap"><table class="mw-table"><thead><tr><th scope="col">Item</th><th scope="col">Unit / provider</th><th scope="col">Owner</th><th scope="col">Status</th><th scope="col">Detail and next action</th><th scope="col">Due</th>{% if tab == "schedules" %}<th scope="col">Actions</th>{% endif %}</tr></thead><tbody>
+{% for r in rows %}<tr class="{% if r.overdue %}row-danger{% endif %}{% if r.is_schedule and not r.active %} mw-inactive{% endif %}">
+  <td><span class="mw-kind">{{ r.kind }}</span><a href="{{ r.url }}">{{ r.title }}</a></td>
+  <td>{{ r.unit|default:"—" }}<br><small class="muted">{{ r.provider|default:"—" }}</small></td>
+  <td>{% if r.owner %}{{ r.owner }}{% else %}<span class="mw-unowned">Unassigned</span>{% endif %}</td>
+  <td>{{ r.status|default:"—" }}{% if r.is_schedule and not r.active %}<br><span class="badge">Paused</span>{% endif %}</td>
+  <td>{% if r.detail %}<span class="mw-detail">{{ r.detail }}</span><br>{% endif %}<small>{{ r.next_action|default:"—" }}</small></td>
+  <td class="nowrap">{% if r.overdue %}<span class="badge badge-danger">Overdue</span><br>{% endif %}<small>{{ r.due_label|default:"No deadline" }}</small></td>
+  {% if tab == "schedules" %}<td class="mw-actions">{% if r.is_schedule %}
+    {% if r.active and r.complete_url %}<form method="post" action="{{ r.complete_url }}" class="mw-complete">{% csrf_token %}<input type="hidden" name="action" value="complete"><input type="hidden" name="due_token" value="{{ r.due_token }}">
+      <label class="sr-only" for="note-{{ forloop.counter }}">Completion note</label><input id="note-{{ forloop.counter }}" type="text" name="completion_note" maxlength="500" placeholder="Note (optional)">
+      <button class="btn btn-sm btn-primary" type="submit">Mark done</button></form>{% endif %}
+    {% if r.toggle_url %}<form method="post" action="{{ r.toggle_url }}">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="target_active" value="{% if r.active %}0{% else %}1{% endif %}"><button class="btn btn-sm" type="submit">{% if r.active %}Pause{% else %}Resume{% endif %}</button></form>{% endif %}
+  {% endif %}</td>{% endif %}
+</tr>{% empty %}<tr><td colspan="{% if tab == 'schedules' %}7{% else %}6{% endif %}" class="mw-empty"><strong>Nothing here right now.</strong><br>{% if tab == "schedules" %}No schedules match these filters. <a href="{% url 'core:work_schedule_new' %}">Create a schedule</a> for recurring checks.{% else %}No open items in your scope for the selected filters.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% if mode == "list" and page and page.paginator.num_pages > 1 %}<nav class="pagination" aria-label="Pages">
+  <span>{{ page.start_index }}–{{ page.end_index }} of {{ page.paginator.count }}</span>
+  {% if page.has_previous %}<a class="btn btn-sm" href="?tab={{ tab|urlencode }}&amp;mode={{ mode|urlencode }}&amp;category={{ category|urlencode }}&amp;org_unit={{ request.GET.org_unit|urlencode }}&amp;provider={{ request.GET.provider|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+  {% if page.has_next %}<a class="btn btn-sm" href="?tab={{ tab|urlencode }}&amp;mode={{ mode|urlencode }}&amp;category={{ category|urlencode }}&amp;org_unit={{ request.GET.org_unit|urlencode }}&amp;provider={{ request.GET.provider|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+</nav>{% endif %}
+</div>
+{% endblock %}

@@ -43,4 +43,8 @@ def app_context(request):
             "bank": bool(roles & {Role.FINANCE, Role.AUTHORISER, Role.UNIT_ADMIN, Role.AUDITOR}),
         },
     })
+    from core.my_work import dashboard_overdue
+    ctx["dashboard_overdue"] = dashboard_overdue(request)
+    from core.navigation import navigation_context
+    ctx.update(navigation_context(request))
     return ctx

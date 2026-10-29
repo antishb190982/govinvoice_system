@@ -1,0 +1,16 @@
+<details class="card journey-collapse" id="batch-journey"{% if request.GET.journey_page %} open{% endif %}>
+  <summary><strong>Batch journey{% if not department_only %} · {{ batch.lifecycle }}{% endif %}</strong><span class="muted">{{ batch_journey.total }} authorised active invoices · Expand journey</span></summary>
+  <p class="muted">Your department memberships and assigned workflow roles determine the steps shown. Invoice approval decisions remain batch-based.</p>
+  <p class="muted">Showing {{ batch_journey.page.start_index }}–{{ batch_journey.page.end_index }} of {{ batch_journey.total }} invoices. Step totals below apply to this page; {{ batch_journey.attention_count }} displayed invoices need attention.</p>
+  <div class="table-wrap"><table><thead><tr><th>Department step</th><th>Complete</th><th>Current</th><th>Needs attention</th></tr></thead><tbody>
+  {% for stage in batch_journey.stages %}<tr><td>{{ stage.label }}<br><small class="muted">{{ stage.role }}</small></td><td>{{ stage.complete }} / {{ stage.total }}</td><td>{{ stage.current }}</td><td>{{ stage.attention }}</td></tr>{% empty %}<tr><td colspan="4">No active invoice journeys in your authorised department scope.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% for process in batch_journey.processes %}
+  <details class="journey-more"><summary>{{ process.invoice.reference }} · {{ process.current.label }}{% if process.needs_attention %} · Needs attention{% endif %}</summary>
+    <p class="muted">{{ process.journey_departments }} · {{ process.journey_scope }}</p>
+    <a class="btn btn-sm" href="{% url 'workflow:process' process.invoice.pk %}">Open invoice journey and evidence</a>
+    {% include "workflow/_journey.html" with nodes=process.department_nodes label=process.invoice.reference %}
+  </details>
+  {% endfor %}
+  {% if batch_journey.page.has_other_pages %}<nav class="actions" aria-label="Invoice journeys">{% if batch_journey.previous_url %}<a class="btn btn-sm" href="{{ batch_journey.previous_url }}">Previous invoices</a>{% endif %}<span>Page {{ batch_journey.page.number }} of {{ batch_journey.page.paginator.num_pages }}</span>{% if batch_journey.next_url %}<a class="btn btn-sm" href="{{ batch_journey.next_url }}">Next invoices</a>{% endif %}</nav>{% endif %}
+</details>

@@ -38,6 +38,26 @@
 </div>
 </div>
 
+{% if row.status == 'exception' or row.assigned_to or case_events %}<div class="card" id="exception-case"><div class="card-head"><h2>Exception ownership</h2><span class="muted">Follow-up tracking only</span></div>
+<p class="help">Assigning an owner does not reconcile this transaction and does not change any invoice, settlement or payment status. A bank exception is not proof of payment.</p>
+<dl class="cols">
+  <dt>Current owner</dt><dd>{% if row.assigned_to %}{{ row.assigned_to }}{% else %}<strong class="text-danger">Unassigned</strong>{% endif %}</dd>
+  <dt>Resolution due</dt><dd>{% if row.resolution_due_date %}{{ row.resolution_due_date|date:"d M Y" }}{% else %}No deadline set{% endif %}</dd>
+</dl>
+{% if case_form %}<form method="post" class="bank-form mt">{% csrf_token %}<input type="hidden" name="action" value="assign_case">
+  {% include "includes/form_errors.html" with form=case_form %}
+  {% for field in case_form.visible_fields %}<div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+    {% if field.help_text %}<small class="help">{{ field.help_text }}</small>{% endif %}
+    {% if field.errors %}<ul class="errorlist">{% for e in field.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>{% endfor %}
+  {% for h in case_form.hidden_fields %}{{ h }}{% endfor %}
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Save ownership</button></div>
+</form>{% endif %}
+<h3 class="sub-h">Ownership history</h3>
+{% if case_events %}<ul class="case-history" style="list-style:none;padding-left:.9rem;border-left:2px solid var(--line)">{% for e in case_events %}<li style="margin-bottom:.6rem"><strong>{{ e.actor_label }}</strong> <small class="muted">{{ e.occurred_at|date:"d M Y H:i" }}</small><br>
+  <small>{% if e.data.owner_label %}Owner: {{ e.data.owner_label }}{% endif %}{% if e.data.due_date %} · Due {{ e.data.due_date }}{% endif %}</small>{% if e.data.note %}<p>{{ e.data.note }}</p>{% endif %}</li>{% endfor %}</ul>
+{% else %}<p class="empty">No ownership changes recorded yet.</p>{% endif %}
+</div>{% endif %}
+
 {% if can_manage %}<div class="card"><div class="card-head"><h2>Recheck this line</h2></div>
 <p>Runs the full check again against the current settlement record. Amount, reference, currency, beneficiary and duplicate exceptions cannot be overridden here; fix the source record instead.</p>
 {% if error %}<div class="callout danger" role="alert"><strong>Recheck failed</strong><p>{{ error }}</p></div>{% endif %}

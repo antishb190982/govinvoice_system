@@ -1,3 +1,4 @@
+[data-intake-files] { overflow-wrap: anywhere; max-height: 14rem; overflow-y: auto; padding-left: 1.2rem; }
 .ops-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:12px;margin-bottom:16px}
 .ops-kpi{background:#f4f8ff;border:1px solid #d6e3f8;border-radius:12px;padding:12px 14px}
 .ops-kpi span{display:block;font-size:.78rem;color:#4a5d7e;text-transform:uppercase;letter-spacing:.04em}

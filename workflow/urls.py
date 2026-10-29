@@ -7,6 +7,7 @@ from workflow.batch_approval import review
 app_name = "workflow"
 
 urlpatterns = [
+    path("batches/<int:pk>/journey/", monitor.batch_map, name="batch_process"),
     path("batches/<int:pk>/", review, name="batch_review"),
     path("", views.inbox, name="inbox"),
     path("sla/", views.sla_board, name="sla"),

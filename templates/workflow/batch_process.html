@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Department journey · {{ batch.reference }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/process.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'workflow:processes' %}">Process monitor</a> / {{ batch.reference }}</div>
+<h1>Department batch journey</h1><p>{{ batch.reference }} · {{ batch.provider.name }} · {{ batch.ministry }}</p></div></div>
+<div class="callout"><strong>Your department scope</strong>Only active invoices in your authorised units are shown. Other departments' invoices, amounts and audit records are not included. This view does not grant batch approval or settlement permissions.</div>
+{% include "workflow/_batch_journey.html" %}
+{% endblock %}
