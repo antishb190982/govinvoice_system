@@ -1,0 +1,7 @@
+export default function MySpace() {
+return (<div className="w-screen h-screen overflow-hidden relative deck-frame dense"><div className="brand-lockup">GovBills</div><header className="content-heading"><h1>MySpace personal home and admin governance</h1></header><div className="presentation-content"><section className="notes"><ul><li>One MySpace entry; work tools as child tabs</li>
+<li>Saved folder views with unit and provider filters</li>
+<li>Own and role-responsible batches and invoices in authorised units</li>
+<li>Admin password set/reset needs own re-authentication, within ministry boundaries</li>
+<li>Reset ends sessions; temporary reset forces a change</li></ul></section><section className="schema"><div className="concept-label">Conceptual MySpace schematic — not a screenshot</div><div className="schema-tabs"><span className="on">My Work</span><span>Saved views</span><span>Batches</span><span>Invoices</span><span>Providers</span></div><div className="schema-grid"><div className="schema-cell"><b>Assigned tasks</b><span>Items waiting on me or my role</span></div><div className="schema-cell"><b>Plans</b><span>Upcoming work, not auto-actions</span></div><div className="schema-cell"><b>Anomalies</b><span>Receipt dates, values, surcharges</span></div><div className="schema-cell"><b>Overdue</b><span>Due-date and task urgency</span></div></div></section></div><footer className="deck-footer"><span>User journey and operational wins · Demo environment</span><span>03 / 14</span></footer></div>);
+}

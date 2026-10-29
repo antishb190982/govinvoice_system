@@ -1,0 +1,114 @@
+[
+  {
+    "id": "fdc864bb-8737-4ff3-af36-6afb97b29a14",
+    "position": 1,
+    "filepath": "src/pages/slides/Cover.tsx",
+    "title": "GovBills — From receipt to settlement",
+    "description": "Ministry-controlled invoice operations: staff see their responsible work, reconcile evidence and move provider-specific batches through independent approval and payment controls. Demo records only; no live bank transfers.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "2ee0b5f4-62f4-414b-b647-04fb875428bc",
+    "position": 2,
+    "filepath": "src/pages/slides/Journey.tsx",
+    "title": "From invoice receipt to confirmed settlement",
+    "description": "Eight-step conceptual journey: receipt, checks and registration, provider reconciliation, batch preparation, batch approval, grouping and independent authorisation, settlement, bank matching and audit. Reconciliation remains mandatory before approval and settlement.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "cbf7ff4e-b259-4a30-8e94-df0f12b28c39",
+    "position": 3,
+    "filepath": "src/pages/slides/MySpace.tsx",
+    "title": "MySpace personal home and admin governance",
+    "description": "Conceptual MySpace schematic. Saved folder views with unit and provider filters; own and role-responsible batches and invoices; My Work tasks, plans, anomalies and overdues. Admin set/reset passwords with re-authentication, ministry boundaries, session invalidation and forced change after temporary reset.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "148b9bf2-4c6b-45ea-98b6-3aa0ad6d8a27",
+    "position": 4,
+    "filepath": "src/pages/slides/Intake.tsx",
+    "title": "Folder and ZIP intake with account allocation",
+    "description": "Upload a folder or ZIP; preserve sources and route missing accounts to unit administrators. Admin maps dedicated-mailbox authorised senders to providers. Automatic staging requires a trusted relay, sender-authentication evidence and clean attachment scans; Outlook is not connected.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "d4dfc215-c089-4aa4-9817-71849d9c5f6f",
+    "position": 5,
+    "filepath": "src/pages/slides/Registration.tsx",
+    "title": "Map the provider layout once, then check every invoice",
+    "description": "Map each provider's invoice layout once; reuse it for later imports. Check extracted invoice values against the source. Flag receipt-date anomalies and due-date urgency. Show surcharges alongside invoice totals",
+    "speakerNotes": ""
+  },
+  {
+    "id": "0b8bf14b-8de2-4930-95d5-a22bbe399261",
+    "position": 6,
+    "filepath": "src/pages/slides/ProviderReconciliation.tsx",
+    "title": "Provider XLS/CSV reconciliation and the Unsorted basket",
+    "description": "Import the provider's pending-invoice XLS or CSV. Match account, invoice reference and amount. Mismatches go to the Unsorted basket for resolution. Reconciliation comes before approval and settlement",
+    "speakerNotes": ""
+  },
+  {
+    "id": "e5de7560-18bd-4329-903a-273ec0eca176",
+    "position": 7,
+    "filepath": "src/pages/slides/Batches.tsx",
+    "title": "Single-provider batch preparation",
+    "description": "Each batch holds invoices for one provider only. Preparation, Work in Progress and Rejected folders. Inspect invoices, amounts and lifecycle history. Ministry access boundaries apply throughout",
+    "speakerNotes": ""
+  },
+  {
+    "id": "fc5b74ca-ddf7-4db3-9bff-278cbdaae1cb",
+    "position": 8,
+    "filepath": "src/pages/slides/Approvals.tsx",
+    "title": "Batch-only approvals, process map and stamped copy",
+    "description": "Approvals act on the whole batch, never single invoices. Process map shows the current stage and owner. Approval produces a stamped copy kept as evidence. Overdue approval tasks surface in My Work",
+    "speakerNotes": ""
+  },
+  {
+    "id": "cac02305-51cd-4bce-87f2-fa9c03b7dfbb",
+    "position": 9,
+    "filepath": "src/pages/slides/Settlement.tsx",
+    "title": "Grouping approved batches of the same provider",
+    "description": "Finance groups approved batches for one provider. Mixed-provider grouping is not allowed. Validate approval and reconciliation evidence first. Batch amounts and history stay traceable. Demo settlement records; no live transfer.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "f3b1b452-5825-4930-9f9d-d37181b14d7c",
+    "position": 10,
+    "filepath": "src/pages/slides/Authorisation.tsx",
+    "title": "Independent authorisation and bank reference",
+    "description": "A separate authoriser approves the settlement. Preparer and authoriser remain distinct people. Bank reference recorded against the settlement. Execution history retained for audit. Demo references only; no real bank details are shown.",
+    "speakerNotes": ""
+  },
+  {
+    "id": "cebe7eb1-2f60-49b6-9cce-243ba3322240",
+    "position": 11,
+    "filepath": "src/pages/slides/BankReconciliation.tsx",
+    "title": "Post-settlement bank match",
+    "description": "Import the bank statement after settlement. Match statement lines to settlement references. Unmatched lines stay open with an owner. Matched results close the loop for audit",
+    "speakerNotes": ""
+  },
+  {
+    "id": "1ad12ec9-4828-4b82-b041-38f1ece4ef6b",
+    "position": 12,
+    "filepath": "src/pages/slides/Disputes.tsx",
+    "title": "Disputes, waivers and refunds with preserved evidence",
+    "description": "Open a dispute case against a provider invoice. Record waivers and refunds as tracked outcomes. Historical evidence is preserved, never overwritten. Case history links back to batch and invoice",
+    "speakerNotes": ""
+  },
+  {
+    "id": "cfd030d5-51c0-45e6-ba69-b357c526b21d",
+    "position": 13,
+    "filepath": "src/pages/slides/Insights.tsx",
+    "title": "Operational visibility and drill-through",
+    "description": "Assigned tasks, plans, anomalies and overdues in one place. Key work areas open on an Overview dashboard. All providers by default; explicit filters kept in drills. Operating overview and historical insights kept distinct. Utility providers and Organisation open on Overview with register tabs; legacy URLs kept",
+    "speakerNotes": ""
+  },
+  {
+    "id": "6c8984a9-2eb0-4e77-b0c8-5b2b0cbd0390",
+    "position": 14,
+    "filepath": "src/pages/slides/Wins.tsx",
+    "title": "Operational wins and rollout readiness",
+    "description": "Qualitative wins: less searching, reduced re-keying, clear handoffs, compact overdue alerts, ministry lateness/surcharge drill-through and preserved audit evidence. Readiness: trusted mail relay and notification gateways, MFA hardening and demo-only captures. No quantified savings or live bank execution claimed.",
+    "speakerNotes": ""
+  }
+]

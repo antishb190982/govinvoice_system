@@ -1,0 +1,107 @@
+@import 'tailwindcss';
+
+@theme inline {
+  --color-primary: var(--slide-primary);
+  --color-accent: var(--slide-accent);
+  --color-bg: var(--slide-bg);
+  --color-text: var(--slide-text);
+  --color-muted: var(--slide-muted);
+  --font-display: var(--font-display-family);
+  --font-body: var(--font-body-family);
+}
+
+:root {
+  /* Replace these with brand colors */
+  --slide-primary: #5d48d0;
+  --slide-accent: #5840bd;
+  --slide-bg: #f5f4fa;
+  --slide-text: #212033;
+  --slide-muted: #5e5a72;
+  --font-display-family: 'Poppins', sans-serif;
+  --font-body-family: 'Poppins', sans-serif;
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--slide-bg);
+  color: var(--slide-text);
+}
+
+.slide {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.slide-viewer {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@font-face{font-family:Poppins;font-style:normal;font-weight:400;font-display:swap;src:url('../public/fonts/poppins-latin-400-normal.woff2') format('woff2')}
+@font-face{font-family:Poppins;font-style:normal;font-weight:700;font-display:swap;src:url('../public/fonts/poppins-latin-700-normal.woff2') format('woff2')}
+.deck-frame{font-family:var(--font-body-family);background:linear-gradient(125deg,#f4f6fc,#edf1fc);color:var(--slide-text)}
+.brand-lockup{position:absolute;top:3.5vh;left:5.5vw;color:var(--slide-primary);font-size:2.2vw;font-weight:700;letter-spacing:-.04em}
+.content-heading{position:absolute;top:10.5vh;left:5.5vw;width:89vw}
+.content-heading h1{margin:0;font-size:3.1vw;line-height:1.16;font-weight:700;letter-spacing:-.035em;text-wrap:balance}
+.presentation-content{position:absolute;left:5.5vw;right:5.5vw;top:29vh;height:61vh;display:grid;grid-template-columns:33fr 54fr;gap:3vw}
+.notes{padding-top:1vh;min-width:0}
+.notes ul{margin:0;padding-left:1.4vw;display:flex;flex-direction:column;gap:2vh}
+.notes li{padding-left:.4vw;font-size:2vw;line-height:1.25;text-wrap:pretty}
+.notes li::marker{color:var(--slide-primary)}
+.screen-gallery{min-width:0;display:flex;flex-direction:column;gap:1.5vh}
+.screen-gallery figure{margin:0;min-width:0}
+.screen-gallery img{width:100%;display:block;object-fit:contain;object-position:top left;background:#fff;border:.08vw solid #d7deef;border-radius:.6vw}
+.main-shot img{height:37vh}
+.support-shot img{height:14vh;object-fit:cover;object-position:center}
+.screen-gallery figcaption{font-size:1.5vw;line-height:1.2;margin-top:.5vh;color:var(--slide-muted)}
+.single-shot .main-shot img{height:53vh}
+.execution-note{font-size:1.5vw;line-height:1.3;color:var(--slide-muted);margin:3vh 0 0}
+.deck-footer{position:absolute;bottom:3vh;left:5.5vw;right:5.5vw;display:flex;justify-content:space-between;color:var(--slide-muted);font-size:1.5vw;line-height:1.3}
+.cover-copy{position:absolute;left:5.5vw;top:20vh;width:40vw}
+.cover-copy h1{font-size:4.4vw;line-height:1.08;font-weight:700;letter-spacing:-.045em;margin:0 0 4vh;text-wrap:balance}
+.cover-copy>p{font-size:2vw;line-height:1.35;margin:0}
+.cover-copy .demo-note{font-size:1.5vw;line-height:1.4;color:var(--slide-muted);margin-top:3vh}
+.cover-shot{position:absolute;left:49vw;top:20vh;width:46vw;height:64vh;margin:0;display:flex;align-items:center}
+.cover-shot img{width:100%;object-fit:contain;border:.1vw solid #d7deef;border-radius:1vw;box-shadow:0 1.5vh 4vw #2638bd18}
+.audit-frame .screen-gallery{display:grid;grid-template-columns:1fr 1fr;gap:1vw}
+.audit-frame .screen-gallery img{height:53vh;object-fit:contain;object-position:top left}
+.concept-label{display:inline-block;font-size:1.5vw;font-weight:700;color:var(--slide-accent);border:.12vw solid var(--slide-accent);border-radius:.4vw;padding:.3vh .8vw;margin-bottom:2vh}
+.journey{position:absolute;left:5.5vw;right:5.5vw;top:27vh;height:60vh}
+.journey-row{display:grid;grid-template-columns:repeat(7,1fr);gap:.8vw}
+.journey-step{background:#fff;border:.08vw solid #d7deef;border-top:.5vh solid var(--slide-primary);border-radius:.6vw;padding:1.6vh .8vw;min-height:26vh}
+.journey-step.ctrl{border-top-color:var(--slide-accent)}
+.journey-step b{display:block;font-size:1.8vw;line-height:1.15;margin-bottom:1vh}
+.journey-step span{display:block;font-size:1.5vw;line-height:1.3;color:var(--slide-muted)}
+.journey-band{margin-top:3vh;background:var(--slide-primary);color:#f4f6fc;border-radius:.6vw;padding:2vh 1.6vw;font-size:1.9vw;line-height:1.3}
+.journey-band.alt{background:#e3f0ec;color:var(--slide-text);margin-top:1.5vh}
+.schema{background:#fff;border:.08vw solid #d7deef;border-radius:.8vw;padding:2vh 1.6vw;height:57vh;box-sizing:border-box;display:flex;flex-direction:column;gap:1.4vh}
+.schema-tabs{display:flex;gap:.6vw;flex-wrap:wrap}
+.schema-tabs span{font-size:1.5vw;padding:.6vh .9vw;border-radius:.4vw;background:#edf1fc;color:var(--slide-primary);font-weight:700}
+.schema-tabs span.on{background:var(--slide-primary);color:#f4f6fc}
+.schema-grid{display:grid;grid-template-columns:1fr 1fr;gap:1vw;flex:1}
+.schema-cell{background:#f4f6fc;border-radius:.5vw;padding:1.4vh 1vw}
+.schema-cell b{display:block;font-size:1.7vw;color:var(--slide-text)}
+.schema-cell span{display:block;font-size:1.5vw;line-height:1.3;color:var(--slide-muted);margin-top:.5vh}
+.wins{display:grid;grid-template-columns:1fr 1fr;gap:3vw;position:absolute;left:5.5vw;right:5.5vw;top:27vh;height:61vh}
+.wins h2{font-size:2.2vw;margin:0 0 2vh;color:var(--slide-primary)}
+.wins h2.ready{color:var(--slide-accent)}
+.dense .notes ul{gap:1.2vh}.dense .notes li{font-size:1.85vw}
+.receipt-journey{position:absolute;left:5.5vw;right:5.5vw;top:25vh;bottom:10vh;display:flex;flex-direction:column;gap:2vh}
+.receipt-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:1.6vh 1.2vw;flex:1;min-height:0}
+.receipt-step{padding:1.8vh 1.25vw;background:#fff;border:1px solid #d9d4eb;border-radius:.6vw;min-width:0;min-height:0}
+.receipt-number{display:block;color:var(--slide-primary);font-size:1.5vw;font-weight:600;line-height:1.25}
+.receipt-step h2{font-size:2vw;line-height:1.15;letter-spacing:-.02em;margin:1.2vh 0}
+.receipt-step p{font-size:2vw;line-height:1.2;color:var(--slide-muted);margin:0}
+.receipt-control{font-size:1.5vw;line-height:1.3;color:var(--slide-primary);margin:0;padding:1.3vh 1.2vw;background:#eeebff;border-radius:.4vw}
+.notes li,.dense .notes li{font-size:2vw;line-height:1.3}
+.wins .notes ul{gap:1.5vh}

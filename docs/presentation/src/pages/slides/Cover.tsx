@@ -1,0 +1,4 @@
+const base = import.meta.env.BASE_URL;
+export default function Cover() {
+return (<div className="w-screen h-screen overflow-hidden relative deck-frame cover-frame"><div className="brand-lockup">GovBills</div><div className="cover-copy"><h1>GovBills — From receipt to settlement</h1><p>A practical user journey through receipt, invoice checks, reconciliation, batch approval, grouped settlement and bank matching — with clear ownership at each handoff.</p><p className="demo-note">Demo records only; no live bank transfer. Existing captures show earlier interface styling; the journey reflects current controls.</p></div><figure className="cover-shot"><img src={`${base}screens/overview-focus.jpg`} crossOrigin="anonymous" alt="GovBills historical insights overview in the demo application" /></figure><footer className="deck-footer"><span>User journey and operational wins · Demo environment</span><span>01 / 14</span></footer></div>);
+}
