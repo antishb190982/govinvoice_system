@@ -1,0 +1,15 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Prepare a batch{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:workspace' %}">Batch workspace</a> / Preparation</div><h1>Prepare a utility batch</h1><p>Choose a ministry, provider and currency. Only service accounts already allocated to that ministry can supply invoices.</p></div></div>
+<nav class="prep-steps" aria-label="Batch preparation progress"><span aria-current="step">1. Setup</span><span>2. Receive and detect</span><span>3. Select invoices</span><span>4. Confirm</span></nav>
+<section class="card prep-card"><h2>Batch details</h2>
+<form method="post" class="form-stack">{% csrf_token %}{% if source_invoice %}<input type="hidden" name="source_invoice" value="{{ source_invoice.pk }}">{% endif %}{% include "includes/form_errors.html" %}
+<div><label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>{{ form.name }}{{ form.name.errors }}</div>
+<div><label for="{{ form.org_unit.id_for_label }}">{{ form.org_unit.label }}</label>{{ form.org_unit }}{{ form.org_unit.errors }}</div>
+<div><label for="{{ form.provider.id_for_label }}">{{ form.provider.label }}</label>{{ form.provider }}{{ form.provider.errors }}</div>
+<div><label for="{{ form.currency.id_for_label }}">{{ form.currency.label }}</label>{{ form.currency }}{{ form.currency.errors }}</div>
+<p class="muted">Invoice service accounts determine ministry ownership. You will review detected records and confirm the complete batch before approval begins.</p>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Continue to invoice intake</button></div></form></section>
+{% endblock %}

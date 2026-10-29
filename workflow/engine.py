@@ -227,15 +227,16 @@ def _decide(task, user, decision, comment, pin):
 def pending_for(user):
     """Pending tasks the user may decide right now."""
     from org.access import active_memberships
+    from core.provider_scope import filter_provider
 
     if user.is_superuser:
-        return ApprovalTask.objects.filter(status=ApprovalTask.Status.PENDING)
+        return filter_provider(ApprovalTask.objects.filter(status=ApprovalTask.Status.PENDING))
     q = Q(pk__in=[])
     for m in active_memberships(user):
         unit_q = Q(invoice__org_unit__path__startswith=m.org_unit.path)
         q |= unit_q & (Q(role=m.role) | Q(escalation_role=m.role, escalated_at__isnull=False))
-    return ApprovalTask.objects.filter(status=ApprovalTask.Status.PENDING).filter(q) \
-        .exclude(invoice__created_by=user).exclude(invoice__approval_tasks__decided_by=user).distinct()
+    return filter_provider(ApprovalTask.objects.filter(status=ApprovalTask.Status.PENDING).filter(q) \
+        .exclude(invoice__created_by=user).exclude(invoice__approval_tasks__decided_by=user)).distinct()
 
 
 def sweep_sla(now=None):

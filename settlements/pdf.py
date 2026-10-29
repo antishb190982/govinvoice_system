@@ -143,6 +143,13 @@ def render(instruction):
         ], [32 * mm, 53 * mm, 35 * mm, 50 * mm]),
         Paragraph("Amounts to settle per utility provider", s["h2"]),
     ]
+    if instruction.group_reference:
+        from xml.sax.saxutils import escape
+        story.append(Paragraph(f"Settlement group {escape(instruction.group_reference)}", s["h2"]))
+        batch_rows = [["Processing batch", "Invoices", f"Payable ({cur})"]]
+        for link in instruction.batch_links.select_related("batch"):
+            batch_rows.append([link.batch.reference, str(link.invoice_count), _money(link.amount, cur)])
+        story.append(_table(batch_rows, [100 * mm, 25 * mm, 45 * mm], money_cols=(2,)))
     rows = [["#", "Provider", "Utility", "Beneficiary account", "Invoices", "Earliest due", "Amount"]]
     for i, line in enumerate(lines, 1):
         rows.append([str(i), Paragraph(line.beneficiary_name, s["cell"]), line.provider.get_utility_type_display(),

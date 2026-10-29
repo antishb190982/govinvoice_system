@@ -84,6 +84,13 @@ def create_batch(user, org_unit, name, invoice_ids):
         ministry=ministry, provider=invoices[0].provider, currency=invoices[0].currency, created_by=user)
     for invoice in invoices:
         BatchMember.objects.create(batch=batch, invoice=invoice, original_amount=payable(invoice))
+        previous = {"ministry": invoice.processing_ministry_id, "preparer": invoice.processing_owner_id}
+        invoice.processing_ministry = ministry
+        invoice.processing_owner = user
+        invoice.save(update_fields=["processing_ministry", "processing_owner"])
+        AuditEvent.record("invoice.processing_ownership_assigned", obj=invoice, actor=user,
+            org_unit_id=invoice.org_unit_id, data={"batch": batch.reference, "previous": previous,
+                "ministry": ministry.pk, "preparer": user.pk})
     log("batch.created", batch, user, ministry=ministry.code, provider=batch.provider.short_code,
         invoices=[i.reference for i in invoices], amount=str(sum(payable(i) for i in invoices)))
     return batch
@@ -145,7 +152,7 @@ def cancel_batch(batch, user, reason):
     batch = InvoiceBatch.objects.select_for_update().get(pk=batch.pk)
     if not has_role(user, batch.org_unit, PROCESSORS):
         raise PermissionDenied
-    if batch.started_at or batch.cancelled_at or batch.settlements.exclude(status="cancelled").exists():
+    if batch.started_at or batch.cancelled_at or batch.payment_instructions.exclude(status="cancelled").exists():
         raise ValidationError("Only an unstarted batch without a live settlement can be cancelled.")
     if not reason.strip():
         raise ValidationError("Explain why this batch is cancelled.")

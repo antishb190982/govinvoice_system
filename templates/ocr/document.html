@@ -8,7 +8,7 @@
 </div>
 <div class="actions">
   <form method="post" action="{% url 'ocr:reanalyse' doc.pk %}" class="inline-form">{% csrf_token %}<button class="btn" type="submit">{% icon "spark" %} Analyse again</button></form>
-  {% if can_edit_template %}<a class="btn" href="{% url 'ocr:template_edit' doc.provider_id %}?doc={{ doc.pk }}">Edit {{ doc.provider.short_code }} template</a>{% endif %}
+  {% if can_edit_template %}<a class="btn" href="{% url 'ocr:template_edit' doc.provider_id %}?doc={{ doc.pk }}">Manage shared {{ doc.provider.short_code }} template</a>{% endif %}
 </div></div>
 
 {% if warnings %}<div class="callout warn"><strong>Check before importing</strong>{% for w in warnings %}<span class="chip">{{ w }}</span>{% endfor %}</div>{% endif %}
@@ -27,11 +27,11 @@
         {% if f.source %}<span class="fsrc">{{ f.source }} · {{ f.evidence }}{% if f.raw and f.raw != f.value %} · read “{{ f.raw }}”{% endif %}</span>{% endif %}
       </li>{% endfor %}</ul>
     </div>
-    {% if can_confirm %}<div class="card"><h2>Confirm values</h2>
-      <p class="muted"><small>Compare with the document, correct anything wrong, then confirm. Confirmed positions train this provider's template so the next invoice is read more reliably.</small></p>
+    {% if can_confirm %}<div class="card"><h2>Check this invoice’s extracted values</h2>
+      <p class="muted"><small>The saved {{ doc.provider.short_code }} template is reused automatically. Compare the extracted values with this document, correct anything wrong, and confirm. You do not need to map the template again.</small></p>
       <form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
         <div class="form-grid">{% for f in form %}{% if f.name != "learn" %}<div>{{ f.label_tag }}{{ f }}</div>{% endif %}{% endfor %}</div>
-        <div class="mt">{{ form.learn }} {{ form.learn.label_tag }}</div>
+        <details class="mt"><summary>Optional: improve the shared provider template</summary><p class="muted">Leave this off for routine invoice checks. Select it only when the invoice layout has changed and you want this confirmed document to suggest template updates.</p>{{ form.learn }} {{ form.learn.label_tag }}</details>
         {% if row.errors %}<ul class="errorlist">{% for e in row.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
         <div class="form-actions"><a class="btn" href="{% url 'imports:batch' row.batch_id %}">Back</a><button class="btn btn-primary" type="submit">{% icon "check" %} Confirm</button></div>
       </form></div>

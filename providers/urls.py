@@ -1,10 +1,12 @@
 from django.urls import path
 
 from providers import views
+from providers.visibility import dashboard
 
 app_name = "providers"
 
 urlpatterns = [
+    path("visibility/", dashboard, name="visibility"),
     path("accounts/", views.accounts, name="accounts"),
     path("", views.provider_list, name="list"),
     path("new/", views.provider_form, name="create"),

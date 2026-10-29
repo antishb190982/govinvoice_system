@@ -2,10 +2,12 @@ from django.urls import path
 
 from workflow import views
 from workflow import configuration, monitor
+from workflow.batch_approval import review
 
 app_name = "workflow"
 
 urlpatterns = [
+    path("batches/<int:pk>/", review, name="batch_review"),
     path("", views.inbox, name="inbox"),
     path("sla/", views.sla_board, name="sla"),
     path("policies/", views.policies, name="policies"),

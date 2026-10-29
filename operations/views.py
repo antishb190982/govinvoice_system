@@ -20,7 +20,7 @@ def events(batch=None, case=None):
         return AuditEvent.objects.filter(object_type="operations.disputecase", object_id=str(case.pk)).order_by("-sequence")
     ids = list(batch.members.values_list("invoice_id", flat=True))
     cases = DisputeCase.objects.filter(invoice_id__in=ids).values_list("pk", flat=True)
-    settlements = batch.settlements.values_list("pk", flat=True)
+    settlements = batch.payment_instructions.values_list("pk", flat=True)
     return AuditEvent.objects.filter(
         Q(object_type="operations.invoicebatch", object_id=str(batch.pk)) |
         Q(object_type="invoices.invoice", object_id__in=[str(i) for i in ids]) |
@@ -95,19 +95,19 @@ def batch(request, pk):
         "batch": item, "members": members, "error": error,
         "gross_total": sum((m.invoice.amount_total for m in members if m.active), Decimal("0")),
         "payable_total": sum((m.payable for m in members if m.active), Decimal("0")),
-        "held_count": sum(m.on_hold for m in members if m.active), "settlements": item.settlements.all(),
+        "held_count": sum(m.on_hold for m in members if m.active), "settlements": item.payment_instructions,
         "cases": DisputeCase.objects.filter(invoice__batch_memberships__batch=item).distinct(),
         "history": paginate(request, events(batch=item), 30),
         "can_process": has_role(request.user, item.org_unit, [Role.CLERK, Role.UNIT_ADMIN]) and not item.cancelled_at and
                        any(m.active and m.invoice.status in ["draft", "returned", "disputed"] for m in members),
         "can_regroup": has_role(request.user, item.org_unit, services.PROCESSORS) and not item.cancelled_at and
-                       not item.settlements.exclude(status="cancelled").exists() and
+                       not item.payment_instructions.exclude(status="cancelled").exists() and
                        any(m.active and m.invoice.status not in ["paid", "scheduled"] for m in members),
         "can_settle": has_role(request.user, item.org_unit, [Role.FINANCE]) and not item.cancelled_at and
                       any(m.active and m.payable > 0 for m in members) and
                       all((m.invoice.status == "paid" and m.payable == 0) or
                           (m.invoice.status == "approved" and not m.on_hold and m.payable > 0) for m in members if m.active) and
-                      not item.settlements.exclude(status="cancelled").exists(),
+                      not item.payment_instructions.exclude(status="cancelled").exists(),
         "can_cancel": has_role(request.user, item.org_unit, services.PROCESSORS) and not item.started_at and not item.cancelled_at,
     })
 

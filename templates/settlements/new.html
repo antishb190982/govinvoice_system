@@ -2,6 +2,7 @@
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'settlements:list' %}">Settlement instructions</a></div><h1>New settlement instruction</h1>
 <p>Collects approved invoices for a single utility provider, using the adjusted payable amount. Pay-by is the earliest due date; execution is requested one working day earlier.</p></div></div>
+<div class="callout"><strong>Settling several approved batches?</strong><a href="{% url 'settlements:group_new' %}">Group complete batches for one utility provider</a> before preparing a combined payment.</div>
 <div class="card"><form method="get" class="filters">{% for f in form %}<div>{{ f.label_tag }}{{ f }}{{ f.errors }}</div>{% endfor %}<div><button class="btn btn-primary" type="submit">Find approved invoices</button></div></form></div>
 {% if lines is not None %}
 <form method="post" action="?{{ request.GET.urlencode }}">{% csrf_token %}

@@ -7,6 +7,7 @@ app_name = "settlements"
 urlpatterns = [
     path("", views.instruction_list, name="list"),
     path("new/", views.instruction_new, name="new"),
+    path("groups/new/", views.group_new, name="group_new"),
     path("<int:pk>/", views.instruction_detail, name="detail"),
     path("<int:pk>/pdf/", views.instruction_pdf, name="pdf"),
     path("<int:pk>/export/<str:fmt>/", views.instruction_export, name="export"),

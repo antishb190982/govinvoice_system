@@ -232,16 +232,15 @@ def account_form(request, pk=None):
 
 @login_required
 def accounts(request):
-    from django.db.models import Q
     from core.utils import paginate
-    rows = scope(ServiceAccount.objects.select_related("provider", "org_unit"), request.user)
-    status = request.GET.get("status", "")
-    if status in ServiceAccount.Status.values:
-        rows = rows.filter(status=status)
-    q = request.GET.get("q", "").strip()[:120]
-    if q:
-        rows = rows.filter(Q(account_number__icontains=q) | Q(provider__name__icontains=q) |
-            Q(owner__icontains=q) | Q(purpose__icontains=q) | Q(service_type__icontains=q) |
-            Q(premises__icontains=q))
-    return render(request, "providers/accounts.html", {"page": paginate(request, rows),
-        "q": q, "status": status, "statuses": ServiceAccount.Status.choices})
+    from providers.account_filters import dashboard_for, filtered_accounts
+    params = request.GET.copy()
+    if "provider" not in params and getattr(request, "utility_provider", None):
+        params["provider"] = str(request.utility_provider.pk)
+    rows, filter_form, values = filtered_accounts(request.user, params)
+    return render(request, "providers/accounts.html", {
+        "page": paginate(request, rows), "filter_form": filter_form,
+        "q": values.get("q", ""), "status": values.get("status", ""),
+        "statuses": ServiceAccount.Status.choices,
+        **dashboard_for(request.user, params),
+    })

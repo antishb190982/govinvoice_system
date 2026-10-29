@@ -1,6 +1,6 @@
 .ins-stamp{color:var(--muted);font-size:.8rem;margin:4px 0 0}
 .ins-h{font-size:1rem;margin:0 0 10px}
-.ins-cards{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.ins-cards{list-style:none;margin:0 0 18px;padding:0;display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(190px,100%),1fr))}
 .ins-cards a.ins-card{display:flex;flex-direction:column;gap:8px;height:100%;color:inherit;text-decoration:none}
 .ins-card>.label,.ins-card>.value,.ins-card>.sub,.ins-card>.ins-go{display:block;position:static;white-space:normal;overflow-wrap:anywhere;line-height:1.5}
 .ins-head{background:#2638bd;padding:20px;border-radius:16px}

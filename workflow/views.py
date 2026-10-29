@@ -33,7 +33,24 @@ def inbox(request):
         tasks = tasks.filter(expedited=True)
     if request.GET.get("role") in Role.values:
         tasks = tasks.filter(role=request.GET["role"])
-    return render(request, "workflow/inbox.html", {"tasks": tasks, "now": timezone.now()})
+    from operations.models import InvoiceBatch
+    batch_ids = tasks.filter(invoice__batch_memberships__active=True).values_list(
+        "invoice__batch_memberships__batch_id", flat=True)
+    batches = scope(InvoiceBatch.objects.filter(pk__in=batch_ids, cancelled_at__isnull=True),
+        request.user).select_related("provider", "org_unit", "created_by")
+    from django.db.models import Count, Min, Sum
+    rows = []
+    for batch in batches:
+        relevant = tasks.filter(invoice__batch_memberships__batch=batch,
+                                invoice__batch_memberships__active=True)
+        summary = relevant.aggregate(due=Min("due_at"), count=Count("pk"))
+        summary.update(batch=batch, invoice_count=batch.members.filter(active=True).count(),
+            total=batch.members.filter(active=True).aggregate(total=Sum("original_amount"))["total"])
+        rows.append(summary)
+    rows.sort(key=lambda r: r["due"])
+    return render(request, "workflow/inbox.html", {"batch_rows": rows,
+        "unbatched_count": tasks.exclude(invoice__batch_memberships__active=True).count(),
+        "now": timezone.now()})
 
 
 @login_required
@@ -53,9 +70,13 @@ def task_detail(request, pk):
     invoice = task.invoice
     if not can_view(request.user, invoice.org_unit):
         raise Http404
+    member = invoice.batch_memberships.filter(active=True).first()
+    if member:
+        return redirect("workflow:batch_review", pk=member.batch_id)
     block_reason = None
     try:
         engine.check_can_decide(task, request.user)
+        raise ValidationError("This invoice must enter a processing batch before an approval decision can be recorded.")
     except (PermissionDenied, ValidationError) as exc:
         block_reason = " ".join(getattr(exc, "messages", [str(exc)]))
     form = DecisionForm(request.POST or None)

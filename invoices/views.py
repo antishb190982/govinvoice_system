@@ -94,6 +94,14 @@ def invoice_list(request):
 def invoice_create(request):
     require_any_role(request.user, [Role.CLERK, Role.UNIT_ADMIN])
     form = InvoiceForm(request.POST or None, request.FILES or None, user=request.user)
+    prep = None
+    if request.GET.get("preparation"):
+        from operations.preparation import owned_preparation
+        prep = owned_preparation(request.user, request.GET["preparation"])
+        if prep.completed_batch_id:
+            return redirect(prep.completed_batch)
+        form.fields["service_account"].queryset = form.fields["service_account"].queryset.filter(
+            org_unit__path__startswith=prep.org_unit.path, provider=prep.provider)
     if request.method == "POST" and form.is_valid():
         invoice = form.save(commit=False)
         if form.cleaned_data.get("upload"):
@@ -104,6 +112,8 @@ def invoice_create(request):
             form.add_error(None, exc)
         else:
             messages.success(request, f"Invoice {invoice.reference} recorded.")
+            if prep:
+                return redirect(prep.get_absolute_url() + "?step=select")
             if invoice.flags:
                 messages.warning(request, "Check the warnings on this invoice before submitting it.")
             return redirect(invoice)
@@ -168,8 +178,10 @@ def invoice_detail(request, pk):
     history = AuditEvent.objects.filter(object_type="invoices.invoice", object_id=str(invoice.pk)).order_by("sequence")
     from analytics.queries import account_history
 
+    batch_membership = invoice.batch_memberships.filter(active=True).select_related("batch").first()
     return render(request, "invoices/detail.html", {
         "invoice": invoice, "rounds": sorted(rounds.items(), reverse=True), "my_task": my_task if can_decide else None,
+        "batch_membership": batch_membership,
         "pending_task": my_task, "can_capture": bool(roles & {Role.CLERK, Role.UNIT_ADMIN}),
         "flags": [(f, Flag.LABELS.get(f, f), f in Flag.SEVERE) for f in invoice.flags],
         "has_severe": bool(set(invoice.flags) & Flag.SEVERE),
@@ -238,11 +250,13 @@ def invoice_approved_copy(request, pk):
 @require_POST
 def invoice_submit(request, pk):
     invoice = _get_invoice(request, pk)
-    try:
-        engine.submit(invoice, request.user)
-        messages.success(request, f"{invoice.reference} submitted for approval.")
-    except (ValidationError, PermissionDenied) as exc:
-        messages.error(request, " ".join(getattr(exc, "messages", [str(exc)])))
+    member = invoice.batch_memberships.filter(active=True).select_related("batch").first()
+    if not has_role(request.user, invoice.org_unit, [Role.CLERK, Role.UNIT_ADMIN]):
+        raise PermissionDenied
+    if member:
+        messages.info(request, "Submit and review invoices from the complete batch workspace.")
+        return redirect(member.batch)
+    messages.error(request, "Prepare this invoice in a batch before starting approval.")
     return redirect(invoice)
 
 

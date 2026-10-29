@@ -24,6 +24,7 @@
   <a class="side-link{% if app == 'core' and url == 'dashboard' or not app %} is-active{% endif %}" href="{% url 'core:dashboard' %}"{% if app == 'core' and url == 'dashboard' or not app %} aria-current="page"{% endif %}>{% icon "home" %}<span>Overview</span></a>
   <a class="side-link{% if url == 'notifications' %} is-active{% endif %}" href="{% url 'core:notifications' %}"{% if url == 'notifications' %} aria-current="page"{% endif %}>{% icon "bell" %}<span>Notifications</span><span class="side-count" data-notification-count{% if not unread_notifications %} hidden{% endif %}>{{ unread_notifications|default:0 }}</span></a>
   <p class="side-group">Bills &amp; batches</p>
+  {% if can.capture %}<a class="side-link{% if url == 'prepare' or url == 'prepare_new' %} is-active{% endif %}" href="{% url 'operations:prepare_new' %}">{% icon "file" %}<span>Prepare batch</span></a>{% endif %}
   <a class="side-link{% if app == 'invoices' and url != 'create' and url != 'surcharges' and url != 'surcharge' %} is-active{% endif %}" href="{% url 'invoices:list' %}?status=open"{% if app == 'invoices' and url != 'create' and url != 'surcharges' and url != 'surcharge' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Invoice register</span></a>
   {% if can.capture %}<a class="side-link{% if app == 'imports' %} is-active{% endif %}" href="{% url 'imports:list' %}"{% if app == 'imports' %} aria-current="page"{% endif %}>{% icon "scan" %}<span>Import invoices</span></a>
   <a class="side-link{% if app == 'invoices' and url == 'create' %} is-active{% endif %}" href="{% url 'invoices:create' %}"{% if app == 'invoices' and url == 'create' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Record manually</span></a>{% endif %}
@@ -43,11 +44,12 @@
   <p class="side-group">Service accounts</p>
   {% if accounts_url %}<a class="side-link{% if app == 'providers' and url == 'accounts' or app == 'providers' and 'account' in url %} is-active{% endif %}" href="{{ accounts_url }}"{% if app == 'providers' and url == 'accounts' or app == 'providers' and 'account' in url %} aria-current="page"{% endif %}>{% icon "building" %}<span>Account register</span></a>{% endif %}
   <a class="side-link{% if app == 'providers' and 'account' not in url %} is-active{% endif %}" href="{% url 'providers:list' %}"{% if app == 'providers' and 'account' not in url %} aria-current="page"{% endif %}>{% icon "building" %}<span>Providers catalogue</span></a>
+  <a class="side-link{% if url == 'visibility' %} is-active{% endif %}" href="{% url 'providers:visibility' %}">{% icon "chart" %}<span>Provider visibility</span></a>
   <p class="side-group">Approvals</p>
   {% if can.approve %}<a class="side-link{% if app == 'workflow' and url == 'inbox' or app == 'workflow' and url == 'task' %} is-active{% endif %}" href="{% url 'workflow:inbox' %}"{% if app == 'workflow' and url == 'inbox' or app == 'workflow' and url == 'task' %} aria-current="page"{% endif %}>{% icon "check" %}<span>Approval inbox</span><span class="side-count" data-approval-count{% if not pending_approvals %} hidden{% endif %}>{{ pending_approvals|default:0 }}</span></a>{% endif %}
   <a class="side-link{% if url == 'processes' or url == 'process' %} is-active{% endif %}" href="{% url 'workflow:processes' %}"{% if url == 'processes' or url == 'process' %} aria-current="page"{% endif %}>{% icon "clock" %}<span>Workflow monitor</span></a>
   <p class="side-group">Finance</p>
-  <a class="side-link{% if app == 'settlements' %} is-active{% endif %}" href="{% url 'settlements:list' %}"{% if app == 'settlements' %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Settlement batches</span></a>
+  <a class="side-link{% if app == 'settlements' %} is-active{% endif %}" href="{% url 'settlements:list' %}"{% if app == 'settlements' %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Settlements &amp; groups</span></a>
   <a class="side-link{% if app == 'reconciliation' and '/bank/' not in request.path %} is-active{% endif %}" href="{% url 'reconciliation:index' %}"{% if app == 'reconciliation' and '/bank/' not in request.path %} aria-current="page"{% endif %}>{% icon "check" %}<span>Invoice reconciliation</span></a>
   {% if can.bank %}<a class="side-link{% if '/bank/' in request.path and app == 'reconciliation' %} is-active{% endif %}" href="{% url 'reconciliation:bank_index' %}"{% if '/bank/' in request.path and app == 'reconciliation' %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Bank reconciliation</span></a>{% endif %}
   <a class="side-link{% if url == 'surcharges' or url == 'surcharge' %} is-active{% endif %}" href="{% url 'invoices:surcharges' %}"{% if url == 'surcharges' or url == 'surcharge' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Surcharge monitor</span></a>
@@ -85,7 +87,7 @@
   <div class="activity-notice" id="activity-notice" role="status" aria-live="polite" hidden><span class="activity-pulse" aria-hidden="true"></span><span data-activity-text>New activity</span> <a href="{% url 'core:notifications' %}">View notifications</a></div>
   {% if ENVIRONMENT != "production" %}<span class="env-badge">{{ ENVIRONMENT }} environment</span>{% endif %}
   {% if messages %}<ul class="messages">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
-  {% if section_tabs %}{% include "includes/section_tabs.html" %}{% endif %}
+  {% include "includes/section_tabs.html" %}
   {% block content %}{% endblock %}
 </main>
 <footer class="footer"><span>{{ BRAND_TAGLINE }}</span><span>Activity is recorded in a tamper-evident audit trail.</span></footer>

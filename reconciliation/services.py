@@ -225,6 +225,8 @@ def invoice_saved(invoice):
 
 def check_instruction(instruction, released=False):
     from operations.services import payable, require_clear
+    from settlements.grouping import check_group
+    check_group(instruction)
     """Fresh evidence before bank release; pinned evidence after sending records real execution."""
     items = list(instruction.lines.values_list("items__invoice_id", flat=True))
     invoices = list(Invoice.objects.filter(pk__in=items).select_related("provider", "org_unit", "service_account").order_by("pk"))

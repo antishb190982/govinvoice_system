@@ -2,7 +2,7 @@
 {% block head %}<script src="{% static 'js/ocr.js' %}" defer></script>{% endblock %}
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'ocr:templates' %}">OCR templates</a></div>
-<h1>{{ provider.name }}</h1><p>Choose a field, then drag a box around where its value is printed. Zones are anchored to the nearest label so slightly shifted scans still line up.</p></div></div>
+<h1>{{ provider.name }}</h1><p>This shared provider template is mapped once and reused for later invoices. Choose each field and drag a box around where its value is printed; staff then check extracted values on each invoice without remapping the layout.</p></div></div>
 {% if not sample %}<div class="card empty">No analysed invoice from this provider yet. Scan one through <a href="{% url 'imports:list' %}">Scan &amp; import</a>, then come back.</div>
 {% else %}
 <form method="post" id="zone-form">{% csrf_token %}

@@ -35,11 +35,12 @@ def approval_evidence(invoice):
     # Canceled instructions must never supply a bank reference or override
     # the batch used by the live instruction.
     item = invoice.settlement_items.exclude(line__instruction__status="cancelled").select_related(
-        "line__instruction__batch", "line__instruction__prepared_by").order_by(
+        "batch", "line__instruction__batch", "line__instruction__prepared_by").order_by(
             F("line__instruction__executed_at").desc(nulls_last=True), "-line__instruction__prepared_at").first()
     instruction = item.line.instruction if item else None
     member = invoice.batch_memberships.filter(active=True).select_related("batch").first()
-    batch = instruction.batch if instruction and instruction.batch_id else member.batch if member else None
+    batch = item.batch if item and item.batch_id else (
+        instruction.batch if instruction and instruction.batch_id else member.batch if member else None)
     executed = bool(instruction and instruction.status == "executed")
     return {
         "approved_at": invoice.approved_at, "recorded_by": str(invoice.created_by),
@@ -48,6 +49,7 @@ def approval_evidence(invoice):
         "batch_reference": batch.reference if batch else "Not assigned",
         "processing_started_at": batch.started_at if batch else None,
         "settlement_reference": instruction.reference if instruction else "Not prepared",
+        "settlement_group": instruction.group_reference if instruction else None,
         "settlement_status": instruction.get_status_display() if instruction else "Pending settlement",
         "finance_prepared_by": str(instruction.prepared_by) if instruction else "Not recorded",
         "finance_prepared_at": instruction.prepared_at if instruction else None,
@@ -94,6 +96,8 @@ def _record_rows(invoice, evidence):
         ("Source SHA-256", e["source_sha256"]),
         ("Copy generated", display_date(e["generated_at"])),
     ]
+    if e.get("settlement_group"):
+        rows.insert(-1, ("Settlement group", e["settlement_group"]))
     return rows
 
 

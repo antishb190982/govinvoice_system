@@ -1,6 +1,6 @@
 /* Bank reconciliation (post-settlement) — scoped to body.bank */
-.bank .tiles { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.bank .bank-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.bank .tiles { grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); }
+.bank .bank-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 .bank .bank-upload { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
 .bank .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
 .bank .scroll table { min-width: 640px; }
@@ -10,7 +10,7 @@
 .bank .field-error { color: #b42318; font-size: .85rem; margin: 0; }
 .bank .has-error input, .bank .has-error select { border-color: #b42318; }
 .bank .search-actions { display: flex; gap: 8px; align-items: end; }
-.bank dl.cols { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 6px 16px; margin: 0; }
+.bank dl.cols { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 6px 16px; margin: 0; }
 .bank dl.cols dt { color: #5a6190; font-size: .85rem; }
 .bank dl.cols dd { margin: 0; overflow-wrap: anywhere; }
 .bank .format-help dl.cols dt { font-family: ui-monospace, monospace; font-size: .8rem; }

@@ -52,6 +52,8 @@ class UploadForm(forms.Form):
 def batch_list(request):
     require_any_role(request.user, [Role.CLERK, Role.UNIT_ADMIN])
     qs = ImportBatch.objects.filter(uploaded_by=request.user) if not request.user.is_superuser else ImportBatch.objects.all()
+    from core.provider_scope import filter_provider
+    qs = filter_provider(qs)
     if request.GET.get("status") in ImportBatch.Status.values:
         qs = qs.filter(status=request.GET["status"])
     form = UploadForm(request.POST or None, request.FILES or None)
@@ -135,10 +137,13 @@ def batch_detail(request, pk):
     if request.GET.get("edit"):
         edit_row = get_object_or_404(ImportRow, batch=batch, pk=request.GET["edit"])
     from imports.registration import registration_blocked
+    from imports.registration import registration_url
 
     return render(request, "imports/batch.html", {
         "batch": batch, "rows": rows, "counts": counts, "edit_row": edit_row, "review_needed": review_needed,
+        "preparation": batch.preparations.filter(prepared_by=request.user, completed_batch__isnull=True).first(),
         "registration_blocked": registration_blocked(batch) if batch.status == ImportBatch.Status.STAGED else False,
+        "registration_url": registration_url([batch]),
         "row_form": RowForm(row=edit_row) if edit_row else None,
     })
 

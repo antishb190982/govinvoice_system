@@ -9,6 +9,10 @@
 {% if si.status in "authorised sent executed" %}<a class="btn" href="{% url 'settlements:export' si.pk 'xml' %}">ISO 20022 (pain.001)</a><a class="btn" href="{% url 'settlements:export' si.pk 'csv' %}">CSV</a>{% endif %}
 </div></div>
 {% if si.batch %}<div class="callout"><strong>Processing batch <a href="{{ si.batch.get_absolute_url }}">{{ si.batch.reference }}</a></strong>This instruction pays one provider ({{ si.batch.provider.name }}) for the whole batch.</div>{% endif %}
+{% if si.group_reference %}<div class="callout"><strong>Settlement group {{ si.group_reference }}</strong>{{ batch_links|length }} approved batch{{ batch_links|length|pluralize }} combined in this instruction. Membership and amounts are retained after cancellation or execution; all stages are recorded in the audit history.</div>
+<div class="card" id="group-batches"><h2>Member batches · {{ si.group_reference }}</h2><div class="table-wrap"><table><thead><tr><th>Processing batch</th><th>Provider</th><th>Ministry</th><th>Invoices grouped</th><th>Current stage</th><th class="num">Grouped payable</th></tr></thead><tbody>
+{% for link in batch_links %}<tr><td><a href="{{ link.batch.get_absolute_url }}">{{ link.batch.reference }}</a><br><small>{{ link.batch.name }}</small></td><td>{{ link.batch.provider.name }}</td><td>{{ link.batch.ministry }}</td><td>{{ link.invoice_count }}</td><td>{{ link.batch.lifecycle }}</td><td class="num">{{ link.amount|money:si.currency }}</td></tr>{% endfor %}
+</tbody><tfoot><tr><td colspan="5">Group total</td><td class="num">{{ si.total_amount|money:si.currency }}</td></tr></tfoot></table></div></div>{% endif %}
 {% if si.rejection_comment and si.status == 'draft' %}<div class="callout warn"><strong>Returned by authoriser</strong>{{ si.rejection_comment }}</div>{% endif %}
 <div class="split"><div class="stack">
 <div class="card"><h2>Amounts per provider</h2><div class="table-wrap"><table><thead><tr><th>Provider</th><th>Beneficiary account</th><th>Invoices</th><th>Earliest due</th><th class="num">Amount</th></tr></thead><tbody>

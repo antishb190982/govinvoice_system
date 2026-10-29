@@ -66,9 +66,17 @@ def test_overview_respects_bank_and_import_permissions(client, people):
 
 def test_pending_approval_drilldown_uses_same_user_and_attention_filter(client, people, policy, make_invoice):
     from workflow import engine
+    from operations.services import create_batch, start_batch
+    from tests.test_reconciliation import upload
+    from reconciliation.services import assign, recheck
 
-    invoice = make_invoice()
-    engine.submit(invoice, people["clerk"])
+    invoice = make_invoice(reconciled=False)
+    batch = create_batch(people["clerk"], invoice.org_unit.parent, "Overdue approval batch", [invoice.pk])
+    statement = upload(people["finance"], invoice)
+    row = statement.rows.get()
+    assign(row, people["finance"], invoice.org_unit, people["clerk"], "Test matching statement line")
+    recheck(row, people["finance"])
+    start_batch(batch, people["clerk"])
     task = invoice.approval_tasks.get(status="pending")
     task.due_at = timezone.now() - timedelta(minutes=5)
     task.save()
@@ -78,7 +86,7 @@ def test_pending_approval_drilldown_uses_same_user_and_attention_filter(client, 
     overdue = result.context["cards"][1]
     assert overdue["value"] == 1
     result = client.get(overdue["url"])
-    assert list(result.context["tasks"]) == [task]
+    assert [row["batch"].pk for row in result.context["batch_rows"]] == [batch.pk]
 
 
 def test_tabs_on_records_not_details_and_unknown_section(client, people, make_invoice):

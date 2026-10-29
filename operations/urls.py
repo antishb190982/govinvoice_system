@@ -1,8 +1,11 @@
 from django.urls import path
 from operations import views
 from operations.workspace import workspace
+from operations import preparation
 app_name = "operations"
 urlpatterns = [
+    path("prepare/", preparation.prepare_new, name="prepare_new"),
+    path("prepare/<uuid:pk>/", preparation.prepare, name="prepare"),
     path("my-batches/", workspace, name="workspace"),
     path("batches/", views.batches, name="batches"),
     path("batches/new/", views.batch_new, name="batch_new"),

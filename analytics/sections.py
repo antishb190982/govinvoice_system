@@ -43,9 +43,19 @@ def section_navigation(request):
     if section not in SECTIONS:
         return {}
     title, route, label = SECTIONS[section]
+    account_params = {}
+    if section == "accounts":
+        account_params = {key: value for key, value in request.GET.items()
+                          if key in {"q", "provider", "ministry", "service_type", "status", "invoicing_status"}}
+        if "provider" not in account_params and getattr(request, "utility_provider", None):
+            account_params["provider"] = str(request.utility_provider.pk)
+    overview_url = reverse("core:section_overview", args=[section])
+    if account_params:
+        from urllib.parse import urlencode
+        overview_url += "?" + urlencode(account_params)
     ctx = {"section_tabs": {
-        "title": title, "overview_url": reverse("core:section_overview", args=[section]),
-        "records_url": records_url(section), "records_label": label, "active": active,
+        "title": title, "overview_url": overview_url,
+        "records_url": records_url(section, **account_params), "records_label": label, "active": active,
     }}
     if active == "overview":
         app, _, name = route.rpartition(":")

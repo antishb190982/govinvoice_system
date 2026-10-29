@@ -21,7 +21,8 @@ FOLDERS = {
 
 def batches_for(user):
     members = BatchMember.objects.filter(batch_id=OuterRef("pk"), active=True)
-    settlements = SettlementInstruction.objects.filter(batch_id=OuterRef("pk"))
+    settlements = SettlementInstruction.objects.filter(
+        Q(batch_id=OuterRef("pk")) | Q(batch_links__batch_id=OuterRef("pk")))
     return scope(InvoiceBatch.objects.select_related(
         "provider", "ministry", "org_unit", "created_by"), user).annotate(
         has_members=Exists(members),

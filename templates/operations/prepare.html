@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load static gov %}
+{% block title %}Prepare {{ prep.provider.name }} batch{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<header class="page-head"><div><div class="crumbs"><a href="{% url 'operations:workspace' %}">Batch workspace</a> / {{ prep.name }}</div><h1>{{ prep.name }}</h1><p>{{ prep.org_unit }} · {{ prep.provider.name }} · {{ prep.currency }} · Prepared by {{ prep.prepared_by }}</p></div></header>
+<nav class="prep-steps" aria-label="Batch preparation progress">
+<span>1. Setup</span><a href="{{ prep.get_absolute_url }}">2. Receive and detect</a><a href="{{ prep.get_absolute_url }}?step=select">3. Select invoices</a><a href="{{ prep.get_absolute_url }}?step=confirm">4. Confirm</a>
+</nav>
+{% if error %}<div class="callout danger" role="alert">{{ error }}</div>{% endif %}
+{% if messages %}<ul class="messages">{% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}</ul>{% endif %}
+<section class="card prep-card"><h2>Ministry account allocation</h2><p>{{ allocated_accounts }} service accounts for {{ prep.provider.name }} are allocated to {{ prep.org_unit }}. An uploaded invoice cannot transfer an account or historical records between ministries.</p></section>
+{% if step == "source" %}
+<section class="card prep-card"><h2>Receive invoices</h2><p>Upload PDFs, spreadsheets or a ZIP containing invoices. Existing OCR and invoice checks still apply. Files stay staged until a staff member reviews and imports them.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="upload">
+{% include "includes/form_errors.html" %}
+{% for field in upload_form %}<div class="prep-field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small class="helptext">{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Upload and detect invoices</button><button class="btn" type="submit" name="intake_route" value="registration">Upload and register missing accounts</button><a class="btn" href="{{ prep.get_absolute_url }}?step=select">Review already detected invoices</a></div>
+</form></section>
+{% if imports %}<section class="card prep-card"><h2>Staged files requiring invoice review</h2><p>Review OCR, resolve missing accounts and commit valid draft invoices before selecting them in this wizard.</p>
+<ul class="prep-imports">{% for item in imports %}<li><a href="{% url 'imports:batch' item.batch.pk %}">{{ item.batch.original_name }}</a><span>{{ item.batch.get_status_display }} · {{ item.batch.rows.count }} files · <a href="{{ item.registration_url }}">Register missing service accounts</a></span></li>{% endfor %}</ul></section>{% endif %}
+{% elif step == "select" %}
+<section class="card prep-card"><div class="card-head"><div><h2>Invoices detected for allocated accounts</h2><p>Additional manually recorded invoices can be added here; select their service account from this ministry and provider.</p></div><a class="btn" href="{% url 'invoices:create' %}?preparation={{ prep.pk }}">Add an invoice</a></div>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="select">
+<label class="select-all"><input type="checkbox" data-select-all="prepare"> Select all available invoices</label>
+<div class="table-wrap"><table><thead><tr><th>Select</th><th>Invoice</th><th>Service account</th><th>Allocated unit</th><th>Due date</th><th>Amount</th><th>Receipt</th><th>Preparer</th></tr></thead><tbody>
+{% for invoice in candidates %}<tr><td><input type="checkbox" name="invoices" value="{{ invoice.pk }}" data-group="prepare" {% if invoice.pk in prep.selected_invoice_ids %}checked{% endif %}></td><td><a href="{{ invoice.get_absolute_url }}">{{ invoice.reference }}</a><br>{{ invoice.invoice_number }} · {{ invoice.get_status_display }}</td><td>{{ invoice.service_account.account_number }}{% if invoice.service_account.status != "active" %}<br><span class="badge badge-warn">{{ invoice.service_account.get_status_display }}</span>{% endif %}</td><td>{{ invoice.org_unit }}</td><td>{{ invoice.due_date|date:"d M Y" }}</td><td>{{ invoice.amount_total|money:invoice.currency }}</td><td>{{ invoice.received_date|date:"d M Y"|default:"—" }}</td><td>{{ invoice.processing_owner|default:invoice.created_by }}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No unbatched invoices found for the selected ministry, provider and currency. Upload invoices, complete account registration or add a manually entered invoice.</td></tr>{% endfor %}
+</tbody></table></div><div class="form-actions"><button class="btn btn-primary" type="submit">Continue with selected invoices</button></div></form></section>
+{% elif step == "confirm" %}
+<section class="card prep-card"><h2>Confirm batch ownership</h2><p>The batch ministry is <strong>{{ prep.org_unit }}</strong>. Processing owner is <strong>{{ prep.prepared_by }}</strong>. Every invoice's service-account allocation is rechecked at creation; reassignment and the prior owner are recorded in the audit trail.</p>
+<div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Allocated unit</th><th>Account</th><th>Amount</th><th>Current preparer</th></tr></thead><tbody>
+{% for invoice in selected %}<tr><td><a href="{{ invoice.get_absolute_url }}">{{ invoice.reference }}</a><br>{{ invoice.invoice_number }}</td><td>{{ invoice.org_unit }}</td><td>{{ invoice.service_account.account_number }}</td><td>{{ invoice.amount_total|money:invoice.currency }}</td><td>{{ invoice.processing_owner|default:invoice.created_by }}</td></tr>{% empty %}<tr><td colspan="5">No invoices selected yet.</td></tr>{% endfor %}
+</tbody></table></div><p><strong>{{ prep.currency }} {{ selected_total|default:"0.000" }}</strong> invoice amount total; the payable total is calculated and verified when the batch is created.</p>
+<div class="form-actions"><a class="btn" href="{{ prep.get_absolute_url }}?step=select">Back to selection</a><form method="post">{% csrf_token %}<input type="hidden" name="action" value="complete"><button class="btn btn-primary" type="submit">Create batch and assign ownership</button></form></div></section>
+{% endif %}
+{% endblock %}

@@ -16,10 +16,10 @@
 .an-insight.fall { border-left-color: var(--info); }
 .an-insight.gap { border-left-color: var(--warn); }
 .an-insight h3 { margin: 0 0 4px; }
-.an-insight dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 8px 0 0; font-size: .84rem; font-variant-numeric: tabular-nums; }
+.an-insight dl { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); gap: 2px 12px; margin: 8px 0 0; font-size: .84rem; font-variant-numeric: tabular-nums; }
 .an-insight dt { color: var(--muted); }
 .an-insight dd { margin: 0; }
-.an-insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.an-insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 12px; }
 details.an-table { margin-top: 12px; }
 details.an-table summary { cursor: pointer; font-weight: 600; color: var(--royal); }
 @media (max-width: 720px) { .an-head { padding: 16px; } }

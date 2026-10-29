@@ -1,4 +1,15 @@
-{% with t=section_tabs %}<nav class="tabs section-tabs" aria-label="{{ t.title }} views">
+{% with t=section_tabs %}<nav class="tabs section-tabs" aria-label="{% if t %}{{ t.title }} views{% else %}Provider and page navigation{% endif %}">
+  {% if t %}
   <a href="{{ t.overview_url }}"{% if t.active == 'overview' %} class="active" aria-current="page"{% endif %}>Overview (dashboard)</a>
   <a href="{{ t.records_url }}"{% if t.active == 'records' %} class="active" aria-current="page"{% endif %}>{{ t.records_label }}</a>
+  {% else %}<a href="{% url 'providers:visibility' %}"{% if request.resolver_match.url_name == 'visibility' %} class="active" aria-current="page"{% endif %}>Provider dashboard</a>
+  <span class="tab-context">{{ request.resolver_match.app_name|capfirst }} / {{ request.resolver_match.url_name|cut:"_"|capfirst }}</span>{% endif %}
+  <form class="provider-picker" method="get" action="{{ request.path }}">
+    {% for key, value in provider_filter_params %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+    <label for="utility-provider">Utility provider</label>
+    <select id="utility-provider" name="utility_provider">
+      <option value="">All providers</option>
+      {% for p in provider_options %}<option value="{{ p.pk }}"{% if utility_provider.pk == p.pk %} selected{% endif %}>{{ p.name }}</option>{% endfor %}
+    </select><button class="btn btn-sm" type="submit">Apply</button>
+  </form>
 </nav>{% endwith %}

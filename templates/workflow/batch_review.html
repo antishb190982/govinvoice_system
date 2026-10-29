@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% load gov %}
+{% block title %}Review {{ batch.reference }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'workflow:inbox' %}">Batch approvals</a> / {{ batch.reference }}</div><h1>{{ batch.reference }}</h1><p>{{ batch.name }} · {{ batch.provider.name }} · {{ batch.ministry }} · {{ batch.currency }}. A decision applies to the entire batch.</p></div></div>
+{% if block_reason %}<div class="callout warn" role="status">{{ block_reason }}</div>{% endif %}
+<section class="card"><h2>Invoices in this decision</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Allocated account</th><th>Due date</th><th>Approval stage</th><th>Amount</th><th>Evidence</th></tr></thead><tbody>
+{% for member in members %}<tr><td><a href="{{ member.invoice.get_absolute_url }}">{{ member.invoice.reference }}</a><br>{{ member.invoice.invoice_number }} · {{ member.invoice.get_status_display }}</td><td>{{ member.invoice.service_account.account_number }}<br>{{ member.invoice.org_unit }}</td><td>{{ member.invoice.due_date|date:"d M Y" }}</td><td>{% for task in tasks %}{% if task.invoice_id == member.invoice_id %}{{ task.name }}{% if task.requires_signature %} · Signature required{% endif %}{% endif %}{% endfor %}</td><td>{{ member.original_amount|money:batch.currency }}</td><td><a href="{% url 'workflow:process' member.invoice_id %}">Workflow map</a> · <a href="{{ member.invoice.get_absolute_url }}">Invoice record</a></td></tr>
+{% empty %}<tr><td colspan="6">No active invoices.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% if tasks and not block_reason %}<section class="card"><h2>One decision for all {{ tasks|length }} invoices</h2><p>The decision, note and any required signing PIN will be applied to every invoice. If any validation fails, none of the batch decision is recorded.</p>
+<form method="post">{% csrf_token %}{% for task in tasks %}<input type="hidden" name="tasks" value="{{ task.pk }}">{% endfor %}{% include "includes/form_errors.html" %}{{ form.as_div }}<div class="form-actions"><button class="btn btn-primary" type="submit">Record batch decision</button></div></form></section>{% endif %}
+{% endblock %}

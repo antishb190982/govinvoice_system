@@ -76,13 +76,13 @@
 .stage-now h2 { font-size: 1.25rem; margin: 2px 0 4px; }
 
 /* Monitor */
-.summary-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.summary-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(128px, 100%), 1fr)); gap: 10px; margin-bottom: 18px; }
 .summary-strip a { display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; color: var(--ink); box-shadow: var(--shadow); }
 .summary-strip a:hover { text-decoration: none; border-color: var(--royal); }
 .summary-strip a.on { border-color: var(--royal); box-shadow: 0 0 0 3px var(--brand-soft); }
 .summary-strip .n { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; display: block; }
 .summary-strip .l { font-size: .74rem; color: var(--muted); font-weight: 500; }
-.proc-row { border-top: 1px solid var(--line); padding: 14px 0; display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 16px; }
+.proc-row { border-top: 1px solid var(--line); padding: 14px 0; display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 16px; }
 .proc-row:first-of-type { border-top: 0; }
 .proc-row .who { font-size: .8rem; color: var(--ink-2); }
 .proc-row .attn { list-style: none; margin: 6px 0 0; padding: 0; color: var(--danger); font-size: .78rem; font-weight: 500; }
@@ -95,7 +95,7 @@
 .step-row.is-deleted { opacity: .55; border-style: dashed; }
 .step-row .step-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; }
 .step-row .step-head h3 { margin: 0; }
-.step-grid { display: grid; grid-template-columns: 90px minmax(160px, 1.6fr) repeat(2, minmax(140px, 1fr)); gap: 12px 14px; }
+.step-grid { display: grid; grid-template-columns: minmax(70px, 90px) minmax(0, 1.6fr) repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
 .step-grid .wide2 { grid-column: span 2; }
 .step-grid .check { display: flex; align-items: center; gap: 8px; padding-top: 22px; }
 .step-grid .check label { margin: 0; }
@@ -111,4 +111,54 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .is-current .bpm-task { transition: box-shadow .2s ease; }
+}
+
+/* A clear, vertical invoice journey: one highlighted current step and concise history. */
+.journey-panel { border-top: 3px solid var(--royal); }
+.journey-panel > .card-head { align-items: flex-start; }
+.journey-panel > .card-head h2 { margin: 0; }
+.journey-panel > .card-head p { margin: 4px 0 0; }
+.journey-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; margin: 0 0 18px; padding: 0; color: var(--ink-2); font-size: .78rem; }
+.journey-legend li { display: inline-flex; align-items: center; gap: 7px; }
+.journey-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line-strong); }
+.journey-dot.done { background: var(--ok); }
+.journey-dot.current { background: var(--royal); }
+.journey-dot.blocked { background: var(--danger); }
+.journey-dot.upcoming { background: var(--muted); }
+.journey-flow { list-style: none; padding: 0; margin: 0 auto; max-width: 900px; }
+.journey-item { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; position: relative; padding-bottom: 14px; }
+.journey-item:not(:last-child)::after { content: ""; position: absolute; top: 34px; bottom: 0; left: 16px; border-left: 2px solid var(--line); }
+.journey-marker { z-index: 1; display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid var(--line-strong); border-radius: 50%; background: var(--surface); color: var(--ink-2); font-size: .78rem; font-weight: 700; }
+.journey-card { min-width: 0; padding: 13px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 2px 8px rgba(22, 27, 69, .04); }
+.journey-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.journey-card h3 { margin: 2px 0 0; font-size: .97rem; line-height: 1.3; }
+.journey-state { color: var(--muted); font-size: .66rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.journey-role { margin: 5px 0 0; color: var(--ink-2); font-size: .82rem; }
+.journey-meta { margin: 5px 0 0; color: var(--muted); font-size: .78rem; }
+.journey-complete .journey-marker { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.journey-active .journey-marker, .journey-current .journey-marker { border-color: var(--royal); background: var(--royal); color: #fff; }
+.journey-blocked .journey-marker, .journey-overdue .journey-marker { border-color: var(--danger); background: var(--danger); color: #fff; }
+.journey-overdue .journey-state { color: var(--warn); }
+.journey-cancelled .journey-marker { border-style: dashed; opacity: .65; }
+.journey-preview .journey-card, .journey-waiting .journey-card { border-style: dashed; background: var(--surface-2); }
+.journey-current .journey-card { border: 1.5px solid var(--royal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--royal) 12%, transparent), 0 8px 20px rgba(22, 27, 69, .08); }
+.journey-current.journey-blocked .journey-card, .journey-current.journey-overdue .journey-card { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 12%, transparent); }
+.journey-blockers { margin: 9px 0 0; padding: 8px 10px 8px 28px; border-radius: 9px; background: var(--danger-soft); color: var(--danger); font-size: .8rem; }
+.journey-more { margin-top: 8px; color: var(--ink-2); font-size: .78rem; }
+.journey-more summary { cursor: pointer; font-weight: 600; }
+.journey-more p { margin: 6px 0 0; }
+.journey-comment { overflow-wrap: anywhere; }
+.journey-link { display: inline-block; margin-top: 8px; font-size: .8rem; font-weight: 650; }
+.journey-copy-meta { display: grid; grid-template-columns: minmax(85px, .3fr) minmax(0, 1fr); gap: 5px 12px; margin: 10px 0 0; padding-top: 9px; border-top: 1px solid var(--line); font-size: .78rem; }
+.journey-copy-meta dt { color: var(--muted); }
+.journey-copy-meta dd { margin: 0; overflow-wrap: anywhere; color: var(--ink-2); }
+.journey-missing { margin-top: 10px; padding: 9px 11px; border-radius: 9px; background: var(--warn-soft); color: var(--ink-2); font-size: .78rem; }
+.journey-missing ul { margin: 5px 0 0; padding-left: 20px; }
+.journey-missing li + li { margin-top: 3px; }
+@media (max-width: 600px) {
+  .journey-item { grid-template-columns: 28px minmax(0, 1fr); gap: 9px; }
+  .journey-item:not(:last-child)::after { left: 13px; top: 29px; }
+  .journey-marker { width: 28px; height: 28px; font-size: .7rem; }
+  .journey-card { padding: 11px 12px; }
+  .journey-card-head { flex-direction: column; gap: 6px; }
 }

@@ -35,9 +35,17 @@ class RequestContextMiddleware:
 
     def __call__(self, request):
         tokens = set_context(getattr(request, "user", None), client_ip(request))
+        from core.provider_scope import activate, reset
+        from django.http import HttpResponseBadRequest
+        try:
+            provider_token = activate(request)
+        except ValueError as exc:
+            reset_context(tokens)
+            return HttpResponseBadRequest(str(exc))
         try:
             return self.get_response(request)
         finally:
+            reset(provider_token)
             reset_context(tokens)
 
 

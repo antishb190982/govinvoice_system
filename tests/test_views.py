@@ -35,10 +35,10 @@ def test_invoice_detail_and_task_pages(client, signers, policy, make_invoice):
     task = inv.approval_tasks.get(status="pending")
     assert client.get(reverse("invoices:detail", args=[inv.pk])).status_code == 200
     r = client.post(reverse("workflow:task", args=[task.pk]), {"decision": "approve", "comment": "ok"})
-    assert r.status_code == 302
-    assert r.url == inv.get_absolute_url()
+    assert r.status_code == 200
+    assert b"processing batch before an approval decision" in r.content.lower()
     task.refresh_from_db()
-    assert task.status == "approved"
+    assert task.status == "pending"
 
 
 def test_auditor_cannot_reach_user_admin(client, tree):

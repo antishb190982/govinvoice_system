@@ -17,7 +17,7 @@ from invoices.models import Invoice
 from org.access import has_role, users_with_role
 from org.models import Role
 from settlements import pdf as pdf_render
-from settlements.models import SettlementEvent, SettlementInstruction, SettlementItem, SettlementLine
+from settlements.models import SettlementBatch, SettlementEvent, SettlementInstruction, SettlementItem, SettlementLine
 from signatures.services import active_identity, check_pin, sign_pdf
 
 
@@ -60,7 +60,7 @@ def _execution_date(pay_by):
 
 
 @transaction.atomic
-def create_instruction(user, org_unit, currency, cutoff_date, invoice_ids, notes="", provider=None):
+def create_instruction(user, org_unit, currency, cutoff_date, invoice_ids, notes="", provider=None, batch_ids=None):
     if not has_role(user, org_unit, [Role.FINANCE]):
         raise PermissionDenied("You need the finance officer role for this unit.")
     invoices = list(eligible_invoices(org_unit, currency, cutoff_date).filter(pk__in=invoice_ids)
@@ -85,19 +85,35 @@ def create_instruction(user, org_unit, currency, cutoff_date, invoice_ids, notes
         if not (provider.bank_iban and provider.bank_account_name):
             raise ValidationError(f"{provider.name} has no beneficiary bank details. Update the provider first.")
     pay_by = min(i.due_date for i in invoices)
-    batch = selection_batch(user, org_unit, invoices)
-    if batch.settlements.exclude(status="cancelled").exists():
-        raise ValidationError("This batch already has a live settlement instruction.")
-    if not batch.started_at:
-        batch.started_at = timezone.now()
-        batch.save(update_fields=["started_at"])
+    from settlements.grouping import instructions_for, selected_batches
+    if batch_ids is not None:
+        batches = selected_batches(user, org_unit, invoices[0].provider, currency, invoices, batch_ids)
+        batch = None
+    else:
+        batch = selection_batch(user, org_unit, invoices)
+        batches = [batch]
+    for member_batch in batches:
+        if instructions_for(member_batch).exclude(status="cancelled").exists():
+            raise ValidationError("This batch already has a live settlement instruction.")
+        if not member_batch.started_at:
+            member_batch.started_at = timezone.now()
+            member_batch.save(update_fields=["started_at"])
     instruction = SettlementInstruction.objects.create(
         batch=batch,
+        group_reference=Counter.next("SG") if batch_ids is not None else None,
         reference=Counter.next("SI"), org_unit=org_unit, currency=currency, cutoff_date=cutoff_date,
         pay_by=pay_by, requested_execution_date=_execution_date(pay_by), notes=notes,
         payer_name=settings.PAYER_NAME, payer_iban=settings.PAYER_IBAN, payer_bic=settings.PAYER_BIC,
         prepared_by=user, total_amount=sum(payable(i) for i in invoices),
     )
+    from operations.models import BatchMember
+    member_map = dict(BatchMember.objects.filter(
+        batch__in=batches, active=True, invoice__in=invoices).values_list("invoice_id", "batch_id"))
+    for member_batch in batches:
+        batch_invoices = [i for i in invoices if member_map.get(i.pk) == member_batch.pk]
+        if batch_ids is not None:
+            SettlementBatch.objects.create(instruction=instruction, batch=member_batch,
+                amount=sum(payable(i) for i in batch_invoices), invoice_count=len(batch_invoices))
     for provider, items in groups.items():
         line = SettlementLine.objects.create(
             instruction=instruction, provider=provider, amount=sum(payable(i) for i in items),
@@ -106,10 +122,21 @@ def create_instruction(user, org_unit, currency, cutoff_date, invoice_ids, notes
             beneficiary_bic=provider.bank_bic, end_to_end_id=f"{instruction.reference}-{provider.short_code}"[:35],
         )
         for inv in items:
-            SettlementItem.objects.create(line=line, invoice=inv, amount=payable(inv))
+            SettlementItem.objects.create(line=line, invoice=inv, amount=payable(inv), batch_id=member_map.get(inv.pk))
     Invoice.objects.filter(pk__in=[i.pk for i in invoices]).update(status=Invoice.Status.SCHEDULED)
     AuditEvent.record("settlement.created", obj=instruction, actor=user, data={
-        "reference": instruction.reference, "batch": batch.reference, "total": instruction.total_amount, "invoices": [i.reference for i in invoices]})
+        "reference": instruction.reference, "batch": batch.reference if batch else None,
+        "group": instruction.group_reference, "batches": [b.reference for b in batches],
+        "total": instruction.total_amount, "invoices": [i.reference for i in invoices]})
+    if instruction.group_reference:
+        AuditEvent.record("settlement.group_created", obj=instruction, actor=user, org_unit_id=org_unit.pk,
+            data={"group": instruction.group_reference, "batches": [b.reference for b in batches],
+                  "provider": invoices[0].provider.short_code, "currency": currency, "total": instruction.total_amount})
+        for member_batch in batches:
+            AuditEvent.record("batch.settlement_grouped", obj=member_batch, actor=user,
+                org_unit_id=member_batch.org_unit_id,
+                data={"group": instruction.group_reference, "instruction": instruction.reference,
+                      "amount": instruction.batch_links.get(batch=member_batch).amount})
     from reconciliation.services import check_instruction
     check_instruction(instruction)
     return instruction

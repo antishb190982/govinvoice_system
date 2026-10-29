@@ -28,8 +28,8 @@
   </div>
   <div class="stack">
     {% if can.approve %}<div class="card"><div class="card-head"><h2>Waiting for me</h2><a href="{% url 'workflow:inbox' %}">{{ my_tasks_count }} total</a></div>
-      {% for t in my_tasks %}<div class="card-row"><a href="{% url 'workflow:task' t.pk %}"><strong>{{ t.invoice.provider.name }}</strong></a> {% sla_badge t %}<br>
-      <small class="muted">{{ t.name }} · {{ t.invoice.amount_total|money:t.invoice.currency }} · {{ t.invoice.org_unit.code }}</small></div>{% if not forloop.last %}<hr>{% endif %}
+      {% for row in my_approval_batches %}<div class="card-row"><a href="{% url 'workflow:batch_review' row.batch.pk %}"><strong>{{ row.batch.reference }}</strong></a><br>
+      <small class="muted">{{ row.batch.provider.name }} · {{ row.invoice_count }} invoices · {{ row.total|money:row.batch.currency }} · due {{ row.due|date:"d M H:i" }}</small></div>{% if not forloop.last %}<hr>{% endif %}
       {% empty %}<p class="muted">No approvals waiting for you.</p>{% endfor %}</div>{% endif %}
     <div class="card"><h2>Pipeline</h2><dl class="props">
       <dt>In approval</dt><dd>{{ kpi.in_approval.n }} · {{ kpi.in_approval.t|money }}</dd>

@@ -44,7 +44,8 @@ def units_for(user, roles=None):
 
 
 def scope(queryset, user, roles=None, prefix="org_unit__"):
-    return queryset.filter(unit_filter(user, roles, prefix)).distinct()
+    from core.provider_scope import filter_provider
+    return filter_provider(queryset.filter(unit_filter(user, roles, prefix))).distinct()
 
 
 def has_role(user, org_unit, roles):

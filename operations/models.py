@@ -2,6 +2,23 @@ from django.conf import settings
 from django.db import models
 from django.urls import reverse
 from core.files import private_upload_path
+import uuid
+
+
+class BatchPreparation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=140)
+    org_unit = models.ForeignKey("org.OrgUnit", on_delete=models.PROTECT)
+    provider = models.ForeignKey("providers.Provider", on_delete=models.PROTECT)
+    currency = models.CharField(max_length=3, default="MUR")
+    prepared_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    imports = models.ManyToManyField("imports.ImportBatch", blank=True, related_name="preparations")
+    selected_invoice_ids = models.JSONField(default=list, blank=True)
+    completed_batch = models.OneToOneField("InvoiceBatch", null=True, blank=True, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def get_absolute_url(self):
+        return reverse("operations:prepare", args=[self.pk])
 
 
 class InvoiceBatch(models.Model):
@@ -26,10 +43,15 @@ class InvoiceBatch(models.Model):
         return self.reference
 
     @property
+    def payment_instructions(self):
+        from settlements.grouping import instructions_for
+        return instructions_for(self)
+
+    @property
     def lifecycle(self):
         if self.cancelled_at:
             return "Cancelled"
-        live = self.settlements.exclude(status="cancelled").first()
+        live = self.payment_instructions.exclude(status="cancelled").first()
         if live:
             if live.status == "executed" and self.members.filter(active=True,
                     invoice__dispute_cases__status__in=["open", "authorisation", "refund_due"]).exists():

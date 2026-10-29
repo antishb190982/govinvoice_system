@@ -31,11 +31,16 @@ class NewInstructionForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["org_unit"].queryset = units_for(user, [Role.FINANCE])
         self.fields["org_unit"].label_from_instance = lambda u: u.indented_name
-        self.fields["cutoff_date"].initial = timezone.localdate() + timedelta(days=14)
+        if "cutoff_date" in self.fields:
+            self.fields["cutoff_date"].initial = timezone.localdate() + timedelta(days=14)
 
 
 class PinForm(forms.Form):
     pin = forms.CharField(label="Signing PIN", widget=forms.PasswordInput(attrs={"autocomplete": "off"}))
+
+
+class SettlementGroupForm(NewInstructionForm):
+    cutoff_date = None
 
 
 class ExecutedForm(forms.Form):
@@ -60,8 +65,38 @@ def instruction_list(request):
     status = request.GET.get("status")
     if status:
         qs = qs.filter(status=status)
+    if request.GET.get("groups") == "1":
+        qs = qs.filter(group_reference__isnull=False)
     return render(request, "settlements/list.html", {"page": paginate(request, qs), "status": status,
-                                                     "statuses": SettlementInstruction.Status.choices})
+        "groups_only": request.GET.get("groups") == "1", "statuses": SettlementInstruction.Status.choices})
+
+
+@login_required
+def group_new(request):
+    from settlements.grouping import create_group, ready_batches
+
+    require_any_role(request.user, [Role.FINANCE])
+    form = SettlementGroupForm(request.GET or None, user=request.user)
+    rows = None
+    selected = request.POST.getlist("batch")
+    if form.is_valid():
+        d = form.cleaned_data
+        currency = d["currency"].upper()
+        if request.method == "POST":
+            try:
+                if not selected or any(not value.isdigit() for value in selected):
+                    raise ValidationError("Select at least one approved batch.")
+                si = create_group(request.user, d["org_unit"], d["provider"], currency,
+                                  selected, request.POST.get("notes", "")[:2000])
+                messages.success(request, f"{si.group_reference} created. Review all member batches before signing {si.reference}.")
+                return redirect(si)
+            except (ValidationError, PermissionDenied) as exc:
+                messages.error(request, _errors(exc))
+        rows = ready_batches(request.user, d["org_unit"], d["provider"], currency)
+    return render(request, "settlements/group_new.html", {
+        "form": form, "rows": rows, "selected": selected,
+        "total": sum(row["amount"] for row in rows) if rows else 0,
+    })
 
 
 @login_required
@@ -98,6 +133,7 @@ def instruction_detail(request, pk):
         "identity": active_identity(user),
         "history": AuditEvent.objects.filter(object_type="settlements.settlementinstruction",
                                              object_id=str(si.pk)).order_by("sequence"),
+        "batch_links": si.batch_links.select_related("batch__provider", "batch__ministry"),
     })
 
 

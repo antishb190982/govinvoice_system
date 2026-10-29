@@ -4,13 +4,15 @@
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:list' %}">Providers</a> / Account register</div><h1>Service account register</h1>
 <p>Every utility account in your units, with its status, service and responsible owner. Accounts that are not active may still receive final bills, but those bills are held from approval and payment.</p></div>
 <div class="actions">{% if can.admin %}<a class="btn btn-primary" href="{% url 'providers:account_create' %}">Register account</a>{% endif %}</div></div>
-<div class="card"><form method="get" class="filters">
-<div><label for="q">Search</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Account, meter, owner, purpose, premises"></div>
-<div><label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option>{% for v, l in statuses %}<option value="{{ v }}"{% if status == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
-<div><button class="btn btn-primary" type="submit">Filter</button> <a class="btn btn-ghost" href="{{ request.path }}">Reset</a></div></form></div>
+<section class="card account-filter-panel"><h2>Filter accounts</h2><form method="get" class="filters account-filter-grid"><input type="hidden" name="clear_provider" value="1">
+{% for field in filter_form %}<div>{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endfor %}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Apply filters</button> <a class="btn btn-ghost" href="{{ request.path }}?utility_provider=">Clear filters</a></div></form></section>
+<section class="account-dashboard" aria-labelledby="account-dashboard-title"><div class="section-heading"><div><h2 id="account-dashboard-title">Account dashboard</h2><p>Live counts for the selected filters. Select a figure to open its matching accounts.</p></div></div>
+<div class="grid cols-4 account-dashboard-cards">{% for card in account_dashboard_cards %}<a class="card kpi tone-info" href="{{ card.url }}"><div class="label">{{ card.label }}</div><div class="value">{{ card.count }}</div><div class="sub">View matching accounts</div></a>{% endfor %}</div>
+<div class="card account-status-summary"><h3>Account status within this selection</h3><div class="provider-amounts">{% for row in account_status_breakdown %}<a class="provider-amount" href="{{ row.url }}"><span>{{ row.label }}</span><strong>{{ row.count }}</strong></a>{% endfor %}</div></div></section>
 <div class="card"><div class="table-wrap"><table class="ops-table"><thead><tr><th>Account</th><th>Provider</th><th>Unit</th><th>Status</th><th>Service type</th><th>Owner</th><th>Purpose</th></tr></thead><tbody>
 {% for a in page %}<tr><td><a href="{% url 'providers:account' a.pk %}">{{ a.account_number }}</a>{% if a.premises %}<br><small class="muted">{{ a.premises }}</small>{% endif %}</td>
 <td>{{ a.provider.name }}</td><td>{{ a.org_unit }}</td><td>{% include "providers/_account_status.html" %}</td><td>{{ a.service_type|default:"—" }}</td><td>{{ a.owner|default:"—" }}</td><td>{{ a.purpose|default:"—" }}</td></tr>
-{% empty %}<tr><td colspan="7" class="empty">{% if q or status %}No accounts match this filter.{% else %}No service accounts registered in your units yet.{% endif %}</td></tr>{% endfor %}
+{% empty %}<tr><td colspan="7" class="empty">{% if q or status or filter_values.provider or filter_values.ministry or filter_values.service_type or filter_values.invoicing_status %}No accounts match these filters.{% else %}No service accounts registered in your units yet.{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>{% include "includes/pagination.html" %}</div>
 {% endblock %}

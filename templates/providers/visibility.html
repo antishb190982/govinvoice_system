@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% load gov %}
+{% block title %}Utility provider visibility{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs">Operational insights / Providers</div><h1>Utility provider overview</h1><p>Live records within your authorised ministry scope{% if utility_provider %} for {{ utility_provider.name }}{% else %} across all allocated providers{% endif %}. Amounts remain separated by currency.</p></div><div class="actions"><a class="btn" href="{% url 'analytics' %}">Detailed analysis</a><a class="btn" href="{% url 'providers:list' %}">Provider register</a></div></div>
+<div class="grid cols-3 provider-kpis">
+<a class="card" href="{% url 'invoices:list' %}?status=open"><span class="label">Invoices</span><strong class="value">{{ invoice_count }}</strong></a>
+<a class="card" href="{% url 'providers:accounts' %}"><span class="label">Allocated service accounts</span><strong class="value">{{ account_count }}</strong></a>
+<a class="card" href="{% url 'operations:prepare_new' %}"><span class="label">Invoices not batched</span><strong class="value">{{ unbatched_count }}</strong></a>
+<a class="card" href="{% url 'invoices:list' %}?attention=overdue"><span class="label">Overdue invoices</span><strong class="value">{{ overdue_count }}</strong></a>
+<a class="card" href="{% url 'operations:batches' %}"><span class="label">Processing batches</span><strong class="value">{{ batch_count }}</strong></a>
+<a class="card" href="{% url 'operations:cases' %}"><span class="label">Open disputes</span><strong class="value">{{ dispute_count }}</strong></a>
+<a class="card" href="{% url 'settlements:list' %}"><span class="label">Settlement instructions</span><strong class="value">{{ settlement_count }}</strong></a>
+</div>
+<section class="card"><h2>Open invoice totals by currency</h2><div class="provider-amounts">{% for row in amounts %}<a class="provider-amount" href="{% url 'invoices:list' %}?status=open"><span>{{ row.currency }}</span><strong>{{ row.total|money:row.currency }}</strong></a>{% empty %}<p>No open invoices.</p>{% endfor %}</div></section>
+<section class="card"><h2>Monthly billed trend</h2><p>Last 12 complete months, grouped by currency so currencies are never added together.</p>
+{% for trend in trends %}<div class="provider-trend"><h3>{{ trend.currency }}</h3><div class="chart"><canvas data-chart="{{ trend.id }}" data-type="line" data-currency="{{ trend.currency }}" role="img" aria-label="Monthly billed trend in {{ trend.currency }}"></canvas></div>{{ trend.data|json_script:trend.id }}</div>
+{% empty %}<p>No historical invoice values to chart.</p>{% endfor %}</section>
+<section class="card"><h2>Invoice status</h2><div class="provider-status">{% for row in statuses %}<a href="{% url 'invoices:list' %}?status={{ row.status }}"><span>{{ row.status|title }}</span><strong>{{ row.count }}</strong></a>{% empty %}<p>No invoice records.</p>{% endfor %}</div></section>
+<section class="card"><h2>Provider history and amounts</h2><div class="table-wrap"><table><thead><tr><th>Utility provider</th><th>Currency</th><th>Invoices</th><th>Total</th><th>Dashboard</th></tr></thead><tbody>{% for row in provider_rows %}<tr><td>{{ row.provider__name }}</td><td>{{ row.currency }}</td><td>{{ row.count }}</td><td>{{ row.total|money:row.currency }}</td><td><a href="{% url 'providers:visibility' %}?utility_provider={{ row.provider_id }}">Open provider view</a></td></tr>{% empty %}<tr><td colspan="5">No provider invoices in your authorised scope.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="card"><h2>Recent batches</h2><div class="table-wrap"><table><thead><tr><th>Batch</th><th>Provider</th><th>Ministry</th><th>Currency</th><th>Stage</th></tr></thead><tbody>{% for batch in recent_batches %}<tr><td><a href="{{ batch.get_absolute_url }}">{{ batch.reference }} · {{ batch.name }}</a></td><td>{{ batch.provider.name }}</td><td>{{ batch.ministry }}</td><td>{{ batch.currency }}</td><td>{{ batch.lifecycle }}</td></tr>{% empty %}<tr><td colspan="5">No batches in this scope.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

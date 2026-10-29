@@ -87,6 +87,10 @@ class Invoice(models.Model):
     import_batch = models.ForeignKey("imports.ImportBatch", null=True, blank=True, on_delete=models.SET_NULL,
                                      related_name="invoices")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    processing_ministry = models.ForeignKey(OrgUnit, null=True, blank=True, on_delete=models.PROTECT,
+                                            related_name="+")
+    processing_owner = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                         on_delete=models.PROTECT, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

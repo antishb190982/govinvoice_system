@@ -3,6 +3,8 @@
 <div class="page-head{% if batch.registration_mode %} registration-head{% endif %}"><div><div class="crumbs"><a href="{% url 'imports:list' %}">Imports</a> / #{{ batch.pk }}</div><h1>{{ batch.original_name }}</h1>
 <p>{% status_badge batch %} {{ counts.valid }} ready{% if review_needed %} ({{ review_needed }} awaiting your confirmation){% endif %} · {{ counts.invalid }} with errors{% if counts.analysing %} · {{ counts.analysing }} being analysed…{% endif %}{% if counts.committed %} · {{ counts.committed }} imported{% endif %}</p></div>
 {% if batch.status == 'staged' %}<div class="actions">
+<a class="btn" href="{% url 'imports:registration' %}?batches={{ batch.pk }}">Register missing service accounts</a>
+{% if preparation %}<a class="btn" href="{{ preparation.get_absolute_url }}?step=select">Return to batch preparation</a>{% endif %}
 <form method="post" action="{% url 'imports:discard' batch.pk %}" class="inline-form" data-confirm="Discard this import?">{% csrf_token %}<button class="btn btn-danger" type="submit">Discard</button></form>
 <form method="post" action="{% url 'imports:recheck' batch.pk %}" class="inline-form">{% csrf_token %}<button class="btn" type="submit">Re-check all rows</button></form>
 <form method="post" action="{% url 'imports:commit' batch.pk %}" class="inline-form" data-confirm="Create draft invoices from the ready rows?">{% csrf_token %}<button class="btn btn-primary" type="submit" {% if not counts.valid %}disabled{% endif %}>Import {{ counts.valid }} ready rows</button></form></div>{% endif %}</div>
@@ -28,4 +30,5 @@
 <td class="right nowrap">{% if r.ocr_document and r.status != 'analysing' %}<a class="btn btn-sm {% if r.needs_review and not r.confirmed_at %}btn-primary{% endif %}" href="{% url 'ocr:document' r.ocr_document_id %}">Review</a> {% endif %}{% if batch.status == 'staged' and not r.ocr_document %}<a class="btn btn-sm" href="?edit={{ r.pk }}">Fix</a>{% endif %}{% if batch.status == 'staged' %}
 <form method="post" action="{% url 'imports:row' batch.pk r.pk %}" class="inline-form">{% csrf_token %}<input type="hidden" name="toggle" value="1"><button class="btn btn-sm btn-ghost" type="submit">{% if r.include %}Skip{% else %}Include{% endif %}</button></form>{% endif %}</td></tr>
 {% empty %}<tr><td colspan="10" class="empty">No rows.</td></tr>{% endfor %}</tbody></table></div></div>
+{% if preparation %}<div class="callout info">This import belongs to your {{ preparation.provider.name }} batch preparation. After account registration, review and commit valid invoices, then <a href="{{ preparation.get_absolute_url }}?step=select">return to invoice selection</a>.</div>{% endif %}
 {% endblock %}

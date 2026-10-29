@@ -86,6 +86,50 @@ def invoice_process(invoice, viewer):
         nodes.append(node("Approval state needs reconciliation", Role.UNIT_ADMIN.label, "blocked", True,
                           reasons=["Invoice is in approval but has no pending task. Ask a unit administrator to investigate."]))
 
+    # The operational copy is part of the invoice journey. It becomes
+    # downloadable after approval; missing source or settlement details remain
+    # visible without incorrectly blocking a copy that can still be generated.
+    from invoices.evidence import approval_evidence
+    copy_evidence = approval_evidence(invoice)
+    active_member = invoice.batch_memberships.filter(active=True).select_related("batch").first()
+    batch_reference = (copy_evidence["batch_reference"] if copy_evidence else
+                       active_member.batch.reference if active_member else "Not assigned")
+    settlement_reference = copy_evidence["settlement_reference"] if copy_evidence else "Not prepared"
+    bank_reference = copy_evidence["bank_reference"] if copy_evidence else "Pending bank settlement"
+    processing_started_at = copy_evidence["processing_started_at"] if copy_evidence else (
+        active_member.batch.started_at if active_member else None)
+    copy_missing = []
+    if not copy_evidence:
+        copy_missing.append("Final approval has not been recorded; the watermarked copy is not available yet.")
+    if not invoice.document:
+        copy_missing.append("No original invoice file is attached; the PDF will contain the approval record only.")
+    if batch_reference == "Not assigned":
+        copy_missing.append("Batch number is not recorded.")
+    if not processing_started_at:
+        copy_missing.append("Batch processing start date is not recorded.")
+    if settlement_reference == "Not prepared":
+        copy_missing.append("Settlement instruction has not been prepared.")
+    if bank_reference == "Pending bank settlement":
+        copy_missing.append("Bank settlement reference is pending until settlement is confirmed.")
+    decisions = copy_evidence["decisions"] if copy_evidence else []
+    if copy_evidence and not decisions:
+        copy_missing.append("Reviewer and approver names or decision dates are not recorded.")
+    for decision in decisions:
+        if decision["person"] == "Not recorded":
+            copy_missing.append(f"Approver for {decision['name']} is not recorded.")
+        if not decision["at"]:
+            copy_missing.append(f"Approval date for {decision['name']} is not recorded.")
+    nodes.append(node(
+        "Watermarked invoice copy", "Approved invoice evidence",
+        "complete" if copy_evidence else "cancelled" if invoice.status == Invoice.Status.CANCELLED else "waiting",
+        watermark_copy=True, copy_ready=bool(copy_evidence),
+        url=reverse("invoices:approved_copy", args=[invoice.pk]) if copy_evidence else "",
+        date=copy_evidence["approved_at"] if copy_evidence else None,
+        processing_started_at=processing_started_at,
+        batch_reference=batch_reference, settlement_reference=settlement_reference,
+        bank_reference=bank_reference, decisions=decisions, missing_fields=copy_missing,
+    ))
+
     item = invoice.settlement_items.select_related("line__instruction").exclude(
         line__instruction__status=SettlementInstruction.Status.CANCELLED,
     ).order_by("-line__instruction__prepared_at", "-pk").first()

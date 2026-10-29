@@ -1,0 +1,39 @@
+<ol class="journey-flow" aria-label="{{ label|default:'Invoice journey' }}">
+{% for n in nodes %}
+  <li class="journey-item journey-{{ n.state }}{% if n.current %} journey-current{% endif %}{% if n.preview %} journey-preview{% endif %}">
+    <div class="journey-marker" aria-hidden="true">{% if n.state == "complete" %}✓{% elif n.state == "blocked" or n.state == "overdue" %}!{% else %}{{ forloop.counter }}{% endif %}</div>
+    <article class="journey-card">
+      <div class="journey-card-head">
+        <div>
+          <span class="journey-state">
+            {% if n.watermark_copy %}{% if n.copy_ready %}Ready to download{% elif n.state == "cancelled" %}Unavailable{% else %}Waiting for approval{% endif %}{% elif n.preview %}Preview{% elif n.state == "complete" %}Complete{% elif n.state == "active" %}In progress{% elif n.state == "blocked" %}Blocked{% elif n.state == "overdue" %}Overdue{% elif n.state == "cancelled" %}Cancelled{% else %}Upcoming{% endif %}
+          </span>
+          <h3>{{ n.label }}</h3>
+        </div>
+        {% if n.current %}<span class="badge {% if n.state == 'blocked' or n.state == 'overdue' %}badge-danger{% else %}badge-info{% endif %}">Current step</span>{% endif %}
+      </div>
+      {% if n.role %}<p class="journey-role">{{ n.role }}</p>{% endif %}
+      {% if n.current and n.owners %}<p class="journey-meta"><strong>Next action:</strong> {% for owner in n.owners|slice:":3" %}{{ owner.full_name|default:owner.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if n.owner_count > 3 %} and {{ n.owner_count|add:"-3" }} more{% endif %}</p>{% endif %}
+      {% if n.due_at and n.state != "complete" and n.state != "cancelled" %}<p class="journey-meta">Due {{ n.due_at|date:"d M Y, H:i" }}</p>{% endif %}
+      {% if n.date %}<p class="journey-meta">{% if n.decided_by %}{{ n.decided_by }} · {% endif %}{{ n.date|date:"d M Y, H:i" }}</p>{% endif %}
+      {% if n.reasons %}<ul class="journey-blockers">{% for reason in n.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>{% endif %}
+      {% if n.watermark_copy %}
+        <dl class="journey-copy-meta"><dt>Batch</dt><dd>{{ n.batch_reference }}</dd><dt>Processing started</dt><dd>{{ n.processing_started_at|date:"d M Y, H:i"|default:"Not recorded" }}</dd><dt>Settlement</dt><dd>{{ n.settlement_reference }}</dd><dt>Bank reference</dt><dd>{{ n.bank_reference }}</dd></dl>
+        {% if n.missing_fields %}<div class="journey-missing"><strong>Missing or pending details</strong><ul>{% for missing in n.missing_fields %}<li>{{ missing }}</li>{% endfor %}</ul></div>{% endif %}
+        {% if n.decisions %}<details class="journey-more"><summary>Recorded approvers</summary>{% for decision in n.decisions %}<p>{{ decision.name }} · {{ decision.role }} · {{ decision.person }} · {{ decision.at|date:"d M Y, H:i"|default:"Date not recorded" }}</p>{% endfor %}</details>{% endif %}
+      {% endif %}
+      {% if n.signature or n.threshold or n.escalated or n.sla or n.comment or n.payment_reference %}
+        <details class="journey-more"><summary>Step details</summary>
+          {% if n.signature %}<p>Digital signature required{% if n.signing_ready is not None %} · {{ n.signing_ready }} eligible signers configured{% endif %}</p>{% endif %}
+          {% if n.threshold %}<p>Applies from {{ n.threshold|floatformat:"-3g" }}</p>{% endif %}
+          {% if n.escalated %}<p>Escalated{% if n.escalation_role %} to {{ n.escalation_role }}{% endif %}</p>{% endif %}
+          {% if n.sla %}<p>Target: {{ n.sla }} working hours</p>{% endif %}
+          {% if n.payment_reference %}<p>Payment reference: {{ n.payment_reference }}</p>{% endif %}
+          {% if n.comment %}<p class="journey-comment">“{{ n.comment }}”</p>{% endif %}
+        </details>
+      {% endif %}
+      {% if n.url and not n.preview %}<a class="journey-link" href="{{ n.url }}">{% if n.watermark_copy %}Download watermarked PDF{% elif n.current and n.task %}Open batch review{% elif n.current %}Open record{% else %}View step{% endif %} →</a>{% endif %}
+    </article>
+  </li>
+{% endfor %}
+</ol>

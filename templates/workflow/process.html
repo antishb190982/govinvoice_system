@@ -16,10 +16,10 @@
 {% if policy %}<p class="muted"><small>Steps after review are a preview from the workflow <a href="{% url 'workflow:policy' policy.pk %}">{{ policy.name }}</a>. They have not been executed or assigned and will be fixed at submission.</small></p>{% endif %}
 </div>
 
-<div class="card"><div class="card-head"><h2>Process map</h2></div>
-<ul class="bpm-legend" aria-label="Legend"><li><span class="sw complete"></span>Complete</li><li><span class="sw active"></span>Current</li><li><span class="sw blocked"></span>Blocked</li><li><span class="sw overdue"></span>Overdue</li><li><span class="sw waiting"></span>Queued</li><li><span class="sw preview"></span>Preview, not executed</li><li><span class="sw cancelled"></span>Cancelled</li></ul>
-{% include "workflow/_process_map.html" with nodes=nodes label="Invoice process map" %}
-<p class="muted"><small>Decision links open the existing task pages, where role, separation-of-duties and signing checks apply.</small></p></div>
+<section class="card journey-panel"><div class="card-head"><div><h2>Invoice journey</h2><p class="muted">Follow each step in order. The current step and anything blocking progress are highlighted.</p></div></div>
+<ul class="journey-legend" aria-label="Journey status"><li><span class="journey-dot done"></span>Complete</li><li><span class="journey-dot current"></span>Current</li><li><span class="journey-dot blocked"></span>Needs attention</li><li><span class="journey-dot upcoming"></span>Upcoming or preview</li></ul>
+{% include "workflow/_journey.html" with nodes=nodes label="Invoice journey" %}
+<p class="muted"><small>Upcoming policy stages are previews; they are not assigned until the batch is submitted.</small></p></section>
 
 <div class="card"><h2>Approval history</h2>
 {% if tasks %}<div class="table-wrap"><table><thead><tr><th>Round</th><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Due</th><th>Decided by</th><th>Decided</th><th>Comment</th></tr></thead><tbody>

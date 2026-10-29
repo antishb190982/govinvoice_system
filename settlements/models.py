@@ -10,6 +10,7 @@ from providers.models import Provider
 
 
 class SettlementInstruction(models.Model):
+    group_reference = models.CharField(max_length=40, null=True, blank=True, unique=True, editable=False)
     batch = models.ForeignKey("operations.InvoiceBatch", null=True, blank=True, on_delete=models.PROTECT,
                               related_name="settlements")
     """
@@ -82,12 +83,29 @@ class SettlementLine(models.Model):
 
 
 class SettlementItem(models.Model):
+    batch = models.ForeignKey("operations.InvoiceBatch", null=True, blank=True,
+                              on_delete=models.PROTECT, related_name="+")
     line = models.ForeignKey(SettlementLine, on_delete=models.CASCADE, related_name="items")
     invoice = models.ForeignKey(Invoice, on_delete=models.PROTECT, related_name="settlement_items")
     amount = models.DecimalField(**MONEY)
 
     class Meta:
         ordering = ["invoice__due_date"]
+
+
+class SettlementBatch(models.Model):
+    """Immutable batch membership and payable snapshot for a settlement group."""
+
+    instruction = models.ForeignKey(SettlementInstruction, on_delete=models.PROTECT, related_name="batch_links")
+    batch = models.ForeignKey("operations.InvoiceBatch", on_delete=models.PROTECT, related_name="settlement_links")
+    amount = models.DecimalField(**MONEY)
+    invoice_count = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["batch__reference"]
+        constraints = [
+            models.UniqueConstraint(fields=["instruction", "batch"], name="unique_settlement_batch"),
+        ]
 
 
 class SettlementEvent(models.Model):

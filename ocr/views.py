@@ -66,8 +66,8 @@ def _pages_with_boxes(doc, boxes):
 
 
 class ConfirmForm(forms.Form):
-    learn = forms.BooleanField(required=False, initial=True,
-                               label="Remember where these values are printed for this provider")
+    learn = forms.BooleanField(required=False, initial=False,
+                               label="Suggest a template adjustment for future invoices")
 
     def __init__(self, *args, values=None, **kwargs):
         super().__init__(*args, **kwargs)

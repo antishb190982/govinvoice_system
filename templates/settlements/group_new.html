@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Group approved batches{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'settlements:list' %}?groups=1">Settlement groups</a></div>
+<h1>Group approved batches</h1><p>Combine complete approved batches into one settlement instruction for a single utility provider, ministry and currency.</p></div></div>
+<div class="callout"><strong>Before payment</strong>All payable invoices must be approved, reconciled and clear of dispute or surcharge holds. Creating a group reserves its invoices; payment still requires the existing independent signing and authorisation steps.</div>
+<div class="card"><form method="get" class="filters">{{ form.non_field_errors }}{% for f in form %}<div>{{ f.label_tag }}{{ f }}{{ f.errors }}</div>{% endfor %}<div><button class="btn btn-primary" type="submit">Find approved batches</button></div></form></div>
+{% if rows is not None %}
+<form method="post" action="?{{ request.GET.urlencode }}">{% csrf_token %}
+<div class="card"><div class="card-head"><h2>Approved batches · {{ form.cleaned_data.provider.name }}</h2><label><input type="checkbox" data-select-all="group-batch"> Select all eligible batches</label></div>
+<p class="muted">Available total: {{ total|money:form.cleaned_data.currency }}. Select the batches to settle together. Only complete, eligible batches are listed.</p>
+<p class="muted" id="group-batch-summary" aria-live="polite"></p>
+<div class="table-wrap"><table><thead><tr><th>Select</th><th>Batch</th><th>Ministry</th><th>Invoices</th><th>Earliest due</th><th class="num">Payable</th></tr></thead><tbody>
+{% for row in rows %}<tr><td><input type="checkbox" name="batch" value="{{ row.batch.pk }}" data-group="group-batch" data-amount="{{ row.amount }}" aria-label="Include {{ row.batch.reference }}"{% if row.batch.pk|stringformat:"s" in selected %} checked{% endif %}></td>
+<td><a href="{{ row.batch.get_absolute_url }}">{{ row.batch.reference }}</a><br><small>{{ row.batch.name }}</small></td><td>{{ row.batch.ministry }}</td><td>{{ row.invoice_count }}</td><td>{{ row.earliest_due|date:"d M Y" }}</td><td class="num">{{ row.amount|money:row.batch.currency }}</td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No batches ready for this selection. Approve and reconcile all payable members, clear any holds, and cancel any obsolete draft settlement before regrouping.</td></tr>{% endfor %}
+</tbody></table></div>
+{% if rows %}<label for="group-notes">Grouping / payment notes (optional)</label><textarea id="group-notes" name="notes" rows="2" maxlength="2000">{{ request.POST.notes }}</textarea>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Create settlement group</button><a class="btn" href="{% url 'settlements:list' %}">Cancel</a></div>{% endif %}
+</div></form>{% endif %}
+{% endblock %}

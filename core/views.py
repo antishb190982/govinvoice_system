@@ -31,7 +31,9 @@ def activity(request):
     notes = request.user.notifications
     return JsonResponse({
         "unread_notifications": notes.filter(read_at__isnull=True).count(),
-        "pending_approvals": pending_for(request.user).count(),
+        "pending_approvals": pending_for(request.user).filter(
+            invoice__batch_memberships__active=True).values(
+            "invoice__batch_memberships__batch_id").distinct().count(),
         "batch_folders": counts_for(request.user),
         "latest_notification_id": notes.values_list("pk", flat=True).first() or 0,
     })
@@ -53,7 +55,21 @@ def dashboard(request):
         Q(status=Invoice.Status.APPROVED, due_date__lte=soon) |
         Q(status__in=[Invoice.Status.IN_APPROVAL, Invoice.Status.RETURNED], must_approve_by__lt=timezone.now())
     )
-    my_tasks = pending_for(user).select_related("invoice__provider", "invoice__org_unit").order_by("due_at")
+    my_tasks = pending_for(user).filter(invoice__batch_memberships__active=True) \
+        .select_related("invoice__provider", "invoice__org_unit").order_by("due_at")
+    from operations.models import InvoiceBatch
+    from django.db.models import Count, Min, Sum
+    batch_ids = my_tasks.values_list("invoice__batch_memberships__batch_id", flat=True).distinct()
+    my_approval_batches = []
+    for batch in scope(InvoiceBatch.objects.filter(pk__in=batch_ids, cancelled_at__isnull=True),
+                       user).select_related("provider", "org_unit"):
+        tasks = my_tasks.filter(invoice__batch_memberships__batch=batch,
+                                invoice__batch_memberships__active=True)
+        summary = tasks.aggregate(due=Min("due_at"), count=Count("pk"))
+        summary.update(batch=batch, invoice_count=batch.members.filter(active=True).count(),
+            total=batch.members.filter(active=True).aggregate(total=Sum("original_amount"))["total"])
+        my_approval_batches.append(summary)
+    my_approval_batches.sort(key=lambda row: row["due"])
     tasks_scope = scope(ApprovalTask.objects.all(), user, prefix="invoice__org_unit__")
     decided_30 = tasks_scope.filter(decided_at__gte=timezone.now() - timedelta(days=30))
     on_time = decided_30.filter(breached=False).count()
@@ -71,8 +87,8 @@ def dashboard(request):
         },
         "currency": cur,
         "soon": soon,
-        "my_tasks": my_tasks[:8],
-        "my_tasks_count": my_tasks.count(),
+        "my_approval_batches": my_approval_batches[:8],
+        "my_tasks_count": len(my_approval_batches),
         "upcoming": unpaid.filter(due_date__lte=soon).select_related("provider", "org_unit").order_by("due_date")[:10],
         "settlements_pending": scope(SettlementInstruction.objects.filter(
             status__in=[SettlementInstruction.Status.DRAFT, SettlementInstruction.Status.PENDING_AUTHORISATION]),

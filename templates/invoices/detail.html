@@ -7,13 +7,16 @@
 <div class="actions">
   <a class="btn" href="{% url 'workflow:process' invoice.pk %}">Process map</a>
   <a class="btn" href="{% url 'reconciliation:index' %}?q={{ invoice.reference|urlencode }}&amp;state=all">Reconcile</a>
-  {% if approval_evidence %}<a class="btn btn-primary" href="{% url 'invoices:approved_copy' invoice.pk %}" target="_blank" rel="noopener">{% icon "file" %} Approved invoice copy</a>{% endif %}
+  {% if approval_evidence %}<a class="btn btn-primary" href="{% url 'invoices:approved_copy' invoice.pk %}">{% icon "file" %} Download watermarked PDF</a>{% endif %}
   {% if invoice.document %}<a class="btn" href="{% url 'invoices:document' invoice.pk %}" target="_blank" rel="noopener">Original document</a>{% endif %}
-  {% if my_task %}<a class="btn btn-primary" href="{% url 'workflow:task' my_task.pk %}">Decide: {{ my_task.name }}</a>{% endif %}
+  {% if my_task and batch_membership %}<a class="btn btn-primary" href="{% url 'workflow:batch_review' batch_membership.batch.pk %}">Review batch approval</a>{% endif %}
   {% if can_capture and invoice.is_editable %}<a class="btn" href="{% url 'invoices:edit' invoice.pk %}">Edit</a>{% endif %}
-  {% if can_capture and invoice.status in "draft returned disputed" %}<form method="post" action="{% url 'invoices:submit' invoice.pk %}" class="inline-form" data-confirm="Submit this invoice for approval?">{% csrf_token %}<button class="btn btn-primary" type="submit">{% if invoice.status == 'draft' %}Submit for approval{% else %}Resubmit{% endif %}</button></form>{% endif %}
+  {% if batch_membership %}<a class="btn btn-primary" href="{{ batch_membership.batch.get_absolute_url }}">Open processing batch</a>
+  {% elif can_capture and invoice.status in "draft returned disputed" %}<a class="btn btn-primary" href="{% url 'operations:prepare_new' %}?invoice={{ invoice.pk }}">Prepare a batch with this invoice</a>{% endif %}
 </div></div>
 
+{% if not approval_evidence %}<div class="callout info">The watermarked PDF becomes available after approval. It is a separate copy; the original invoice remains unchanged.</div>{% endif %}
+{% if not batch_membership and invoice.status in "draft returned disputed" %}<div class="callout info"><strong>Review this invoice, then submit it in a batch.</strong> The provider’s saved OCR template is reused automatically. Check this invoice’s extracted values, then choose “Prepare a batch with this invoice.” Approval is performed on the complete batch, not one invoice at a time.</div>{% endif %}
 {% if flags %}<div class="callout {% if has_severe %}danger{% else %}warn{% endif %}"><strong>Checks to review</strong>
 {% for code, label, severe in flags %}<span class="chip {% if severe %}severe{% endif %}">{{ label }}</span>{% endfor %}</div>{% endif %}
 
@@ -23,6 +26,7 @@
     <dt>Provider</dt><dd><a href="{% url 'providers:detail' invoice.provider_id %}">{{ invoice.provider.name }}</a> · {{ invoice.get_utility_type_display }}</dd>
     <dt>Service account</dt><dd><a href="{% url 'providers:account' invoice.service_account_id %}">{{ invoice.service_account.account_number }}</a>{% if invoice.service_account.meter_number %} · meter {{ invoice.service_account.meter_number }}{% endif %} · {{ invoice.service_account.premises }}</dd>
     <dt>Unit</dt><dd><a href="{% url 'org:detail' invoice.org_unit_id %}">{{ invoice.org_unit }}</a></dd>
+    <dt>Processing owner</dt><dd>{% if invoice.processing_ministry %}{{ invoice.processing_ministry }}{% else %}Not yet assigned to a batch{% endif %} · {% if invoice.processing_owner %}{{ invoice.processing_owner }}{% else %}Not yet assigned{% endif %}</dd>
     <dt>Issued</dt><dd>{{ invoice.issue_date|date:"d M Y" }}</dd>
     <dt>Received</dt><dd>{{ invoice.received_date|date:"d M Y"|default:"Unknown (legacy record)" }}</dd>
     <dt>Processing priority</dt><dd><span class="badge {% if invoice.processing.priority in 'overdue urgent' %}badge-danger{% elif invoice.processing.priority == 'high' %}badge-warn{% else %}badge-info{% endif %}">{{ invoice.processing.label }}</span>

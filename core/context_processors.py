@@ -18,12 +18,20 @@ def app_context(request):
     from analytics.sections import section_navigation
 
     ctx.update(section_navigation(request))
+    from core.provider_scope import available_providers
+    ctx.update({
+        "provider_options": available_providers(user),
+        "utility_provider": getattr(request, "utility_provider", None),
+        "provider_filter_params": [(k, v) for k, values in request.GET.lists()
+            if k not in {"provider", "utility_provider", "page"} for v in values],
+    })
     ctx.update({
         "nav_units": list(active_memberships(user).order_by("org_unit__name").values_list("org_unit__name", flat=True).distinct()[:3]),
         "my_roles": roles,
         "unread_notifications": user.notifications.filter(read_at__isnull=True).count(),
         "batch_folder_counts": getattr(request, "batch_folder_counts", None) or counts_for(user),
-        "pending_approvals": pending_for(user).count() if roles & {Role.VERIFIER, Role.APPROVER, Role.UNIT_ADMIN} else 0,
+        "pending_approvals": pending_for(user).filter(invoice__batch_memberships__active=True).values(
+            "invoice__batch_memberships__batch_id").distinct().count() if roles & {Role.VERIFIER, Role.APPROVER, Role.UNIT_ADMIN} else 0,
         "can": {
             "capture": bool(roles & {Role.CLERK, Role.UNIT_ADMIN}),
             "approve": bool(roles & {Role.VERIFIER, Role.APPROVER, Role.UNIT_ADMIN}),

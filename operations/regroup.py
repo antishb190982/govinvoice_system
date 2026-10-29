@@ -16,7 +16,7 @@ def release_member(batch, user, invoice_id, reason):
     member = BatchMember.objects.filter(batch=batch, invoice=invoice, active=True).first()
     if not member or not reason.strip() or batch.cancelled_at:
         raise ValidationError("Choose an active member and give a reason for releasing it.")
-    if invoice.status in ["paid", "scheduled"] or batch.settlements.exclude(status="cancelled").exists():
+    if invoice.status in ["paid", "scheduled"] or batch.payment_instructions.exclude(status="cancelled").exists():
         raise ValidationError("Cancel the live settlement first; paid memberships cannot be released.")
     member.active = False
     member.save(update_fields=["active"])

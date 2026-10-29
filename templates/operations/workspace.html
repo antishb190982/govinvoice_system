@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:batches' %}">All batches</a> / My batch workspace</div><h1>My batch workspace</h1>
 <p>Team workspace for the batches in your authorised units. Folders group work for navigation only; they never change a batch's finance stage.</p></div>
-<div class="actions">{% if can.capture %}<a class="btn" href="{% url 'imports:list' %}">Import invoices</a><a class="btn" href="{% url 'invoices:create' %}">Record manually</a>{% endif %}{% if can.capture or can.settle %}<a class="btn btn-primary" href="{% url 'operations:batch_new' %}">New batch</a>{% endif %}</div></div>
+<div class="actions">{% if can.capture %}<a class="btn" href="{% url 'imports:list' %}">Import invoices</a><a class="btn" href="{% url 'invoices:create' %}">Record manually</a>{% endif %}{% if can.capture %}<a class="btn btn-primary" href="{% url 'operations:prepare_new' %}">Prepare batch</a>{% endif %}</div></div>
 
 <nav class="ws-folders" aria-label="Batch folders">
 {% for key, label in folder_labels.items %}<a class="ws-folder ws-folder-{{ key }}{% if folder == key %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder={{ key }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"{% if folder == key %} aria-current="page"{% endif %}><span class="ws-folder-label">{{ label }}</span><strong>{% for k, c in folder_counts.items %}{% if k == key %}{{ c }}{% endif %}{% endfor %}</strong><small>{% if key == 'preparation' %}Invoices received, batches being built{% elif key == 'work' %}Submitted and moving through approval{% elif key == 'rejected' %}Returned, cancelled or rejected for settlement{% elif key == 'completed' %}Closed batches{% else %}Every batch in scope{% endif %}</small></a>{% endfor %}
