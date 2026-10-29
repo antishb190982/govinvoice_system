@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from invoices.models import Invoice
 from org.models import OrgUnit
-from providers.models import CONSUMPTION_UNITS, UtilityType
+from providers.models import UtilityType
 
 UTILITY_LABELS = dict(UtilityType.choices)
 BILLABLE = [s for s in Invoice.Status.values if s not in (Invoice.Status.CANCELLED, Invoice.Status.DRAFT)]
@@ -72,16 +72,22 @@ def consumption_trend(qs, months=12, end=None):
     start = add_months(end, -(months - 1))
     labels = month_range(start, end)
     rows = _billed(qs).filter(bill_month__gte=start, bill_month__lte=end, consumption__isnull=False) \
-        .values("utility_type", bm=F("bill_month")).annotate(total=Sum("consumption"))
-    series = _series(rows, labels, "utility_type", "total")
+        .values("utility_type", "consumption_unit", bm=F("bill_month")).annotate(total=Sum("consumption"))
+    series = defaultdict(lambda: {m: 0.0 for m in labels})
+    observed, names = defaultdict(set), {}
+    for row in rows:
+        unit = (row["consumption_unit"] or "").strip() or "unit not recorded"
+        key = (row["utility_type"], unit.casefold())
+        names[key] = f"{UTILITY_LABELS.get(key[0], key[0])} ({unit})"
+        series[key][row["bm"]] += float(row["total"])
+        observed[key].add(row["bm"])
     out = []
     for k, v in sorted(series.items()):
-        values = [v[m] for m in labels]
-        present = [x for x in values if x]
-        avg = sum(present) / len(present) if present else 0
-        # Units differ (kWh, m³, GB…), so each utility is indexed to its own average = 100.
-        out.append({"key": k, "label": f"{UTILITY_LABELS.get(k, k)} ({CONSUMPTION_UNITS.get(k, '')})",
-                    "data": [round(x / avg * 100, 1) if avg and x else None for x in values],
+        avg = sum(v[m] for m in observed[k]) / len(observed[k])
+        # Different measurement units are never added together. Real zeroes count;
+        # absent readings remain gaps rather than fabricated zero consumption.
+        out.append({"key": "|".join(k), "label": names[k],
+                    "data": [round(v[m] / avg * 100, 1) if avg and m in observed[k] else None for m in labels],
                     "average": round(avg, 1)})
     return {"labels": [m.strftime("%b %Y") for m in labels], "series": out}
 
@@ -172,17 +178,20 @@ def due_profile(unpaid_qs, weeks=6):
                                          if any(data[k])]}
 
 
-def forecast_next_month(qs):
+def forecast_next_month(qs, end=None):
     """Naive projection per utility: mean of the last 3 complete months, adjusted by
     last year's month-on-month seasonality when a year of history exists."""
-    end = add_months(month_floor(timezone.localdate()), -1)
+    end = month_floor(end) if end else last_complete_month()
     labels = month_range(add_months(end, -13), end)
-    rows = _billed(qs).filter(bill_month__gte=labels[0], bill_month__lte=end) \
-        .values("utility_type", bm=F("bill_month")).annotate(total=Sum("amount_total"))
+    rows = list(_billed(qs).filter(bill_month__gte=labels[0], bill_month__lte=end)
+                .values("utility_type", bm=F("bill_month")).annotate(total=Sum("amount_total")))
     series = _series(rows, labels, "utility_type", "total")
+    observed = {(r["utility_type"], r["bm"]) for r in rows}
     target = add_months(end, 1)
     out = []
     for key, values in sorted(series.items()):
+        if not all((key, month) in observed for month in labels[-3:]):
+            continue
         recent = [values[m] for m in labels[-3:]]
         base = sum(recent) / 3 if any(recent) else 0
         ly_prev, ly_target = values.get(add_months(target, -13), 0), values.get(add_months(target, -12), 0)

@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Bank line {{ row.line_number }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}"><link rel="stylesheet" href="{% static 'css/bank.css' %}">{% endblock %}
+{% block body_class %}recon bank{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'reconciliation:bank_index' %}">Bank reconciliation</a> / <a href="{{ row.statement.get_absolute_url }}">{{ row.statement.account_label }} {{ row.statement.statement_date|date:"d M Y" }}</a> / Line {{ row.line_number }}</div>
+<h1>Bank line {{ row.line_number }} {% include "reconciliation/_bank_state.html" with r=row %}</h1>
+<p>{% if row.status == 'exception' %}Next action: correct the underlying settlement record or obtain an independent timing review, then recheck. The bank line itself cannot be edited.{% elif row.status == 'duplicate' %}This transaction was already reconciled from an earlier upload. No further action is needed.{% else %}Debit verified. Rechecking is only needed if the settlement changes.{% endif %}</p></div></div>
+
+<div class="callout {% if row.status == 'matched' %}ok{% elif row.status == 'duplicate' %}info{% else %}danger{% endif %}"><strong>Last check result</strong><p>{{ row.reason|default:row.parse_error|default:"Not yet checked." }}</p>
+{% if row.checked_at %}<small>Checked by {{ row.checked_by|default:"—" }} on {{ row.checked_at|date:"d M Y H:i" }}</small>{% endif %}</div>
+
+<div class="bank-split">
+<div class="card"><div class="card-head"><h2>Bank line (as uploaded)</h2><span class="muted">Read-only</span></div>
+<dl class="cols">
+  <dt>Transaction ID</dt><dd class="raw">{{ row.transaction_id|default:"—" }}</dd>
+  <dt>Settlement reference</dt><dd class="raw">{{ row.settlement_reference|default:"—" }}</dd>
+  <dt>Provider code</dt><dd class="raw">{{ row.provider_code|default:"Blank (whole settlement)" }}</dd>
+  <dt>Debit</dt><dd>{% if row.amount is not None %}{{ row.amount|money:row.statement.currency }}{% else %}—{% endif %}</dd>
+  <dt>Value date</dt><dd>{{ row.value_date|date:"d M Y"|default:"—" }}</dd>
+  <dt>Bank reference</dt><dd class="raw">{{ row.bank_reference|default:"—" }}</dd>
+  {% if row.parse_error %}<dt>File problem</dt><dd class="text-danger">{{ row.parse_error }}</dd>{% endif %}
+</dl>
+<details class="raw-source"><summary>Raw CSV values</summary><dl class="cols">{% for k, v in row.raw.items %}<dt class="mono">{{ k }}</dt><dd class="raw">{{ v|default:"(empty)" }}</dd>{% endfor %}</dl></details>
+</div>
+
+<div class="card"><div class="card-head"><h2>Settlement</h2></div>
+{% if row.instruction %}<dl class="cols">
+  <dt>Instruction</dt><dd><a href="{{ row.instruction.get_absolute_url }}">{{ row.instruction.reference }}</a></dd>
+  <dt>Recorded total</dt><dd>{{ row.instruction.total_amount|money:row.instruction.currency }}</dd>
+  <dt>Executed</dt><dd>{{ row.instruction.executed_at|date:"d M Y"|default:"Not executed" }}</dd>
+  <dt>Execution reference</dt><dd class="raw">{{ row.instruction.bank_reference|default:"—" }}</dd>
+  {% if bank_state %}<dt>Bank coverage</dt><dd>{{ bank_state.label }} · {{ bank_state.cleared }} of {{ bank_state.total }} transfers</dd>{% endif %}
+</dl>
+{% if allocations %}<h3 class="sub-h">Transfers covered by this line</h3><div class="scroll"><div class="table-wrap"><table><thead><tr><th scope="col">Provider</th><th scope="col" class="num">Amount</th></tr></thead><tbody>
+{% for a in allocations %}<tr><td>{{ a.line.provider }}</td><td class="num">{{ a.line.amount|money:row.instruction.currency }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+{% else %}<p class="empty">No unique settlement matched this reference in the statement's coverage.</p>{% endif %}
+{% if row.reviewed_by %}<div class="callout info mt"><strong>Timing difference reviewed</strong><p>{{ row.review_reason }}</p><small>By {{ row.reviewed_by }}</small></div>{% endif %}
+</div>
+</div>
+
+{% if can_manage %}<div class="card"><div class="card-head"><h2>Recheck this line</h2></div>
+<p>Runs the full check again against the current settlement record. Amount, reference, currency, beneficiary and duplicate exceptions cannot be overridden here; fix the source record instead.</p>
+{% if error %}<div class="callout danger" role="alert"><strong>Recheck failed</strong><p>{{ error }}</p></div>{% endif %}
+<form method="post" class="bank-form">{% csrf_token %}
+{% if can_review_date %}<fieldset class="review"><legend>Independent timing review (optional)</legend>
+  <p class="help">Use only when the sole difference is the value date versus the recorded execution date.</p>
+  <label class="check"><input type="checkbox" name="accept_date" id="accept_date"> I have verified this is a timing difference only</label>
+  <div class="field"><label for="reason">Review reason</label><textarea id="reason" name="reason" maxlength="2000" rows="3" aria-describedby="reason-help"></textarea><small class="help" id="reason-help">Required when accepting a timing difference. Up to 2,000 characters; recorded in the audit trail.</small></div>
+</fieldset>{% else %}<p class="help">Timing-difference review must be done by a finance or unit administrator other than the person who uploaded this file.</p>{% endif %}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Recheck line</button></div>
+</form></div>{% endif %}
+{% endblock %}

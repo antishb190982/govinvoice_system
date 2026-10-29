@@ -22,14 +22,22 @@ from signatures.services import active_identity, check_pin, sign_pdf
 
 
 def eligible_invoices(org_unit, currency, cutoff_date):
-    return Invoice.objects.filter(
+    candidates = Invoice.objects.filter(
         status=Invoice.Status.APPROVED, currency=currency, due_date__lte=cutoff_date, amount_total__gt=0,
+        service_account__status="active", service_account__is_active=True,
         org_unit__path__startswith=org_unit.path,
     ).select_related("provider", "service_account", "org_unit").order_by("due_date")
+    from reconciliation.services import report
+    from operations.services import LIVE_CASES, payable
+    candidates = candidates.exclude(dispute_cases__status__in=LIVE_CASES)
+    return candidates.filter(pk__in=[inv.pk for inv in candidates if payable(inv) > 0 and report(inv)["valid"]])
 
 
-def preview(org_unit, currency, cutoff_date, invoice_ids=None):
+def preview(org_unit, currency, cutoff_date, invoice_ids=None, provider=None):
+    from operations.services import payable
     invoices = eligible_invoices(org_unit, currency, cutoff_date)
+    if provider:
+        invoices = invoices.filter(provider=provider)
     if invoice_ids is not None:
         invoices = invoices.filter(pk__in=invoice_ids)
     groups = defaultdict(list)
@@ -37,7 +45,9 @@ def preview(org_unit, currency, cutoff_date, invoice_ids=None):
         groups[inv.provider].append(inv)
     lines = []
     for provider, items in sorted(groups.items(), key=lambda kv: min(i.due_date for i in kv[1])):
-        lines.append({"provider": provider, "invoices": items, "amount": sum(i.amount_total for i in items),
+        for invoice in items:
+            invoice.payable_amount = payable(invoice)
+        lines.append({"provider": provider, "invoices": items, "amount": sum(payable(i) for i in items),
                       "earliest_due": min(i.due_date for i in items),
                       "missing_bank": not (provider.bank_iban and provider.bank_account_name)})
     return lines
@@ -50,13 +60,24 @@ def _execution_date(pay_by):
 
 
 @transaction.atomic
-def create_instruction(user, org_unit, currency, cutoff_date, invoice_ids, notes=""):
+def create_instruction(user, org_unit, currency, cutoff_date, invoice_ids, notes="", provider=None):
     if not has_role(user, org_unit, [Role.FINANCE]):
         raise PermissionDenied("You need the finance officer role for this unit.")
     invoices = list(eligible_invoices(org_unit, currency, cutoff_date).filter(pk__in=invoice_ids)
-                    .select_for_update(of=("self",)))
+                    .order_by("pk").select_for_update(of=("self",)))
     if not invoices:
         raise ValidationError("Select at least one approved invoice.")
+    if {inv.pk for inv in invoices} != {int(pk) for pk in invoice_ids}:
+        raise ValidationError("Some selected invoices are no longer approved and reconciled. Refresh the selection; no partial instruction was created.")
+    from reconciliation.services import require_reconciled
+    from operations.services import ministry_for, payable, require_clear, selection_batch
+    if len({inv.provider_id for inv in invoices}) != 1 or len({ministry_for(inv.org_unit).pk for inv in invoices}) != 1:
+        raise ValidationError("A settlement batch is limited to one utility provider and one ministry.")
+    if provider and any(inv.provider_id != provider.pk for inv in invoices):
+        raise ValidationError("Selected invoices do not belong to the chosen provider.")
+    for inv in invoices:
+        require_clear(inv)
+        require_reconciled(inv)
     groups = defaultdict(list)
     for inv in invoices:
         groups[inv.provider].append(inv)
@@ -64,24 +85,33 @@ def create_instruction(user, org_unit, currency, cutoff_date, invoice_ids, notes
         if not (provider.bank_iban and provider.bank_account_name):
             raise ValidationError(f"{provider.name} has no beneficiary bank details. Update the provider first.")
     pay_by = min(i.due_date for i in invoices)
+    batch = selection_batch(user, org_unit, invoices)
+    if batch.settlements.exclude(status="cancelled").exists():
+        raise ValidationError("This batch already has a live settlement instruction.")
+    if not batch.started_at:
+        batch.started_at = timezone.now()
+        batch.save(update_fields=["started_at"])
     instruction = SettlementInstruction.objects.create(
+        batch=batch,
         reference=Counter.next("SI"), org_unit=org_unit, currency=currency, cutoff_date=cutoff_date,
         pay_by=pay_by, requested_execution_date=_execution_date(pay_by), notes=notes,
         payer_name=settings.PAYER_NAME, payer_iban=settings.PAYER_IBAN, payer_bic=settings.PAYER_BIC,
-        prepared_by=user, total_amount=sum(i.amount_total for i in invoices),
+        prepared_by=user, total_amount=sum(payable(i) for i in invoices),
     )
     for provider, items in groups.items():
         line = SettlementLine.objects.create(
-            instruction=instruction, provider=provider, amount=sum(i.amount_total for i in items),
+            instruction=instruction, provider=provider, amount=sum(payable(i) for i in items),
             invoice_count=len(items), earliest_due=min(i.due_date for i in items),
             beneficiary_name=provider.bank_account_name, beneficiary_iban=provider.bank_iban,
             beneficiary_bic=provider.bank_bic, end_to_end_id=f"{instruction.reference}-{provider.short_code}"[:35],
         )
         for inv in items:
-            SettlementItem.objects.create(line=line, invoice=inv, amount=inv.amount_total)
+            SettlementItem.objects.create(line=line, invoice=inv, amount=payable(inv))
     Invoice.objects.filter(pk__in=[i.pk for i in invoices]).update(status=Invoice.Status.SCHEDULED)
     AuditEvent.record("settlement.created", obj=instruction, actor=user, data={
-        "reference": instruction.reference, "total": instruction.total_amount, "invoices": [i.reference for i in invoices]})
+        "reference": instruction.reference, "batch": batch.reference, "total": instruction.total_amount, "invoices": [i.reference for i in invoices]})
+    from reconciliation.services import check_instruction
+    check_instruction(instruction)
     return instruction
 
 
@@ -108,6 +138,8 @@ def _submit_for_authorisation(instruction, user, pin):
         raise ValidationError("Only a draft instruction can be submitted.")
     if user != instruction.prepared_by and not has_role(user, instruction.org_unit, [Role.FINANCE]):
         raise PermissionDenied
+    from reconciliation.services import check_instruction
+    check_instruction(instruction)
     data = pdf_render.render(instruction)
     box, page = _signing_box(data, "Prepared")
     signed = sign_pdf(user, pin, data, "Prepared", reason=f"Prepared settlement instruction {instruction.reference}",
@@ -150,6 +182,8 @@ def _authorise(instruction, user, pin):
         raise PermissionDenied("You need the payment authoriser role for this unit.")
     if user.pk == instruction.prepared_by_id:
         raise PermissionDenied("Segregation of duties: the preparer cannot authorise.")
+    from reconciliation.services import check_instruction
+    check_instruction(instruction)
     instruction.pdf.open("rb")
     data = instruction.pdf.read()
     instruction.pdf.close()
@@ -209,10 +243,14 @@ def cancel(instruction, user, reason):
 @transaction.atomic
 def mark_sent(instruction, user):
     instruction = SettlementInstruction.objects.select_for_update().get(pk=instruction.pk)
+    instruction = SettlementInstruction.objects.select_for_update().get(pk=instruction.pk)
     if instruction.status != SettlementInstruction.Status.AUTHORISED:
         raise ValidationError("Only an authorised instruction can be sent.")
     if not has_role(user, instruction.org_unit, [Role.FINANCE, Role.AUTHORISER]):
         raise PermissionDenied
+    from reconciliation.services import check_instruction
+    check_instruction(instruction)
+    instruction.reconciliation_evidence.update(released_at=timezone.now())
     instruction.status = SettlementInstruction.Status.SENT
     instruction.sent_at = timezone.now()
     instruction.save()
@@ -222,12 +260,15 @@ def mark_sent(instruction, user):
 @transaction.atomic
 def mark_executed(instruction, user, bank_reference, value_date):
     instruction = SettlementInstruction.objects.select_for_update().get(pk=instruction.pk)
+    instruction = SettlementInstruction.objects.select_for_update().get(pk=instruction.pk)
     if instruction.status not in (SettlementInstruction.Status.AUTHORISED, SettlementInstruction.Status.SENT):
         raise ValidationError("Only an authorised instruction can be marked as executed.")
     if not has_role(user, instruction.org_unit, [Role.FINANCE, Role.AUTHORISER]):
         raise PermissionDenied
     if not bank_reference.strip():
         raise ValidationError("Enter the bank / treasury reference.")
+    from reconciliation.services import check_instruction
+    check_instruction(instruction, released=instruction.status == SettlementInstruction.Status.SENT)
     instruction.status = SettlementInstruction.Status.EXECUTED
     instruction.bank_reference = bank_reference.strip()
     instruction.executed_at = value_date
@@ -249,6 +290,10 @@ def _amount(value, currency):
 
 
 def pain001(instruction):
+    from reconciliation.services import check_instruction
+    with transaction.atomic():
+        check_instruction(instruction, released=instruction.status in [
+            SettlementInstruction.Status.SENT, SettlementInstruction.Status.EXECUTED])
     """ISO 20022 customer credit transfer initiation (pain.001.001.09)."""
     ns = "urn:iso:std:iso:20022:tech:xsd:pain.001.001.09"
     ET.register_namespace("", ns)

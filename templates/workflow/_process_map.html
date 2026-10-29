@@ -1,0 +1,27 @@
+{% comment %}Process map. Pass nodes, optional mini=True, optional label.{% endcomment %}
+<div class="bpm-scroll" tabindex="0" role="region" aria-label="{{ label|default:'Process map' }}">
+<ol class="bpm{% if mini %} mini{% endif %}">
+{% for n in nodes %}{% with last=forloop.last first=forloop.first %}
+<li class="bpm-node s-{{ n.state }}{% if n.current %} is-current{% endif %}{% if n.preview %} is-preview{% endif %}{% if first and not n.role %} event start{% elif last and not n.role %} event end{% endif %}"{% if n.current %} aria-current="step"{% endif %}>
+  <div class="bpm-task">
+    {% if n.current %}<span class="bpm-here">{% if n.state == 'blocked' %}Blocked here{% elif n.state == 'overdue' %}Overdue here{% else %}Waiting here{% endif %}</span>{% endif %}
+    <span class="bpm-state">{% if n.preview %}Preview, not executed{% elif n.state == 'complete' %}Complete{% elif n.state == 'active' %}In progress{% elif n.state == 'blocked' %}Blocked{% elif n.state == 'overdue' %}Overdue{% elif n.state == 'cancelled' %}Cancelled{% else %}Queued{% endif %}</span>
+    <span class="t-label">{{ n.label }}</span>
+    {% if n.role %}<span class="t-role">{{ n.role }}</span>{% endif %}
+    {% if not mini %}
+      {% if n.signature or n.threshold or n.escalated %}<span class="t-flags">{% if n.signature %}<span class="badge badge-info">Signature</span>{% endif %}{% if n.threshold %}<span class="cond-tag">From {{ n.threshold|floatformat:"-3g" }}</span>{% endif %}{% if n.escalated %}<span class="badge badge-danger">Escalated{% if n.escalation_role %} to {{ n.escalation_role }}{% endif %}</span>{% endif %}</span>{% endif %}
+      {% if n.sla %}<span class="t-meta">SLA {{ n.sla }} working h</span>{% endif %}
+      {% if n.due_at and n.state != 'complete' and n.state != 'cancelled' %}<span class="t-meta">Due <time datetime="{{ n.due_at|date:'c' }}">{{ n.due_at|date:"d M Y H:i" }}</time></span>{% endif %}
+      {% if n.date %}<span class="t-meta">{% if n.state == 'complete' or n.state == 'cancelled' %}{% if n.decided_by %}{{ n.decided_by }} · {% endif %}{% endif %}{{ n.date|date:"d M Y" }}{% if n.date.time %} {{ n.date|time:"H:i" }}{% endif %}</span>{% endif %}
+      {% if n.payment_reference %}<span class="t-meta">Ref {{ n.payment_reference }}</span>{% endif %}
+      {% if n.comment %}<span class="t-comment">&ldquo;{{ n.comment }}&rdquo;</span>{% endif %}
+      {% if n.current and n.owners %}<ul class="t-owners" aria-label="Eligible owners">{% for o in n.owners %}<li>{{ o.full_name|default:o.username }}</li>{% endfor %}{% if n.owner_count > n.owners|length %}<li class="muted">and {{ n.owner_count|add:0 }} eligible in total</li>{% endif %}</ul>
+        {% if n.signature and n.signing_ready is not None %}<span class="t-meta">{{ n.signing_ready }} with active signing setup</span>{% endif %}{% endif %}
+      {% if n.reasons %}<ul class="t-reasons">{% for r in n.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+      {% if n.url and not n.preview %}<a class="t-link" href="{{ n.url }}">{% if n.task %}Open decision page{% elif n.current %}Open record{% else %}View{% endif %}</a>{% endif %}
+    {% elif n.current and n.reasons %}<span class="t-meta">{{ n.reasons|length }} blocker{{ n.reasons|length|pluralize }}</span>{% endif %}
+  </div>
+</li>
+{% endwith %}{% endfor %}
+</ol>
+</div>

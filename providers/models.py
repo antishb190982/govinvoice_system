@@ -70,6 +70,18 @@ class Provider(models.Model):
 class ServiceAccount(models.Model):
     """A provider account or meter, owned by the org unit that consumes it."""
 
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        ON_HOLD = "on_hold", "On hold"
+        DECOMMISSIONED = "decommissioned", "Decommissioned"
+        DISPUTE = "dispute", "Dispute"
+        SUSPENDED = "suspended", "Suspended"
+
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE, db_index=True)
+    service_details = models.TextField(blank=True)
+    service_type = models.CharField(max_length=120, blank=True)
+    purpose = models.CharField(max_length=250, blank=True)
+    owner = models.CharField(max_length=160, blank=True, help_text="Responsible officer, team or department.")
     provider = models.ForeignKey(Provider, on_delete=models.PROTECT, related_name="accounts")
     org_unit = models.ForeignKey(OrgUnit, on_delete=models.PROTECT, related_name="service_accounts")
     account_number = models.CharField(max_length=60)
@@ -87,6 +99,14 @@ class ServiceAccount(models.Model):
     def __str__(self):
         label = f"{self.provider.short_code} {self.account_number}"
         return f"{label} – {self.premises}" if self.premises else label
+
+    def save(self, *args, **kwargs):
+        if self.status == self.Status.ACTIVE and not self.is_active:
+            self.status = self.Status.DECOMMISSIONED
+        self.is_active = self.status == self.Status.ACTIVE
+        if kwargs.get("update_fields"):
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | {"status", "is_active"}
+        super().save(*args, **kwargs)
 
 
 class BankDetailsChange(models.Model):

@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Bank statement {{ statement.statement_date|date:"d M Y" }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}"><link rel="stylesheet" href="{% static 'css/bank.css' %}">{% endblock %}
+{% block body_class %}recon bank{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'reconciliation:bank_index' %}">Bank reconciliation</a> / Statement {{ statement.statement_date|date:"d M Y" }}</div>
+<h1>{{ statement.account_label }} · {{ statement.statement_date|date:"d M Y" }}</h1>
+<p>{{ statement.org_unit }} · {{ statement.currency }} · uploaded by {{ statement.uploaded_by }} on {{ statement.created_at|date:"d M Y H:i" }}</p></div>
+<div class="actions"><a class="btn" href="{% url 'reconciliation:bank_download' statement.pk %}">Download original file</a></div></div>
+
+<div class="tiles">
+  <div class="tile danger"><span class="label">Needs investigation</span><div class="value">{{ counts.exception|default:0 }}</div><span class="sub">Open each line to see why</span></div>
+  <div class="tile ok"><span class="label">Bank reconciled</span><div class="value">{{ counts.matched|default:0 }}</div><span class="sub">Verified debits</span></div>
+  <div class="tile neutral"><span class="label">Previously reconciled</span><div class="value">{{ counts.duplicate|default:0 }}</div><span class="sub">Replayed transactions</span></div>
+</div>
+
+<div class="card"><div class="card-head"><h2>Lines in this file</h2><span class="muted mono" title="SHA-256 of the uploaded file">SHA-256 {{ statement.sha256|slice:":16" }}…</span></div>
+{% if page.object_list %}<div class="scroll"><div class="table-wrap"><table><thead><tr><th scope="col">Line</th><th scope="col">Transaction</th><th scope="col">Settlement</th><th scope="col" class="num">Debit</th><th scope="col">Value date</th><th scope="col">Result</th><th scope="col">Reason</th><th scope="col">Checked</th></tr></thead><tbody>
+{% for r in page.object_list %}<tr class="{% if r.status == 'exception' %}row-danger{% elif r.status == 'duplicate' %}row-muted{% endif %}">
+<td><a href="{{ r.get_absolute_url }}">#{{ r.line_number }}</a></td><td class="raw">{{ r.transaction_id|default:"—" }}</td>
+<td class="raw">{{ r.settlement_reference|default:"—" }}{% if r.provider_code %}<br><small>Provider {{ r.provider_code }}</small>{% endif %}{% if r.instruction %}<br><a href="{{ r.instruction.get_absolute_url }}">{{ r.instruction.reference }}</a>{% endif %}</td>
+<td class="num">{% if r.amount is not None %}{{ r.amount|money:statement.currency }}{% else %}—{% endif %}</td><td class="nowrap">{{ r.value_date|date:"d M Y"|default:"—" }}</td>
+<td>{% include "reconciliation/_bank_state.html" %}</td><td class="reason">{{ r.reason|default:r.parse_error|default:"—" }}</td>
+<td>{{ r.checked_by|default:"—" }}{% if r.checked_at %}<br><small>{{ r.checked_at|date:"d M Y H:i" }}</small>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include "includes/pagination.html" %}
+{% else %}<p class="empty">This file contains no lines.</p>{% endif %}</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% load gov %}{% if invoice.surcharge_amount %}<div class="card" id="surcharge"><div class="card-head"><h2>Surcharge</h2><a class="btn btn-sm" href="{% url 'invoices:surcharge' invoice.pk %}">Manage</a></div>
+<dl class="props"><dt>Surcharge</dt><dd><strong>{{ invoice.surcharge_amount|money:invoice.currency }}</strong> <small class="muted">included in the billed {{ invoice.amount_total|money:invoice.currency }}</small></dd>
+<dt>Description</dt><dd>{{ invoice.surcharge_description|default:"—" }}</dd>
+<dt>Finance review</dt><dd>{% if invoice.surcharge_reviewed_at %}<span class="badge badge-ok">Reviewed</span> {{ invoice.surcharge_reviewed_by }} · {{ invoice.surcharge_reviewed_at|date:"d M Y" }}{% else %}<span class="badge badge-warn">Awaiting finance review</span>{% endif %}</dd></dl>
+<p class="ops-note">Waivers, refunds and net cost are shown on the manage page.</p>
+<div class="form-actions"><a class="btn btn-sm" href="{% url 'operations:case_new' %}?invoice={{ invoice.pk }}&amp;surcharge=1">Dispute surcharge</a></div></div>
+{% else %}<div class="card" id="surcharge"><div class="card-head"><h2>Surcharge</h2><a class="btn btn-sm" href="{% url 'invoices:surcharge' invoice.pk %}">Classify surcharge</a></div><p class="muted">No surcharge recorded on this invoice.</p></div>{% endif %}

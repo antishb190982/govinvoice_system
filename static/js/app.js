@@ -128,9 +128,22 @@
 
   function wireMenu() {
     var btn = document.querySelector(".nav-toggle");
+    var side = document.getElementById("app-sidebar");
+    function setNav(open) {
+      var wasOpen = document.body.classList.contains("nav-open");
+      document.body.classList.toggle("nav-open", open);
+      if (btn) btn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open && side) side.focus();
+      else if (!open && wasOpen && btn) btn.focus();
+    }
     if (btn) btn.addEventListener("click", function () {
-      var open = document.body.classList.toggle("nav-open");
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      setNav(!document.body.classList.contains("nav-open"));
+    });
+    document.querySelectorAll("[data-nav-close]").forEach(function (el) {
+      el.addEventListener("click", function () { setNav(false); });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && document.body.classList.contains("nav-open")) setNav(false);
     });
     var menus = document.querySelectorAll("details.menu");
     menus.forEach(function (m) {
@@ -169,6 +182,51 @@
     });
   }
 
+
+  function wireActivity() {
+    var holder = document.querySelector("[data-activity-url]");
+    var url = holder && holder.getAttribute("data-activity-url");
+    if (!url || /\/login/.test(window.location.pathname)) return;
+    var notice = document.getElementById("activity-notice");
+    var lastId = null, stopped = false, busy = false, timer = null;
+    function setCount(nodes, n) {
+      n = Number(n) || 0;
+      nodes.forEach(function (el) { el.textContent = String(n); el.hidden = n <= 0; });
+    }
+    function stop() { stopped = true; if (timer) clearInterval(timer); timer = null; }
+    function poll() {
+      if (stopped || busy || document.visibilityState !== "visible") return;
+      busy = true;
+      fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" }, redirect: "follow", cache: "no-store" })
+        .then(function (r) {
+          if (r.redirected || r.status === 401 || r.status === 403) { stop(); return null; }
+          if (!r.ok) return null;
+          return r.json();
+        })
+        .then(function (d) {
+          if (!d) return;
+          setCount(document.querySelectorAll("[data-notification-count]"), d.unread_notifications);
+          if (d.pending_approvals !== undefined) setCount(document.querySelectorAll("[data-approval-count]"), d.pending_approvals);
+          if (d.batch_folders) document.querySelectorAll("[data-batch-folder]").forEach(function (el) {
+            var k = el.getAttribute("data-batch-folder");
+            if (Object.prototype.hasOwnProperty.call(d.batch_folders, k)) el.textContent = String(Number(d.batch_folders[k]) || 0);
+          });
+          var id = d.latest_notification_id;
+          if (lastId !== null && id && id !== lastId && notice) {
+            var t = notice.querySelector("[data-activity-text]");
+            if (t) t.textContent = "New activity: " + (Number(d.unread_notifications) || 0) + " unread";
+            notice.hidden = false;
+          }
+          if (id !== undefined) lastId = id;
+        })
+        .catch(function () {})
+        .then(function () { busy = false; });
+    }
+    poll();
+    timer = setInterval(poll, 30000);
+    document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") poll(); });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     renderCharts();
     wireConfirm();
@@ -177,5 +235,6 @@
     wireMenu();
     wireIdleWarning();
     wireAutoSubmit();
+    wireActivity();
   });
 })();

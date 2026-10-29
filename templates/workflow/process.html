@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Process · {{ invoice.reference }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/process.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'workflow:processes' %}">Process monitor</a> / {{ invoice.reference }}</div>
+<h1>{{ invoice.provider.name }} · {{ invoice.amount_total|money:invoice.currency }}</h1>
+<p>{% status_badge invoice %} {{ invoice.org_unit }} · due <strong>{{ invoice.due_date|date:"d M Y" }}</strong>{% if round %} · approval round {{ round }}{% endif %} · as of {{ now|date:"d M Y H:i" }}</p></div>
+<div class="actions"><a class="btn" href="{{ invoice.get_absolute_url }}">Invoice record</a>{% if instruction_url %}<a class="btn" href="{{ instruction_url }}">Payment instruction {{ instruction.reference }}</a>{% endif %}<a class="btn" href="{{ request.get_full_path }}">Refresh</a>
+{% if can_configure %}<a class="btn" href="{% url 'workflow:policies' %}">Workflows &amp; roles</a>{% endif %}</div></div>
+
+<div class="card"><div class="stage-now"><div><span class="label">{% if terminal %}Final state{% else %}Waiting at{% endif %}</span>
+<h2>{{ current.label }}</h2>
+<p>{% if current.role %}{{ current.role }}{% endif %}{% if current.due_at and not terminal %} · due {{ current.due_at|date:"d M Y H:i" }}{% endif %}</p>
+{% if current.owners %}<p><small class="muted">Can act now:</small> {% for o in current.owners %}{{ o.full_name|default:o.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if current.owner_count > current.owners|length %} and others ({{ current.owner_count }} eligible){% endif %}</p>{% endif %}</div>
+<div>{% if needs_attention %}<span class="badge badge-danger">Needs attention</span>{% elif terminal %}<span class="badge badge-ok">Closed</span>{% else %}<span class="badge badge-info">On track</span>{% endif %}</div></div>
+{% if attention %}<div class="callout danger mt"><strong>Blockers</strong><ul>{% for a in attention %}<li>{{ a }}</li>{% endfor %}</ul></div>{% endif %}
+{% if policy %}<p class="muted"><small>Steps after review are a preview from the workflow <a href="{% url 'workflow:policy' policy.pk %}">{{ policy.name }}</a>. They have not been executed or assigned and will be fixed at submission.</small></p>{% endif %}
+</div>
+
+<div class="card"><div class="card-head"><h2>Process map</h2></div>
+<ul class="bpm-legend" aria-label="Legend"><li><span class="sw complete"></span>Complete</li><li><span class="sw active"></span>Current</li><li><span class="sw blocked"></span>Blocked</li><li><span class="sw overdue"></span>Overdue</li><li><span class="sw waiting"></span>Queued</li><li><span class="sw preview"></span>Preview, not executed</li><li><span class="sw cancelled"></span>Cancelled</li></ul>
+{% include "workflow/_process_map.html" with nodes=nodes label="Invoice process map" %}
+<p class="muted"><small>Decision links open the existing task pages, where role, separation-of-duties and signing checks apply.</small></p></div>
+
+<div class="card"><h2>Approval history</h2>
+{% if tasks %}<div class="table-wrap"><table><thead><tr><th>Round</th><th>#</th><th>Step</th><th>Role</th><th>Status</th><th>Due</th><th>Decided by</th><th>Decided</th><th>Comment</th></tr></thead><tbody>
+{% for t in tasks %}<tr class="{% if t.round != round %}row-muted{% endif %}"><td>{{ t.round }}</td><td>{{ t.order }}</td><td><a href="{% url 'workflow:task' t.pk %}">{{ t.name }}</a>{% if t.requires_signature %} <span class="badge badge-info">Signature</span>{% endif %}</td><td>{{ t.get_role_display }}</td><td>{% status_badge t %}{% if t.escalated_at %} <span class="badge badge-danger">Escalated</span>{% endif %}</td><td class="nowrap">{{ t.due_at|date:"d M Y H:i"|default:"—" }}</td><td>{{ t.decided_by|default:"—" }}</td><td class="nowrap">{{ t.decided_at|date:"d M Y H:i"|default:"—" }}</td><td>{{ t.comment|default:"—" }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="muted">No approval tasks have been created. {% if invoice.status == 'paid' %}This payment is recorded on the invoice ledger without linked authorisation history.{% else %}The invoice has not been submitted.{% endif %}</p>{% endif %}</div>
+{% endblock %}

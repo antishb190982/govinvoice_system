@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Statement {{ statement.statement_date|date:"d M Y" }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}">{% endblock %}
+{% block body_class %}recon{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'reconciliation:index' %}">Reconciliation</a> / Statement</div>
+<h1>{{ statement.provider.name }} · {{ statement.statement_date|date:"d M Y" }}</h1>
+<p>{{ statement.org_unit }} · {{ statement.currency }} · {% if statement.is_active %}Active{% else %}Archived{% endif %}</p></div>
+<div class="actions">{% if statement.document %}<a class="btn" href="{% url 'reconciliation:download' statement.pk %}">Download source file</a>{% endif %}<a class="btn" href="{% url 'reconciliation:index' %}?state=unsorted">Unsorted basket</a>{% if can_manage %}<a class="btn btn-primary" href="{% url 'reconciliation:upload' %}">Upload newer statement</a>{% endif %}</div></div>
+{% if not statement.is_active %}<div class="callout warn"><strong>Archived statement</strong>A newer statement replaced this one. Its lines no longer count as evidence for approval or settlement.</div>{% endif %}
+<div class="tiles">
+  <div class="tile ok"><span class="label">Reconciled</span><div class="value">{{ counts.matched|default:0 }}</div></div>
+  <div class="tile danger"><span class="label">Unsorted</span><div class="value">{{ counts.unsorted|default:0 }}</div></div>
+  <div class="tile neutral"><span class="label">Superseded</span><div class="value">{{ counts.superseded|default:0 }}</div></div>
+</div>
+<div class="card"><h2>Source</h2><dl class="props">
+<dt>File</dt><dd>{{ statement.filename|default:"—" }}</dd>
+<dt>SHA-256</dt><dd class="raw">{{ statement.sha256|default:"—" }}</dd>
+<dt>Uploaded</dt><dd>{{ statement.uploaded_by }} · {{ statement.created_at|date:"d M Y H:i" }}</dd></dl></div>
+<div class="card"><h2>Lines</h2>
+{% if page.object_list %}<div class="scroll"><div class="table-wrap"><table><thead><tr><th>Line</th><th>Account</th><th>Invoice</th><th class="num">Amount</th><th>Result</th><th>Reason</th><th>Responsible</th></tr></thead><tbody>
+{% for r in page.object_list %}<tr class="{% if r.status == 'unsorted' %}row-danger{% elif r.status == 'superseded' %}row-muted{% endif %}">
+<td><a href="{{ r.get_absolute_url }}">#{{ r.line_number }}</a></td><td class="raw">{{ r.account_number|default:"—" }}</td>
+<td class="raw">{{ r.invoice_number|default:"—" }}{% if r.invoice %}<br><a href="{{ r.invoice.get_absolute_url }}">{{ r.invoice.reference }}</a>{% endif %}</td>
+<td class="num">{% if r.amount is not None %}{{ r.amount|money }}{% else %}—{% endif %}</td><td>{% include "reconciliation/_state.html" %}</td>
+<td class="reason">{{ r.parse_error|default:r.reason|default:"—" }}</td><td>{{ r.assigned_unit }}{% if r.assigned_to %}<br><small>{{ r.assigned_to }}</small>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include "includes/pagination.html" %}
+{% else %}<p class="empty">This statement contained no lines.</p>{% endif %}</div>
+{% endblock %}

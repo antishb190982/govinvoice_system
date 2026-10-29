@@ -103,6 +103,8 @@ class OutboundMessage(models.Model):
         SKIPPED = "skipped", "Skipped (channel disabled)"
 
     channel = models.CharField(max_length=6, choices=Channel.choices)
+    notification = models.ForeignKey("core.Notification", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="deliveries")
     recipient = models.CharField(max_length=254)
     subject = models.CharField(max_length=200, blank=True)
     status = models.CharField(max_length=8, choices=Status.choices)

@@ -15,6 +15,7 @@ FIELD_CHOICES = [
     ("period_end", "Period end"),
     ("amount_net", "Net amount"),
     ("amount_tax", "Tax / VAT"),
+    ("surcharge_amount", "Surcharge included in total"),
     ("amount_total", "Total payable (this bill)"),
     ("arrears", "Arrears from earlier bills"),
     ("consumption", "Consumption"),

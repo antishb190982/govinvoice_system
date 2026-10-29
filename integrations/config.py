@@ -55,7 +55,7 @@ REGISTRY = {
     "SMTP_FROM": ("E-mail (SMTP)", "From address", "email", ""),
     "SMTP_TIMEOUT": ("E-mail (SMTP)", "Timeout (seconds)", "int", ""),
     # SMS
-    "SMS_ENABLED": ("SMS", "Send SMS", "bool", "Critical alerts (SLA breaches, payment deadlines) go to users' mobile numbers."),
+    "SMS_ENABLED": ("SMS", "Send SMS", "bool", "Action-required alerts go to users' mobile numbers. Other alerts use the severity threshold."),
     "SMS_PROVIDER": ("SMS", "Gateway type", "choice:http|twilio", "Generic HTTP/JSON gateway (local operators) or Twilio."),
     "SMS_URL": ("SMS", "Gateway URL", "url", "HTTP gateway endpoint, or Twilio API base."),
     "SMS_ACCOUNT": ("SMS", "Account / sender ID", "str", "Twilio account SID, or the gateway's account name."),
@@ -129,8 +129,10 @@ def parse(key, raw):
             raise ValidationError(f"{REGISTRY[key][1]}: choose one of {', '.join(options)}.")
         return raw
     value = str(raw or "").strip()
-    if kind == "email" and value and "@" not in value:
-        raise ValidationError(f"{REGISTRY[key][1]}: enter an e-mail address.")
+    if kind == "email" and value:
+        from django.core.validators import validate_email
+
+        validate_email(value)
     if kind == "url" and value and not value.startswith(("https://", "http://")):
         raise ValidationError(f"{REGISTRY[key][1]}: enter a full URL.")
     return value
@@ -140,6 +142,25 @@ def validate_combination(values):
     start, end = values.get("WORK_DAY_START_HOUR", get("WORK_DAY_START_HOUR")), values.get("WORK_DAY_END_HOUR", get("WORK_DAY_END_HOUR"))
     if not (0 <= start < end <= 23):
         raise ValidationError("The working day must start before it ends (hours 0–23).")
+    # Validate complete configurations when enabling a channel. Disabled
+    # gateways may be saved incrementally without making external calls.
+    def effective(key):
+        return values.get(key, get(key))
+
+    if any(key.startswith("SMTP_") for key in values) and effective("SMTP_ENABLED"):
+        if not effective("SMTP_HOST") or not effective("SMTP_FROM"):
+            raise ValidationError("Enter an SMTP host and from address before enabling email.")
+        if not 1 <= effective("SMTP_PORT") <= 65535:
+            raise ValidationError("SMTP port must be between 1 and 65535.")
+        if not 1 <= effective("SMTP_TIMEOUT") <= 120:
+            raise ValidationError("SMTP timeout must be between 1 and 120 seconds.")
+    if any(key.startswith("SMS_") for key in values) and effective("SMS_ENABLED"):
+        if not effective("SMS_URL"):
+            raise ValidationError("Enter a gateway URL before enabling SMS.")
+        # send_raw already rejects HTTP. Catch this in the form rather than
+        # silently failing every queued action alert.
+        if not effective("SMS_URL").startswith("https://"):
+            raise ValidationError("The SMS gateway must use HTTPS.")
 
 
 def save(values, user):

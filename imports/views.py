@@ -5,10 +5,12 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from core.models import AuditEvent
 from core.utils import csv_response, paginate, require_any_role
 from imports import parsers, services
+from imports.bulk import apply_folder_paths, stage_uploads
 from imports.models import ImportBatch, ImportRow
 from org.models import Role
 from providers.models import Provider
@@ -34,30 +36,73 @@ class UploadForm(forms.Form):
     provider = forms.ModelChoiceField(queryset=Provider.objects.filter(is_active=True), required=False,
                                       empty_label="Detect from the file",
                                       help_text="Choose the provider unless the file has a provider column.")
-    files = MultipleFileField(label="Files", help_text="One spreadsheet (XLSX, XLS, CSV), or up to 100 invoices as PDF "
-                                                       "or scanned images / photos (PNG, JPG, TIFF).")
+    received_date = forms.DateField(initial=timezone.localdate,
+                                    widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
+                                    help_text="Actual receipt date. Spreadsheet receipt dates take precedence when provided.")
+    files = MultipleFileField(required=False, label="Files or ZIP archives",
+                              help_text="Mix spreadsheets, PDFs, scans and ZIPs; up to 100 invoice files / 100 MB.")
+    folder_files = MultipleFileField(required=False, label="Or select a whole folder",
+                                    widget=MultipleFileInput(attrs={"webkitdirectory": True, "directory": True,
+                                                                   "data-folder-files": True}),
+                                    help_text="Includes subfolders. Use ZIP if your browser cannot select folders.")
+    folder_paths = forms.CharField(required=False, widget=forms.HiddenInput)
 
 
 @login_required
 def batch_list(request):
     require_any_role(request.user, [Role.CLERK, Role.UNIT_ADMIN])
     qs = ImportBatch.objects.filter(uploaded_by=request.user) if not request.user.is_superuser else ImportBatch.objects.all()
+    if request.GET.get("status") in ImportBatch.Status.values:
+        qs = qs.filter(status=request.GET["status"])
     form = UploadForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         files = form.cleaned_data["files"]
+        folder_files = form.cleaned_data["folder_files"]
         provider = form.cleaned_data["provider"]
         try:
-            names = [f.name.lower() for f in files]
-            if all(n.endswith((".pdf", ".png", ".jpg", ".jpeg", ".tif", ".tiff")) for n in names):
-                batch = services.stage_documents(request.user, files, provider)
-            elif len(files) == 1:
-                batch = services.stage_spreadsheet(request.user, files[0], provider)
-            else:
-                raise ValidationError("Upload either one spreadsheet or a set of PDF / image invoices.")
-            return redirect("imports:batch", pk=batch.pk)
+            apply_folder_paths(folder_files, form.cleaned_data["folder_paths"])
+            batches, skipped = stage_uploads(
+                request.user, files + folder_files, provider, received_date=form.cleaned_data["received_date"]
+            )
+            if request.POST.get("intake_route") == "registration":
+                from imports.registration import registration_url
+
+                ImportBatch.objects.filter(pk__in=[b.pk for b in batches]).update(registration_mode=True)
+                return redirect(registration_url(batches))
+            if len(batches) == 1 and not skipped:
+                return redirect("imports:batch", pk=batches[0].pk)
+            from imports.registration import registration_url
+
+            return render(request, "imports/intake_result.html", {
+                "batches": batches, "skipped": skipped, "registration_url": registration_url(batches),
+            })
         except ValidationError as exc:
             form.add_error("files", exc)
     return render(request, "imports/list.html", {"form": form, "page": paginate(request, qs.select_related("provider"))})
+
+
+@login_required
+@require_POST
+def batch_analyse(request, pk):
+    batch = _get_batch(request, pk)
+    if batch.status != ImportBatch.Status.STAGED:
+        raise PermissionDenied
+    rows = list(batch.rows.filter(status=ImportRow.Status.ANALYSING).select_related("ocr_document")[:3])
+    for row in rows:
+        services.apply_ocr(row)
+    messages.success(request, f"Analysed {len(rows)} documents. Remaining documents stay safely queued.")
+    from imports.registration import registration_url
+
+    if request.POST.get("return_to") == "registration":
+        from imports.registration import owned_batches
+
+        if request.POST.get("registration_batches"):
+            batches = owned_batches(request.user, request.POST["registration_batches"])
+            if not any(item.pk == batch.pk for item in batches):
+                raise PermissionDenied
+            return redirect(registration_url(batches))
+        return redirect(registration_url([batch]))
+    return redirect("imports:batch", pk=pk)
 
 
 def _get_batch(request, pk):
@@ -89,8 +134,11 @@ def batch_detail(request, pk):
     edit_row = None
     if request.GET.get("edit"):
         edit_row = get_object_or_404(ImportRow, batch=batch, pk=request.GET["edit"])
+    from imports.registration import registration_blocked
+
     return render(request, "imports/batch.html", {
         "batch": batch, "rows": rows, "counts": counts, "edit_row": edit_row, "review_needed": review_needed,
+        "registration_blocked": registration_blocked(batch) if batch.status == ImportBatch.Status.STAGED else False,
         "row_form": RowForm(row=edit_row) if edit_row else None,
     })
 
@@ -147,6 +195,13 @@ def batch_discard(request, pk):
 
 @login_required
 def template_csv(request):
+    example = {
+        "account_number": "1100453201", "invoice_number": "CEB/2609/0001",
+        "issue_date": "2026-10-01", "due_date": "2026-10-31",
+        "period_start": "2026-09-01", "period_end": "2026-09-30",
+        "amount_net": "10000.00", "amount_tax": "1500.00", "amount_total": "11500.00",
+        "consumption": "1250", "previous_reading": "40100", "current_reading": "41350",
+        "currency": "MUR", "provider": "CEB", "received_date": timezone.localdate().isoformat(),
+    }
     return csv_response("invoice-import-template.csv", parsers.FIELDS,
-                        [["1100453201", "CEB/2609/0001", "2026-10-01", "2026-10-31", "2026-09-01", "2026-09-30",
-                          "10000.00", "1500.00", "11500.00", "1250", "40100", "41350", "MUR", "CEB"]])
+                        [[example.get(field, "") for field in parsers.FIELDS]])

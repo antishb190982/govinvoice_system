@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}New processing batch{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:batches' %}">Processing batches</a> / New</div><h1>New processing batch</h1>
+<p>Step 1: choose one ministry unit, one utility provider and one currency. Step 2: tick the eligible unbatched invoices and name the batch.</p></div></div>
+<div class="card"><h2>1. Load eligible invoices</h2>
+<form method="get" class="filters">
+<div><label for="sel-unit">{{ form.org_unit.label }}</label><select id="sel-unit" name="org_unit" required><option value="">Select…</option>{% for u in form.fields.org_unit.queryset %}<option value="{{ u.pk }}"{% if form.org_unit.value|stringformat:"s" == u.pk|stringformat:"s" %} selected{% endif %}>{{ u }}</option>{% endfor %}</select></div>
+<div><label for="sel-prov">{{ form.provider.label }}</label><select id="sel-prov" name="provider" required><option value="">Select…</option>{% for p in form.fields.provider.queryset %}<option value="{{ p.pk }}"{% if form.provider.value|stringformat:"s" == p.pk|stringformat:"s" %} selected{% endif %}>{{ p }}</option>{% endfor %}</select></div>
+<div><label for="sel-cur">Currency</label><input id="sel-cur" type="text" name="currency" value="{{ form.currency.value|default:'MUR' }}" maxlength="3" pattern="[A-Z]{3}" required></div>
+<div><button class="btn btn-primary" type="submit">Load invoices</button> <a class="btn btn-ghost" href="{% url 'operations:batch_new' %}">Reset</a></div>
+</form></div>
+{% if form.org_unit.value and form.provider.value %}
+<form method="post" action="?{{ request.GET.urlencode }}">{% csrf_token %}
+<input type="hidden" name="org_unit" value="{{ form.org_unit.value }}"><input type="hidden" name="provider" value="{{ form.provider.value }}"><input type="hidden" name="currency" value="{{ form.currency.value|default:'MUR' }}">
+<div class="card"><h2>2. Select invoices</h2>
+{% include "includes/form_errors.html" %}{{ form.org_unit.errors }}{{ form.provider.errors }}{{ form.currency.errors }}
+{% if form.fields.invoices.queryset.exists %}
+<div class="card-head"><p class="ops-note">Amounts are the current invoice totals; the payable net after approved waivers is shown on the batch once created.</p><label class="nowrap"><input type="checkbox" data-select-all="inv"> Select all</label></div>
+<ul class="ops-checks">{% for c in form.invoices %}<li><input type="checkbox" id="{{ c.id_for_label }}" name="invoices" value="{{ c.data.value }}" data-group="inv"{% if c.data.selected %} checked{% endif %}><label for="{{ c.id_for_label }}">{{ c.choice_label }}</label><span class="amt">{{ c.data.value.instance.amount_total|money:c.data.value.instance.currency }}</span></li>{% endfor %}</ul>
+{{ form.invoices.errors }}
+<label for="id_name" class="mt">Batch name</label><input id="id_name" name="name" maxlength="140" required value="{{ form.name.value|default:'' }}">{{ form.name.errors }}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Create batch</button></div>
+{% else %}<p class="empty">No eligible invoices for this unit, provider and currency. Paid, closed, cancelled, already scheduled or already batched invoices are excluded. Adjust the selection above.</p>{% endif %}
+</div></form>{% endif %}
+{% endblock %}

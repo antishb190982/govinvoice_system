@@ -15,7 +15,7 @@ def _variants(value):
 def find_account(provider, account_number=None, service_number=None):
     """Find a provider's active service account by billing account number (leading-zero
     tolerant, e.g. CEB 000118902086 = 118902086) or by its line / meter number."""
-    qs = ServiceAccount.objects.filter(provider=provider, is_active=True).select_related("org_unit", "provider")
+    qs = ServiceAccount.objects.filter(provider=provider).select_related("org_unit", "provider")
     for value in (_variants(account_number), _variants(service_number)):
         if not value:
             continue

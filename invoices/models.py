@@ -3,6 +3,8 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
+from django.utils.functional import cached_property
 
 from core.files import private_upload_path
 from org.models import OrgUnit
@@ -12,6 +14,13 @@ MONEY = {"max_digits": 16, "decimal_places": 3}
 
 
 class Invoice(models.Model):
+    # Classification of a charge already included in amount_total, not an addition.
+    surcharge_amount = models.DecimalField(max_digits=16, decimal_places=3, default=0)
+    surcharge_description = models.CharField(max_length=240, blank=True)
+    surcharge_review_note = models.TextField(blank=True)
+    surcharge_reviewed_by = models.ForeignKey("accounts.User", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="surcharge_reviews")
+    surcharge_reviewed_at = models.DateTimeField(null=True, blank=True)
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         IN_APPROVAL = "in_approval", "In approval"
@@ -42,6 +51,8 @@ class Invoice(models.Model):
 
     invoice_number = models.CharField(max_length=60)
     issue_date = models.DateField()
+    received_date = models.DateField(null=True, blank=True, db_index=True,
+                                     help_text="Actual receipt date; separate from the invoice issue date.")
     period_start = models.DateField(null=True, blank=True)
     period_end = models.DateField(null=True, blank=True)
     due_date = models.DateField(db_index=True)
@@ -102,9 +113,20 @@ class Invoice(models.Model):
     def is_unpaid(self):
         return self.status in self.UNPAID
 
+    @cached_property
+    def processing(self):
+        from invoices.intake_dates import assess_dates
+
+        recorded = timezone.localdate(self.created_at) if self.created_at else timezone.localdate()
+        assessment = assess_dates(self.issue_date, self.due_date, self.received_date, recorded)
+        if self.status not in self.OPEN or self.amount_total == 0:
+            assessment.update(priority="closed", label="No payment priority")
+        return assessment
+
     def snapshot(self):
         """Fields an approval signature commits to."""
-        return {
+        from operations.services import payable
+        data = {
             "reference": self.reference,
             "provider": self.provider.short_code,
             "service_account": self.service_account.account_number,
@@ -122,6 +144,9 @@ class Invoice(models.Model):
             "arrears": str(self.arrears) if self.arrears is not None else None,
             "document_sha256": self.document_sha256,
         }
+        if self.pk and payable(self) != self.amount_total:
+            data["payable_amount"] = format(payable(self), ".3f")
+        return data
 
 
 class Flag:
@@ -138,8 +163,16 @@ class Flag:
     OVERDUE = "overdue"
     NOTHING_TO_PAY = "nothing_to_pay"
     ARREARS = "arrears"
+    FUTURE_RECEIPT = "future_receipt"
+    RECEIPT_BEFORE_ISSUE = "receipt_before_issue"
+    RECEIVED_OVERDUE = "received_overdue"
+    RECORDING_DELAY = "recording_delay"
 
     LABELS = {
+        FUTURE_RECEIPT: "Receipt date is in the future",
+        RECEIPT_BEFORE_ISSUE: "Receipt date precedes the invoice issue date",
+        RECEIVED_OVERDUE: "Already overdue when received",
+        RECORDING_DELAY: "Recorded more than seven days after receipt",
         AMOUNT_SPIKE: "Amount well above this account's recent average",
         CONSUMPTION_SPIKE: "Consumption well above this account's recent average",
         TOTAL_MISMATCH: "Net + tax does not equal the total",

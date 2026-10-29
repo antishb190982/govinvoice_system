@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}My batch workspace{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:batches' %}">All batches</a> / My batch workspace</div><h1>My batch workspace</h1>
+<p>Team workspace for the batches in your authorised units. Folders group work for navigation only; they never change a batch's finance stage.</p></div>
+<div class="actions">{% if can.capture %}<a class="btn" href="{% url 'imports:list' %}">Import invoices</a><a class="btn" href="{% url 'invoices:create' %}">Record manually</a>{% endif %}{% if can.capture or can.settle %}<a class="btn btn-primary" href="{% url 'operations:batch_new' %}">New batch</a>{% endif %}</div></div>
+
+<nav class="ws-folders" aria-label="Batch folders">
+{% for key, label in folder_labels.items %}<a class="ws-folder ws-folder-{{ key }}{% if folder == key %} is-active{% endif %}" href="{% url 'operations:workspace' %}?folder={{ key }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}"{% if folder == key %} aria-current="page"{% endif %}><span class="ws-folder-label">{{ label }}</span><strong>{% for k, c in folder_counts.items %}{% if k == key %}{{ c }}{% endif %}{% endfor %}</strong><small>{% if key == 'preparation' %}Invoices received, batches being built{% elif key == 'work' %}Submitted and moving through approval{% elif key == 'rejected' %}Returned, cancelled or rejected for settlement{% elif key == 'completed' %}Closed batches{% else %}Every batch in scope{% endif %}</small></a>{% endfor %}
+</nav>
+
+{% if folder == 'rejected' %}<div class="callout warn ws-explain"><strong>Why items land here</strong> Batches that were cancelled, invoices returned to the capturer, and draft settlements that were rejected. Open each record to read the recorded reason before correcting and resubmitting.</div>
+{% elif folder == 'completed' %}<div class="callout ws-explain">Only batches that have actually closed appear here.</div>{% endif %}
+
+<div class="card"><form method="get" class="filters"><input type="hidden" name="folder" value="{{ folder }}"><div><label for="q">Search this folder</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Reference, name or provider"></div>
+<div><button class="btn btn-primary" type="submit">Search</button>{% if q %} <a class="btn btn-ghost" href="{% url 'operations:workspace' %}?folder={{ folder }}">Reset</a>{% endif %}</div></form></div>
+
+{% if folder == 'preparation' or folder == 'rejected' %}{% if received or imports %}
+<div class="ws-incoming">
+{% if received %}<section class="card"><div class="ws-sec-head"><h2>{% if folder == 'rejected' %}Returned invoices{% else %}Invoices received, not yet batched{% endif %}</h2><span class="badge badge-{% if folder == 'rejected' %}warn{% else %}info{% endif %}">{{ received_count }}</span></div>
+<p class="ops-note">Shown separately from batch counts. {% if received_count > received|length %}Showing the first {{ received|length }}.{% endif %}</p>
+<ul class="ws-list">{% for inv in received %}<li><a href="{{ inv.get_absolute_url }}">{{ inv }}</a><small class="muted">{% if inv.provider %}{{ inv.provider }} · {% endif %}{{ inv.created_at|date:"d M Y" }}</small></li>{% endfor %}</ul></section>{% endif %}
+{% if imports %}<section class="card"><div class="ws-sec-head"><h2>My staged imports</h2><span class="badge badge-info">{{ import_count }}</span></div>
+<ul class="ws-list">{% for imp in imports %}<li><a href="{% url 'imports:batch' imp.pk %}">{{ imp.original_name }}</a><small class="muted">{{ imp.get_status_display|default:imp.status }} · {{ imp.created_at|date:"d M Y H:i" }}</small></li>{% endfor %}</ul></section>{% endif %}
+</div>{% endif %}{% endif %}
+
+<div class="card"><div class="table-wrap"><table class="ops-table"><thead><tr><th>Reference</th><th>Name</th><th>Ministry</th><th>Provider</th><th>Currency</th><th>Created</th><th>Stage</th></tr></thead><tbody>
+{% for b in page %}<tr><td><a href="{{ b.get_absolute_url }}">{{ b.reference }}</a></td><td>{{ b.name }}</td><td>{{ b.ministry }}{% if b.org_unit_id != b.ministry_id %}<br><small class="muted">{{ b.org_unit }}</small>{% endif %}</td><td>{{ b.provider.name }}</td><td>{{ b.currency }}</td>
+<td class="nowrap">{{ b.created_at|date:"d M Y" }}<br><small class="muted">{{ b.created_by }}</small></td>
+<td><span class="badge badge-{% if b.batch_folder == 'rejected' %}danger{% elif b.batch_folder == 'completed' %}ok{% else %}info{% endif %}">{{ b.lifecycle }}</span></td></tr>
+{% empty %}<tr><td colspan="7" class="empty">{% if q %}No batches in this folder match “{{ q }}”.{% elif folder == 'preparation' %}No batches in preparation.{% if received or imports %} Incoming invoices and imports above are ready to group.{% elif can.capture %} Import or record invoices, then group them into a new batch.{% endif %}{% elif folder == 'rejected' %}Nothing rejected or cancelled.{% elif folder == 'completed' %}No closed batches yet.{% else %}No batches here.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include "includes/pagination.html" %}</div>
+{% endblock %}

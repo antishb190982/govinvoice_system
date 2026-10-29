@@ -1,0 +1,43 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}{{ batch.reference }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:batches' %}">Processing batches</a> / {{ batch.reference }}</div>
+<h1>{{ batch.reference }} · {{ batch.name }}</h1>
+<p><span class="badge badge-info">{{ batch.lifecycle }}</span>
+{{ batch.ministry }}{% if batch.org_unit_id != batch.ministry_id %} · {{ batch.org_unit }}{% endif %} · <a href="{% url 'providers:detail' batch.provider_id %}">{{ batch.provider.name }}</a> · {{ batch.currency }}</p></div>
+<div class="actions">{% if can.bank %}<a class="btn" href="{% url 'reconciliation:bank_index' %}?status=all&amp;q={{ batch.reference|urlencode }}">Bank reconciliation</a>{% endif %}<a class="btn" href="#history">Audit history</a></div></div>
+{% if error %}<div class="callout danger" role="alert"><strong>Action not completed</strong>{{ error }}</div>{% endif %}
+{% if held_count %}<div class="callout warn"><strong>{{ held_count }} invoice{{ held_count|pluralize }} on dispute hold</strong>Resolve the open case{{ held_count|pluralize }} before the batch can be submitted or settled.</div>{% endif %}
+<div class="ops-kpis">
+<div class="ops-kpi"><span>Invoices</span><strong>{{ members|length }}</strong></div>
+<div class="ops-kpi"><span>Original gross</span><strong>{{ gross_total|money:batch.currency }}</strong></div>
+<div class="ops-kpi"><span>Current payable</span><strong>{{ payable_total|money:batch.currency }}</strong></div>
+<div class="ops-kpi{% if held_count %} warn{% endif %}"><span>On hold</span><strong>{{ held_count }}</strong></div>
+</div>
+<div class="split"><div class="stack">
+<div class="card"><h2>Members</h2><div class="table-wrap"><table class="ops-table"><thead><tr><th>Invoice</th><th>Unit</th><th>Due</th><th>Status</th><th class="num">At batching</th><th class="num">Gross</th><th class="num">Payable</th><th>Membership</th></tr></thead><tbody>
+{% for m in members %}<tr><td><a href="{{ m.invoice.get_absolute_url }}">{{ m.invoice.reference }}</a><br><small class="muted">{{ m.invoice.invoice_number }}</small></td><td>{{ m.invoice.org_unit.code }}</td><td class="nowrap">{{ m.invoice.due_date|date:"d M Y" }}</td>
+<td>{% status_badge m.invoice %}{% if m.on_hold %} <span class="badge badge-danger">Dispute hold</span>{% endif %}</td>
+<td class="num">{{ m.original_amount|money }}</td><td class="num">{{ m.invoice.amount_total|money }}</td><td class="num"><strong>{{ m.payable|money }}</strong></td>
+<td>{% if m.active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Released</span>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="8" class="empty">No members.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2>Current invoice status</h2><p class="ops-note">Counts of the members' actual invoice statuses right now.</p>
+{% regroup members|dictsort:"invoice.status" by invoice.get_status_display as groups %}
+<ul class="timeline">{% for g in groups %}<li><strong>{{ g.grouper }}</strong> <span class="meta">{{ g.list|length }} invoice{{ g.list|length|pluralize }}</span></li>{% endfor %}</ul></div>
+{% include "operations/_history.html" %}
+</div><div class="stack">
+{% if not batch.cancelled_at %}
+{% if can_regroup %}<div class="card"><h2>Release an invoice for correction or reassignment</h2><p class="ops-note">Retains the original batch membership and approval history. Correct the released invoice, then add it to a suitable single-provider batch. Cancel any live settlement before regrouping; paid invoices cannot be released.</p><form method="post">{% csrf_token %}<input type="hidden" name="action" value="release"><label for="release-invoice">Invoice</label><select name="invoice_id" id="release-invoice" required><option value="">Select an unpaid invoice</option>{% for m in members %}{% if m.active and m.invoice.status != "paid" and m.invoice.status != "scheduled" %}<option value="{{ m.invoice_id }}">{{ m.invoice.reference }}</option>{% endif %}{% endfor %}</select><label for="release-reason">Reason</label><textarea name="reason" id="release-reason" required maxlength="4000"></textarea><button type="submit" class="btn btn-outline">Release invoice</button></form></div>{% endif %}
+{% if can_process %}<div class="card"><h2>Submit / resume batch</h2><p class="ops-note">Submits draft or returned members into their existing approval workflow in one atomic step. All active members must be reconciled and clear of dispute holds; if any fails, nothing is submitted.</p>
+<form method="post" data-confirm="Submit all invoices in this batch for approval?">{% csrf_token %}<input type="hidden" name="action" value="submit"><button class="btn btn-primary" type="submit">Submit whole batch</button></form></div>{% endif %}
+{% if can_settle %}<div class="card"><h2>Settle batch</h2><p class="ops-note">Creates one settlement instruction for the entire batch to {{ batch.provider.name }}. Every active member must be approved; partial payment is not possible. Signing continues on the settlement page.</p>
+<form method="post" data-confirm="Create a settlement instruction for the whole batch?">{% csrf_token %}<input type="hidden" name="action" value="settle"><button class="btn btn-primary" type="submit">Create settlement instruction</button></form></div>{% endif %}
+{% if can_cancel %}<div class="card"><h2>Cancel batch</h2><p class="ops-note">Only an unstarted batch can be cancelled. Members are released; membership history is retained.</p>
+<form method="post" data-confirm="Cancel this batch?">{% csrf_token %}<input type="hidden" name="action" value="cancel"><label for="reason">Reason</label><textarea id="reason" name="reason" rows="2" required></textarea>
+<div class="form-actions"><button class="btn btn-danger btn-sm" type="submit">Cancel batch</button></div></form></div>{% endif %}
+{% endif %}
+<div class="card"><h2>Settlements</h2>{% for s in settlements %}<p><a href="{{ s.get_absolute_url }}">{{ s.reference }}</a> {% status_badge s %}<br><span class="meta">{{ s.total_amount|money:s.currency }}</span></p>{% empty %}<p class="muted">No settlement instruction yet.</p>{% endfor %}</div>
+<div class="card"><h2>Disputes and adjustments</h2>{% for c in cases %}<p><a href="{{ c.get_absolute_url }}">{{ c.reference }}</a> {% status_badge c %}<br><span class="meta">{{ c.get_kind_display }} · {{ c.invoice.reference }} · {{ c.amount|money:batch.currency }}</span></p>{% empty %}<p class="muted">No cases on member invoices.</p>{% endfor %}</div>
+<div class="card"><h2>Record</h2><dl class="props"><dt>Created</dt><dd>{{ batch.created_by }} · {{ batch.created_at|date:"d M Y H:i" }}</dd><dt>Submitted</dt><dd>{{ batch.started_at|date:"d M Y H:i"|default:"—" }}</dd><dt>Cancelled</dt><dd>{{ batch.cancelled_at|date:"d M Y H:i"|default:"—" }}</dd></dl></div>
+</div></div>
+{% endblock %}

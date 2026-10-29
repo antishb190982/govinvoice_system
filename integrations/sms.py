@@ -65,9 +65,13 @@ def send_raw(to, text):
         status, payload = _post(endpoint, body, {"Authorization": f"Basic {auth}",
                                                  "Content-Type": "application/x-www-form-urlencoded"})
         try:
-            return json.loads(payload).get("sid", "")
+            result = json.loads(payload)
         except ValueError:
-            return ""
+            raise SmsError("The SMS gateway returned an invalid acceptance response.")
+        ref = result.get("sid") if isinstance(result, dict) else None
+        if not isinstance(ref, str) or not ref.strip():
+            raise SmsError("The SMS gateway did not confirm message acceptance.")
+        return ref
     template = config.get("SMS_BODY_TEMPLATE") or '{"to": "{to}", "message": "{text}", "from": "{sender}"}'
     body = template.replace("{to}", _json_escape(to)).replace("{text}", _json_escape(text)).replace(
         "{sender}", _json_escape(sender or ""))
@@ -82,24 +86,27 @@ def send_raw(to, text):
     return payload[:120] if status < 300 else ""
 
 
-def send(number, text, subject=""):
+def send(number, text, subject="", notification_id=None):
     from integrations.models import OutboundMessage
 
     to = normalise_number(number)
     if not to:
+        OutboundMessage.objects.create(channel="sms", notification_id=notification_id,
+            recipient="Invalid number", subject=subject[:200], status=OutboundMessage.Status.SKIPPED,
+            error="Invalid mobile number")
         return None
     if not config.get("SMS_ENABLED"):
-        OutboundMessage.objects.create(channel="sms", recipient=mask(to), subject=subject[:200],
+        OutboundMessage.objects.create(channel="sms", notification_id=notification_id, recipient=mask(to), subject=subject[:200],
                                        status=OutboundMessage.Status.SKIPPED, error="SMS disabled")
         return None
     try:
         ref = send_raw(to, text)
-        OutboundMessage.objects.create(channel="sms", recipient=mask(to), subject=subject[:200],
+        OutboundMessage.objects.create(channel="sms", notification_id=notification_id, recipient=mask(to), subject=subject[:200],
                                        status=OutboundMessage.Status.SENT, provider_reference=str(ref)[:120])
         return True
     except SmsError as exc:
         log.warning("SMS to %s failed: %s", mask(to), exc)
-        OutboundMessage.objects.create(channel="sms", recipient=mask(to), subject=subject[:200],
+        OutboundMessage.objects.create(channel="sms", notification_id=notification_id, recipient=mask(to), subject=subject[:200],
                                        status=OutboundMessage.Status.FAILED, error=str(exc)[:2000])
         return False
 

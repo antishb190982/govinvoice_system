@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q, Sum
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -30,6 +30,9 @@ def _get_invoice(request, pk):
 def filtered_invoices(request):
     form = InvoiceFilterForm(request.GET or None, user=request.user)
     qs = scope(Invoice.objects.select_related("provider", "org_unit", "service_account"), request.user)
+    from invoices.intake_dates import with_processing_priority
+
+    qs = with_processing_priority(qs)
     if form.is_valid():
         d = form.cleaned_data
         if d["q"]:
@@ -37,8 +40,14 @@ def filtered_invoices(request):
                            Q(service_account__account_number__icontains=d["q"]) | Q(provider__name__icontains=d["q"]))
         if d["status"] == "open":
             qs = qs.filter(status__in=Invoice.UNPAID)
+        elif d["status"] == "billed":
+            qs = qs.exclude(status__in=[Invoice.Status.DRAFT, Invoice.Status.CANCELLED])
         elif d["status"]:
             qs = qs.filter(status=d["status"])
+        if d["provider"]:
+            qs = qs.filter(provider_id=d["provider"])
+        if d["currency"]:
+            qs = qs.filter(currency=d["currency"])
         if d["utility"]:
             qs = qs.filter(utility_type=d["utility"])
         if d["org_unit"]:
@@ -49,14 +58,22 @@ def filtered_invoices(request):
             qs = qs.filter(due_date__lte=d["due_to"])
         if d["flagged"]:
             qs = qs.exclude(flags=[])
+        if d["priority"] == "urgent":
+            qs = qs.filter(processing_rank__gte=3)
+        elif d["priority"] == "high":
+            qs = qs.filter(processing_rank=2)
+        elif d["priority"] == "normal":
+            qs = qs.filter(processing_rank=1)
     return form, qs
 
 
 @login_required
 def invoice_list(request):
     form, qs = filtered_invoices(request)
-    order = request.GET.get("sort", "due_date")
-    if order.lstrip("-") in {"due_date", "amount_total", "issue_date", "reference", "status"}:
+    order = request.GET.get("sort", "priority")
+    if order == "priority":
+        qs = qs.order_by("-processing_rank", "due_date", "id")
+    elif order.lstrip("-") in {"due_date", "received_date", "amount_total", "issue_date", "reference", "status"}:
         qs = qs.order_by(order, "id")
     if request.GET.get("export") == "csv":
         AuditEvent.record("invoice.exported", data={"filters": request.GET.dict()})
@@ -124,6 +141,7 @@ def invoice_edit(request, pk):
 
 @login_required
 def invoice_detail(request, pk):
+    from invoices.evidence import approval_evidence
     from signatures.models import Signature
     from signatures.services import signature_summary
 
@@ -159,6 +177,7 @@ def invoice_detail(request, pk):
         "history": history, "projection": engine.sla_projection(invoice),
         "account_chart": account_history(invoice.service_account, 12),
         "settlement_item": invoice.settlement_items.select_related("line__instruction").order_by("-pk").first(),
+        "approval_evidence": approval_evidence(invoice),
     })
 
 
@@ -172,6 +191,47 @@ def invoice_document(request, pk):
     kind = "jpg" if ext in ("jpg", "jpeg") else ext
     return file_response(invoice.document, invoice.document_name or f"{invoice.reference}.{ext}",
                          CONTENT_TYPES.get(kind, "application/octet-stream"), inline=kind in ("pdf", "png", "jpg"))
+
+
+@login_required
+def invoice_approval_record(request, pk):
+    from invoices.evidence import approval_evidence
+
+    invoice = _get_invoice(request, pk)
+    evidence = approval_evidence(invoice)
+    if not evidence:
+        raise Http404("No current approval record is available.")
+    response = render(request, "invoices/approval_record.html", {"invoice": invoice, "evidence": evidence})
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+def invoice_approved_copy(request, pk):
+    from invoices.evidence import approval_evidence, render_approved_copy
+
+    invoice = _get_invoice(request, pk)
+    evidence = approval_evidence(invoice)
+    if not evidence:
+        raise Http404("Only approved invoices have an approval copy.")
+    try:
+        data = render_approved_copy(invoice, evidence)
+    except (ValidationError, OSError) as exc:
+        reason = " ".join(exc.messages) if isinstance(exc, ValidationError) else "The source document is unavailable."
+        messages.error(request, reason)
+        return redirect("invoices:approval_record", pk=pk)
+    import hashlib
+
+    AuditEvent.record("invoice.approved_copy_downloaded", obj=invoice, actor=request.user, data={
+        "copy_sha256": hashlib.sha256(data).hexdigest(), "source_sha256": evidence["source_sha256"],
+        "generated_at": evidence["generated_at"].isoformat(),
+        "batch": evidence["batch_reference"], "bank_reference": evidence["bank_reference"],
+    })
+    response = HttpResponse(data, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{invoice.reference}-approved-copy.pdf"'
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
 
 
 @login_required

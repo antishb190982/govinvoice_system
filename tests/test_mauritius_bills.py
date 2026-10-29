@@ -131,6 +131,12 @@ def test_zero_amount_bill_closes_without_payment(signers, policy, mt, tree):
     inv.document.save(f.name, f, save=False)
     save_invoice(inv, signers["clerk"])
     assert Flag.NOTHING_TO_PAY in inv.flags
+    from django.core.files.base import ContentFile
+    from django.utils import timezone
+    from reconciliation.services import upload_statement
+    listing = f"account_number,invoice_number,amount,currency\n{inv.service_account.account_number},{inv.invoice_number},0,{inv.currency}\n"
+    upload_statement(signers["admin"], inv.provider, inv.org_unit, inv.currency, timezone.localdate(),
+                     ContentFile(listing.encode(), name="zero-provider-statement.csv"))
     engine.submit(inv, signers["clerk"])
     engine.decide(inv.approval_tasks.get(status="pending"), signers["verifier"], engine.Decision.APPROVE)
     engine.decide(inv.approval_tasks.get(status="pending"), signers["approver"], engine.Decision.APPROVE, pin=PIN)

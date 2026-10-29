@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     "org",
     "providers",
     "invoices",
+    "reconciliation",
+    "operations",
     "imports",
     "workflow",
     "signatures",
@@ -182,8 +184,6 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage" if PRODUCTION
                     else "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
-# A missing manifest entry must degrade to the plain URL, never turn every page into a 500.
-WHITENOISE_MANIFEST_STRICT = False
 # Uploaded invoices, imports and signed PDFs. Never served directly: every
 # download goes through a permission-checked view. There is deliberately no
 # MEDIA_URL route.

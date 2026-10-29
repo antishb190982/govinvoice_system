@@ -1,10 +1,15 @@
 {% extends "base.html" %}{% block title %}Notifications{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Notifications</h1></div><div class="actions"><form method="post" action="{% url 'core:notifications_read_all' %}">{% csrf_token %}<button class="btn" type="submit">Mark all as read</button></form></div></div>
-<div class="card"><div class="table-wrap"><table><thead><tr><th></th><th>Notification</th><th>When</th><th></th></tr></thead><tbody>
+<div class="page-head"><div><h1>Notifications</h1><p>Reading an alert does not complete the task it refers to. Open the record to act on it.</p></div><div class="actions"><form method="post" action="{% url 'core:notifications_read_all' %}">{% csrf_token %}<button class="btn" type="submit">Mark all as read</button></form></div></div>
+{% if channel_readiness %}<div class="card notif-channels"><div><h2>Delivery channels</h2><p class="ops-note">Submitted means the provider accepted the message; it does not confirm it reached you. Failures are handled by an administrator.</p></div>
+<dl class="channel-list">{% if channel_readiness.email %}<div><dt>Email</dt><dd>{{ channel_readiness.email }}</dd></div>{% endif %}{% if channel_readiness.sms %}<div><dt>SMS</dt><dd>{{ channel_readiness.sms }}</dd></div>{% endif %}</dl>
+<a class="btn btn-sm" href="{% url 'accounts:profile' %}">Review my contact details</a></div>{% endif %}
+<div class="card"><div class="table-wrap"><table><thead><tr><th></th><th>Notification</th><th>Delivery</th><th>When</th><th></th></tr></thead><tbody>
 {% for n in page %}<tr class="{% if n.read_at %}row-muted{% endif %}"><td><span class="badge badge-{% if n.level == 'critical' %}danger{% elif n.level == 'warning' %}warn{% else %}info{% endif %}">{{ n.get_level_display }}</span></td>
-<td><strong>{{ n.title }}</strong><br><small>{{ n.body }}</small></td><td class="nowrap">{{ n.created_at|date:"d M H:i" }}</td>
+<td><strong>{{ n.title }}</strong><br><small>{{ n.body }}</small></td>
+<td><ul class="delivery-list">{% for d in n.deliveries.all %}<li class="delivery delivery-{{ d.status }}"><span>{{ d.get_channel_display }}</span> {% if d.status == 'sent' %}Submitted{% elif d.status == 'failed' %}Failed, contact your administrator{% elif d.status == 'skipped' %}Not sent{% else %}Pending{% endif %}</li>{% empty %}<li class="delivery">In app only</li>{% endfor %}</ul></td>
+<td class="nowrap">{{ n.created_at|date:"d M H:i" }}</td>
 <td class="right">{% if n.link %}<form method="post" action="{% url 'core:notification_read' n.pk %}" class="inline-form">{% csrf_token %}<button class="btn btn-sm" type="submit">Open</button></form>{% endif %}</td></tr>
-{% empty %}<tr><td colspan="4" class="empty">No notifications.</td></tr>{% endfor %}</tbody></table></div>
+{% empty %}<tr><td colspan="5" class="empty">No notifications.</td></tr>{% endfor %}</tbody></table></div>
 {% include "includes/pagination.html" %}</div>
 {% endblock %}

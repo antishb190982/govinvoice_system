@@ -1,7 +1,11 @@
 {% extends "auth_base.html" %}{% block title %}Verify{% endblock %}
 {% block content %}
 <h1>Two-step verification</h1>
+{% if fixed_otp_code %}
+<p class="muted">Temporary verification for <strong>{{ request.user.username }}</strong>: use <strong>{{ fixed_otp_code }}</strong>. Authenticator protection is temporarily reduced.</p>
+{% else %}
 <p class="muted">Enter the 6-digit code from your authenticator app for <strong>{{ request.user.username }}</strong>.</p>
+{% endif %}
 <form method="post" class="form-stack" novalidate>{% csrf_token %}
   {% include "includes/form_errors.html" %}
   {{ form.as_div }}

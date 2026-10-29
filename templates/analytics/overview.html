@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}{{ section_title }} overview{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/insights.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head ins-head"><div><h1>{{ section_title }} overview</h1>{% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+<p class="ins-stamp">Generated {{ generated_at|date:"j M Y, H:i" }}</p></div>
+<div class="actions"><a class="btn" href="{{ records_url }}">Open all records</a></div></div>
+
+<section aria-labelledby="ins-queues"><h2 id="ins-queues" class="ins-h">Action queues</h2>
+{% if cards %}<ul class="ins-cards">{% for c in cards %}<li><a class="card kpi ins-card{% if c.tone %} tone-{{ c.tone }}{% endif %}" href="{{ c.url }}">
+<div class="label">{{ c.label }}</div><div class="value">{{ c.value }}</div>{% if c.note %}<div class="sub">{{ c.note }}</div>{% endif %}<div class="ins-go">View {{ c.value }} record{{ c.value|pluralize }} &rarr;</div></a></li>{% endfor %}</ul>
+{% else %}<div class="card ins-empty"><p>No summary counts are available for this area yet.</p><a href="{{ records_url }}">Go to the records list</a></div>{% endif %}
+</section>
+
+<div class="ins-grid">
+<section class="card" aria-labelledby="ins-status"><div class="card-head"><h2 id="ins-status">By status</h2></div>
+{% if breakdown %}<div class="table-wrap"><table><thead><tr><th scope="col">Status</th><th scope="col" class="num">Records</th></tr></thead><tbody>
+{% for r in breakdown %}<tr><td><a href="{{ r.url }}">{{ r.label }}</a></td><td class="num"><a href="{{ r.url }}">{{ r.count }}</a></td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="empty">No records to break down. <a href="{{ records_url }}">View records</a></p>{% endif %}</section>
+
+{% if providers %}<section class="card" aria-labelledby="ins-prov"><div class="card-head"><h2 id="ins-prov">By provider</h2></div>
+<div class="table-wrap"><table><thead><tr><th scope="col">Provider</th><th scope="col" class="num">Records</th></tr></thead><tbody>
+{% for r in providers %}<tr><td><a href="{{ r.url }}">{{ r.label }}</a></td><td class="num"><a href="{{ r.url }}">{{ r.count }}</a></td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+
+{% if amounts %}<section class="card" aria-labelledby="ins-amt"><div class="card-head"><h2 id="ins-amt">Original billed amounts by currency</h2></div>
+<p class="muted">Excludes Draft and Cancelled invoices. These are original billed amounts, not cash paid or net payable after adjustments.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Currency</th><th scope="col" class="num">Records</th><th scope="col" class="num">Total</th></tr></thead><tbody>
+{% for a in amounts %}<tr><td><a href="{{ a.url }}">{{ a.currency }}</a></td><td class="num"><a href="{{ a.url }}">{{ a.count }}</a></td><td class="num"><a href="{{ a.url }}">{{ a.total|floatformat:3 }} {{ a.currency }}</a></td></tr>{% endfor %}</tbody></table></div></section>{% endif %}
+</div>
+
+<aside class="card ins-defs" aria-labelledby="ins-def"><h2 id="ins-def">How to read this</h2><ul>
+<li>Counts are live record counts within your access scope at the time shown above; select any count to open exactly those records.</li>
+<li>Amounts are totalled per currency only; currencies are never converted or added together.</li>
+<li>Use the records tab for filtering, exports and actions.</li></ul></aside>
+{% endblock %}

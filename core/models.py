@@ -10,6 +10,13 @@ from django.utils import timezone
 GENESIS_HASH = "0" * 64
 
 
+class ProductionBootstrap(models.Model):
+    """Permanent one-time setup marker, even if staff accounts are later removed."""
+
+    singleton = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
+    completed_at = models.DateTimeField(auto_now_add=True)
+
+
 def canonical_json(data):
     """Deterministic JSON used for hashing and signing."""
     return json.dumps(data, cls=DjangoJSONEncoder, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
@@ -102,6 +109,10 @@ class AuditEvent(models.Model):
             head.last_sequence = event.sequence
             head.last_hash = event.entry_hash
             head.save(update_fields=["last_sequence", "last_hash"])
+            # Persist the role-scoped alert in the same transaction as the
+            # activity; external transports run only after successful commit.
+            from core.action_notifications import dispatch
+            dispatch(event, obj)
         return event
 
     @classmethod

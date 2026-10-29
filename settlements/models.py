@@ -10,6 +10,8 @@ from providers.models import Provider
 
 
 class SettlementInstruction(models.Model):
+    batch = models.ForeignKey("operations.InvoiceBatch", null=True, blank=True, on_delete=models.PROTECT,
+                              related_name="settlements")
     """
     A payment instruction to the paying bank/treasury: the total to settle for
     each utility provider, built from approved invoices before their due dates.

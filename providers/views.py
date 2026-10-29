@@ -67,12 +67,24 @@ class AccountForm(forms.ModelForm):
     class Meta:
         model = ServiceAccount
         fields = ["provider", "org_unit", "account_number", "meter_number", "description", "premises", "tariff",
-                  "budget_line", "is_active"]
+                  "budget_line", "status", "service_type", "service_details", "purpose", "owner"]
 
     def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["org_unit"].queryset = units_for(user, [Role.UNIT_ADMIN])
         self.fields["org_unit"].label_from_instance = lambda u: u.indented_name
+        self.fields["status"].required = False
+
+    def clean_status(self):
+        return self.cleaned_data.get("status") or self.instance.status
+
+    def save(self, commit=True):
+        account = super().save(commit=False)
+        account.is_active = account.status == ServiceAccount.Status.ACTIVE
+        if commit:
+            account.save()
+            self.save_m2m()
+        return account
 
 
 @login_required
@@ -102,12 +114,18 @@ def provider_form(request, pk=None):
     if not is_master_data_admin(request.user):
         raise PermissionDenied
     provider = get_object_or_404(Provider, pk=pk) if pk else None
-    form = ProviderForm(request.POST or None, instance=provider)
+    form = ProviderForm(request.POST or None, instance=provider,
+                        initial={"name": request.GET.get("name", "")[:150]})
     if request.method == "POST" and form.is_valid():
         changed = form.changed_data
         provider = form.save()
         AuditEvent.record("provider.saved", obj=provider, data={"fields": changed})
         messages.success(request, "Provider saved." + ("" if pk else " Now submit its bank details."))
+        from imports.registration import refresh_return_destination
+
+        nxt = request.GET.get("next", "")
+        if refresh_return_destination(request.user, nxt):
+            return redirect(nxt)
         return redirect("providers:detail", pk=provider.pk)
     return render(request, "providers/form.html", {"form": form, "provider": provider})
 
@@ -170,6 +188,8 @@ def account_detail(request, pk):
         "account": account, "chart": account_history(account, 24),
         "invoices": account.invoices.order_by("-issue_date")[:24],
         "can_edit": has_role(request.user, account.org_unit, [Role.UNIT_ADMIN]),
+        "history": AuditEvent.objects.filter(object_type="providers.serviceaccount",
+            object_id=str(account.pk)).order_by("-sequence")[:30],
     })
 
 
@@ -180,18 +200,48 @@ def account_form(request, pk=None):
         raise PermissionDenied
     if not user_has_any_role(request.user, [Role.UNIT_ADMIN]):
         raise PermissionDenied
+    previous = {f: getattr(account, f) for f in ["status", "service_type", "purpose", "owner"]} if account else {}
     form = AccountForm(request.POST or None, instance=account, user=request.user,
                        initial={"provider": request.GET.get("provider"),
+                                "org_unit": request.GET.get("org_unit"),
                                 "account_number": request.GET.get("account_number", "")[:60],
                                 "meter_number": request.GET.get("meter_number", "")[:60]})
     if request.method == "POST" and form.is_valid():
         changed = form.changed_data
-        account = form.save()
-        AuditEvent.record("service_account.saved", obj=account, data={"fields": changed})
+        from django.db import transaction
+        from reconciliation.services import lock_provider
+        with transaction.atomic():
+            lock_provider(form.instance.provider_id)
+            account = form.save()
+            AuditEvent.record("service_account.saved", obj=account, actor=request.user, data={
+                "fields": changed, "status": account.status, "service_type": account.service_type,
+                "purpose": account.purpose, "owner": account.owner, "before": previous})
         messages.success(request, "Service account saved.")
         nxt = request.GET.get("next", "")
+        from imports.registration import refresh_return_destination
+
+        if refresh_return_destination(request.user, nxt):
+            messages.info(request, "Registration progress refreshed. The original invoice files are still saved.")
+            return redirect(nxt)
         if nxt.startswith("/imports/"):
             messages.info(request, "Re-check the import rows (Fix → Re-check, or Analyse again) to pick up the new account.")
             return redirect(nxt)
         return redirect("providers:account", pk=account.pk)
     return render(request, "providers/account_form.html", {"form": form, "account": account})
+
+
+@login_required
+def accounts(request):
+    from django.db.models import Q
+    from core.utils import paginate
+    rows = scope(ServiceAccount.objects.select_related("provider", "org_unit"), request.user)
+    status = request.GET.get("status", "")
+    if status in ServiceAccount.Status.values:
+        rows = rows.filter(status=status)
+    q = request.GET.get("q", "").strip()[:120]
+    if q:
+        rows = rows.filter(Q(account_number__icontains=q) | Q(provider__name__icontains=q) |
+            Q(owner__icontains=q) | Q(purpose__icontains=q) | Q(service_type__icontains=q) |
+            Q(premises__icontains=q))
+    return render(request, "providers/accounts.html", {"page": paginate(request, rows),
+        "q": q, "status": status, "statuses": ServiceAccount.Status.choices})

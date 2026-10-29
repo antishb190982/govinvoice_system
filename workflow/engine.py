@@ -36,12 +36,14 @@ class Decision:
     CHOICES = [(APPROVE, "Approve"), (RETURN, "Return for correction"), (DISPUTE, "Dispute with provider")]
 
 
-def select_policy(invoice):
+def select_policy(invoice, for_update=False):
     ancestor_ids = invoice.org_unit.ancestor_ids
     candidates = ApprovalPolicy.objects.filter(
         is_active=True, org_unit_id__in=ancestor_ids, min_amount__lte=invoice.amount_total,
     ).filter(Q(max_amount__isnull=True) | Q(max_amount__gte=invoice.amount_total)) \
         .filter(Q(utility_type="") | Q(utility_type=invoice.utility_type)).select_related("org_unit")
+    if for_update:
+        candidates = candidates.select_for_update(of=("self",))
 
     def specificity(policy):
         return (-policy.org_unit.depth, 0 if policy.utility_type else 1, policy.priority, policy.pk)
@@ -79,9 +81,13 @@ def submit(invoice, user):
         raise ValidationError("Only draft, returned or disputed invoices can be submitted.")
     if not has_role(user, invoice.org_unit, [Role.CLERK, Role.UNIT_ADMIN]):
         raise PermissionDenied("You cannot submit invoices for this unit.")
+    from reconciliation.services import require_reconciled
+    from operations.services import require_clear
+    require_clear(invoice)
+    require_reconciled(invoice)
     if not invoice.document:
         raise ValidationError("Attach the provider's invoice document before submitting.")
-    policy = select_policy(invoice)
+    policy = select_policy(invoice, for_update=True)
     if policy is None:
         raise ValidationError("No approval policy covers this unit, utility and amount. Ask an administrator.")
     steps = [s for s in policy.steps.order_by("order") if invoice.amount_total >= s.min_amount]
@@ -143,6 +149,7 @@ def decide(task, user, decision, comment="", pin=None):
 
 @transaction.atomic
 def _decide(task, user, decision, comment, pin):
+    from operations.services import payable, require_clear
     task = ApprovalTask.objects.select_for_update().select_related("invoice__org_unit", "invoice__provider",
                                                                    "invoice__service_account").get(pk=task.pk)
     invoice = Invoice.objects.select_for_update().get(pk=task.invoice_id)
@@ -150,6 +157,10 @@ def _decide(task, user, decision, comment, pin):
     check_can_decide(task, user)
     if decision not in (Decision.APPROVE, Decision.RETURN, Decision.DISPUTE):
         raise ValidationError("Unknown decision.")
+    if decision == Decision.APPROVE:
+        from reconciliation.services import require_reconciled
+        require_clear(invoice)
+        require_reconciled(invoice)
     comment = (comment or "").strip()
     if decision != Decision.APPROVE and not comment:
         raise ValidationError("Give a reason when returning or disputing an invoice.")
@@ -185,7 +196,7 @@ def _decide(task, user, decision, comment, pin):
         nxt = invoice.approval_tasks.filter(round=task.round, status=ApprovalTask.Status.WAITING).order_by("order").first()
         if nxt:
             _activate(nxt, now)
-        elif invoice.amount_total == 0:
+        elif payable(invoice) == 0:
             # Fully discounted / credit-covered bills: verified and approved, nothing to transfer.
             invoice.status = Invoice.Status.PAID
             invoice.approved_at = now

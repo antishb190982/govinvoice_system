@@ -14,10 +14,15 @@ def app_context(request):
         return ctx
     roles = set(Role.values) if user.is_superuser else set(active_memberships(user).values_list("role", flat=True))
     from workflow.engine import pending_for
+    from operations.workspace import counts_for
+    from analytics.sections import section_navigation
 
+    ctx.update(section_navigation(request))
     ctx.update({
+        "nav_units": list(active_memberships(user).order_by("org_unit__name").values_list("org_unit__name", flat=True).distinct()[:3]),
         "my_roles": roles,
         "unread_notifications": user.notifications.filter(read_at__isnull=True).count(),
+        "batch_folder_counts": getattr(request, "batch_folder_counts", None) or counts_for(user),
         "pending_approvals": pending_for(user).count() if roles & {Role.VERIFIER, Role.APPROVER, Role.UNIT_ADMIN} else 0,
         "can": {
             "capture": bool(roles & {Role.CLERK, Role.UNIT_ADMIN}),
@@ -26,6 +31,8 @@ def app_context(request):
             "admin": bool(roles & {Role.UNIT_ADMIN}),
             "audit": user.is_superuser or Role.AUDITOR in roles,
             "sysadmin": user.is_superuser,
+            "dispute": bool(roles & {Role.CLERK, Role.UNIT_ADMIN, Role.FINANCE, Role.VERIFIER, Role.APPROVER, Role.AUTHORISER}),
+            "bank": bool(roles & {Role.FINANCE, Role.AUTHORISER, Role.UNIT_ADMIN, Role.AUDITOR}),
         },
     })
     return ctx

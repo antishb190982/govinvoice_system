@@ -7,17 +7,21 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 FIELDS = ["account_number", "service_number", "invoice_number", "issue_date", "due_date", "period_start",
+          "surcharge_amount", "surcharge_description",
           "period_end", "amount_net", "amount_tax", "amount_total", "arrears", "consumption", "previous_reading",
-          "current_reading", "currency", "provider"]
+          "current_reading", "currency", "provider", "received_date"]
 # Read from files but not stored as such: a billing month like "September 2026"
 # or "01/09/2026 - 30/09/2026" that fills period_start / period_end.
 EXTRA_FIELDS = ["period"]
-DATE_FIELDS = {"issue_date", "due_date", "period_start", "period_end"}
+DATE_FIELDS = {"issue_date", "due_date", "period_start", "period_end", "received_date"}
 DECIMAL_FIELDS = {"amount_net", "amount_tax", "amount_total", "arrears", "consumption", "previous_reading",
+                  "surcharge_amount",
                   "current_reading"}
 REQUIRED = {"account_number", "invoice_number", "issue_date", "due_date", "amount_total"}
 
 ALIASES = {
+    "surcharge_amount": ["surcharge", "surcharge amount", "late fee", "late payment fee", "late payment surcharge", "penalty", "penalty amount", "interest charge"],
+    "surcharge_description": ["surcharge reason", "surcharge description", "penalty reason"],
     "account_number": ["account no id", "account", "account no", "account number", "acct", "contract", "contract no",
                        "contract acct", "contract account", "billing account", "bill acc", "bill account",
                        "customer account", "subscriber no", "premise no", "meter account"],
@@ -26,6 +30,7 @@ ALIASES = {
     "invoice_number": ["bill number", "invoice", "invoice no", "invoice number", "bill no", "document no",
                        "inv no", "reference", "bill ref", "serial no"],
     "issue_date": ["issue date", "invoice date", "bill date", "bill issued on", "date", "billing date", "document date"],
+    "received_date": ["received date", "receipt date", "date received", "invoice received", "reception date"],
     "due_date": ["due date", "payment due", "pay by", "due", "last payment date", "last date for payment"],
     "period_start": ["period start", "from", "from date", "period from", "start date"],
     "period_end": ["period end", "to", "to date", "period to", "end date"],

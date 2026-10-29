@@ -9,6 +9,7 @@ from django.utils import timezone
 from core.utils import paginate
 from invoices.models import Flag
 from org.access import can_view, scope
+from org.models import Role
 from signatures.services import active_identity
 from workflow import engine
 from workflow.models import ApprovalPolicy, ApprovalTask
@@ -26,6 +27,12 @@ class DecisionForm(forms.Form):
 def inbox(request):
     tasks = engine.pending_for(request.user).select_related(
         "invoice__provider", "invoice__org_unit", "invoice__service_account").order_by("due_at")
+    if request.GET.get("attention") == "overdue":
+        tasks = tasks.filter(due_at__lt=timezone.now())
+    elif request.GET.get("attention") == "expedited":
+        tasks = tasks.filter(expedited=True)
+    if request.GET.get("role") in Role.values:
+        tasks = tasks.filter(role=request.GET["role"])
     return render(request, "workflow/inbox.html", {"tasks": tasks, "now": timezone.now()})
 
 
@@ -60,8 +67,9 @@ def task_detail(request, pk):
             form.add_error(None, " ".join(getattr(exc, "messages", [str(exc)])))
         else:
             messages.success(request, f"Decision recorded for {invoice.reference}.")
-            nxt = engine.pending_for(request.user).order_by("due_at").first()
-            return redirect("workflow:task", pk=nxt.pk) if nxt else redirect("workflow:inbox")
+            # Keep the success message and resulting status on the same
+            # invoice; do not silently switch to another ministry's task.
+            return redirect(invoice)
     previous = invoice.approval_tasks.filter(round=task.round, order__lt=task.order).select_related("decided_by")
     return render(request, "workflow/task.html", {
         "task": task, "invoice": invoice, "form": form, "block_reason": block_reason, "previous": previous,
@@ -73,5 +81,14 @@ def task_detail(request, pk):
 
 @login_required
 def policies(request):
-    items = scope(ApprovalPolicy.objects.prefetch_related("steps").select_related("org_unit"), request.user)
-    return render(request, "workflow/policies.html", {"policies": items})
+    from org.access import has_role, user_has_any_role
+    from org.models import Role
+    from workflow.configuration import policy_nodes, readable_policies
+
+    items = list(readable_policies(request.user))
+    for item in items:
+        item.can_edit = has_role(request.user, item.org_unit, [Role.UNIT_ADMIN])
+        item.nodes = policy_nodes(item)
+    return render(request, "workflow/policies.html", {
+        "policies": items, "can_configure": user_has_any_role(request.user, [Role.UNIT_ADMIN]),
+    })

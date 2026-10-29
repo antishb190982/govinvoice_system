@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Dispute basket{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'invoices:list' %}">Invoices</a> / Dispute basket</div><h1>Dispute basket</h1>
+<p>Invoice issues, internal waivers and refund requests. An unresolved case on an unpaid invoice holds its approval and payment.</p></div>
+<div class="actions">{% if can.dispute %}<a class="btn btn-primary" href="{% url 'operations:case_new' %}">Open case</a>{% endif %}</div></div>
+<div class="card"><form method="get" class="filters"><div><label for="q">Search</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Case, invoice or item"></div>
+<div><label for="status">Status</label><select id="status" name="status"><option value="active"{% if status == 'active' %} selected{% endif %}>Active (needs action)</option><option value="all"{% if status == 'all' %} selected{% endif %}>All</option>{% for v, l in statuses %}<option value="{{ v }}"{% if status == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+<div><button class="btn btn-primary" type="submit">Filter</button> <a class="btn btn-ghost" href="{% url 'operations:cases' %}">Reset</a></div></form></div>
+{% if legacy_disputes %}<div class="card"><h2>Disputed in workflow, without a case</h2><p class="ops-note">These invoices were disputed during approval before cases existed. Open a case to record the reason and decision.</p>
+<div class="table-wrap"><table class="ops-table"><thead><tr><th>Invoice</th><th>Provider</th><th class="num">Gross</th><th></th></tr></thead><tbody>
+{% for inv in legacy_disputes %}<tr><td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a></td><td>{{ inv.provider.name }}</td><td class="num">{{ inv.amount_total|money:inv.currency }}</td><td><a class="btn btn-sm" href="{% url 'operations:case_new' %}?invoice={{ inv.pk }}">Open case</a></td></tr>{% endfor %}
+</tbody></table></div></div>{% endif %}
+<div class="card"><div class="table-wrap"><table class="ops-table"><thead><tr><th>Case</th><th>Type</th><th>Invoice</th><th>Item</th><th class="num">Amount</th><th>Opened</th><th>Status</th></tr></thead><tbody>
+{% for c in page %}<tr><td><a href="{{ c.get_absolute_url }}">{{ c.reference }}</a></td><td>{{ c.get_kind_display }}</td><td><a href="{{ c.invoice.get_absolute_url }}">{{ c.invoice.reference }}</a><br><small class="muted">{{ c.invoice.provider.name }}</small></td>
+<td>{{ c.item_description|default:"Whole invoice" }}</td><td class="num">{{ c.amount|money:c.invoice.currency }}</td><td class="nowrap">{{ c.opened_at|date:"d M Y" }}<br><small class="muted">{{ c.opened_by }}</small></td><td>{% status_badge c %}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No cases match this filter.</td></tr>{% endfor %}</tbody></table></div>{% include "includes/pagination.html" %}</div>
+{% endblock %}

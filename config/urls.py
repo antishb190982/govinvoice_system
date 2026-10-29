@@ -16,6 +16,8 @@ urlpatterns = [
     path("org/", include("org.urls")),
     path("providers/", include("providers.urls")),
     path("invoices/", include("invoices.urls")),
+    path("reconciliation/", include("reconciliation.urls")),
+    path("operations/", include("operations.urls")),
     path("imports/", include("imports.urls")),
     path("approvals/", include("workflow.urls")),
     path("signatures/", include("signatures.urls")),

@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Service account register{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:list' %}">Providers</a> / Account register</div><h1>Service account register</h1>
+<p>Every utility account in your units, with its status, service and responsible owner. Accounts that are not active may still receive final bills, but those bills are held from approval and payment.</p></div>
+<div class="actions">{% if can.admin %}<a class="btn btn-primary" href="{% url 'providers:account_create' %}">Register account</a>{% endif %}</div></div>
+<div class="card"><form method="get" class="filters">
+<div><label for="q">Search</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Account, meter, owner, purpose, premises"></div>
+<div><label for="status">Status</label><select id="status" name="status"><option value="">All statuses</option>{% for v, l in statuses %}<option value="{{ v }}"{% if status == v %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+<div><button class="btn btn-primary" type="submit">Filter</button> <a class="btn btn-ghost" href="{{ request.path }}">Reset</a></div></form></div>
+<div class="card"><div class="table-wrap"><table class="ops-table"><thead><tr><th>Account</th><th>Provider</th><th>Unit</th><th>Status</th><th>Service type</th><th>Owner</th><th>Purpose</th></tr></thead><tbody>
+{% for a in page %}<tr><td><a href="{% url 'providers:account' a.pk %}">{{ a.account_number }}</a>{% if a.premises %}<br><small class="muted">{{ a.premises }}</small>{% endif %}</td>
+<td>{{ a.provider.name }}</td><td>{{ a.org_unit }}</td><td>{% include "providers/_account_status.html" %}</td><td>{{ a.service_type|default:"—" }}</td><td>{{ a.owner|default:"—" }}</td><td>{{ a.purpose|default:"—" }}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">{% if q or status %}No accounts match this filter.{% else %}No service accounts registered in your units yet.{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include "includes/pagination.html" %}</div>
+{% endblock %}

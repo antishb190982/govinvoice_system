@@ -48,6 +48,7 @@ LABELS = {
                      "المبلغ المستحق", "الإجمالي", "المبلغ الإجمالي", "المجموع",
                      "montant dû", "montant à payer", "total à payer", "net à payer", "total ttc", "montant total"],
     "amount_tax": ["vat", "vat amount", "value added tax", "tax amount", "tax", "ضريبة القيمة المضافة", "الضريبة", "tva", "montant tva"],
+    "surcharge_amount": ["surcharge", "late payment fee", "late payment surcharge", "late fee", "penalty amount", "interest charge"],
     "amount_net": ["total amount for the period before vat", "amount for the period before vat", "amount before tax",
                    "amount before vat", "subtotal", "sub total", "sub-total", "net amount",
                    "amount excl vat", "taxable amount", "المبلغ قبل الضريبة", "montant ht", "total ht", "hors taxes"],
@@ -79,7 +80,7 @@ FILLER = {"is", "on", "by", "as", "at", "le", "du", "de", "the", "of", "(a)", "(
           "kwh", "no", "no.", "nr", "n°"}
 TYPES = {"account_number": "id", "service_number": "id", "invoice_number": "id", "issue_date": "date", "due_date": "date",
          "period_start": "date", "period_end": "date", "amount_total": "amount", "amount_tax": "amount",
-         "amount_net": "amount", "arrears": "amount", "consumption": "number", "previous_reading": "number",
+         "amount_net": "amount", "surcharge_amount": "amount", "arrears": "amount", "consumption": "number", "previous_reading": "number",
          "current_reading": "number", "currency": "currency"}
 REQUIRED = ("provider", "account_number", "invoice_number", "issue_date", "due_date", "amount_total")
 CURRENCIES = {"MUR", "RS", "OMR", "AED", "SAR", "ZAR", "INR", "USD", "EUR", "GBP"}
@@ -387,7 +388,7 @@ def identify_provider(pages, providers, hint=None):
         if provider.bank_iban and compact_id(provider.bank_iban) in all_text:
             score += 0.3
             evidence.append("IBAN")
-        accounts = list(provider.accounts.filter(is_active=True).values_list("account_number", flat=True)[:5000])
+        accounts = list(provider.accounts.all().values_list("account_number", flat=True)[:5000])
         if any(any(ocr_equivalent(t, a) for t in tokens) for a in accounts if len(compact_id(a)) >= 4):
             score += 0.45
             evidence.append("registered account number")
@@ -419,7 +420,7 @@ def identify_provider(pages, providers, hint=None):
 
 def registry_account(pages, provider):
     """Find a registered account (or its line / meter number) of this provider anywhere in the text."""
-    rows = list(provider.accounts.filter(is_active=True).values_list("account_number", "meter_number")[:5000])
+    rows = list(provider.accounts.all().values_list("account_number", "meter_number")[:5000])
     if not rows:
         return None
     accounts = [a for a, _ in rows]
@@ -605,7 +606,7 @@ def analyse(pages, providers, hint=None, template_lookup=None):
     # Account number seen only via its label: snap to a registered account if it is an OCR variant.
     acct = extraction.get("account_number")
     if acct and acct["source"] == "label" and provider:
-        for registered in provider.accounts.filter(is_active=True).values_list("account_number", flat=True):
+        for registered in provider.accounts.all().values_list("account_number", flat=True):
             if ocr_equivalent(str(acct["value"]), registered):
                 acct.update(value=registered, confidence=round(min(0.97, acct["confidence"] + 0.15), 3),
                             evidence=acct["evidence"] + "; matches registered account")
@@ -635,13 +636,18 @@ def _boost(item, by, note):
 def _cross_check(ex, warnings):
     net, tax, total = (ex.get(k) for k in ("amount_net", "amount_tax", "amount_total"))
     if net and tax and total:
-        if abs(net["value"] + tax["value"] - total["value"]) <= Decimal("0.01"):
+        surcharge = (ex.get("surcharge_amount") or {}).get("value") or Decimal("0")
+        subtotal = net["value"] + tax["value"]
+        if min(abs(subtotal - total["value"]), abs(subtotal + surcharge - total["value"])) <= Decimal("0.01"):
             for item in (net, tax, total):
                 _boost(item, 0.12, "net + tax = total")
         else:
             warnings.append("Net + tax does not equal the total found.")
             total["confidence"] = round(total["confidence"] * 0.85, 3)
     elif net and tax and not total:
+        if ex.get("surcharge_amount"):
+            warnings.append("Surcharge found without a printed total. Confirm whether the subtotal includes it; no total was inferred.")
+            return
         ex["amount_total"] = {"value": net["value"] + tax["value"], "raw": None,
                               "confidence": round(min(net["confidence"], tax["confidence"]) * 0.8, 3),
                               "page": net["page"], "bbox": None, "source": "computed", "evidence": "net + tax"}

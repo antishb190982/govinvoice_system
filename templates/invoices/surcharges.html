@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Surcharge monitor{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'invoices:list' %}">Invoices</a> / Surcharge monitor</div><h1>Surcharge monitor</h1>
+<p>Late fees and surcharges already included in billed totals, grouped by invoice issue month (not payment or receipt month).</p></div></div>
+<div class="card"><form method="get" class="filters">
+<div><label for="q">Search</label><input id="q" type="search" name="q" value="{{ q }}" placeholder="Invoice, provider, account, description"></div>
+<div><label for="status">Review</label><select id="status" name="status"><option value="all"{% if status == '' or status == 'all' %} selected{% endif %}>All</option><option value="unreviewed"{% if status == 'unreviewed' %} selected{% endif %}>Awaiting review</option><option value="reviewed"{% if status == 'reviewed' %} selected{% endif %}>Reviewed</option><option value="disputed"{% if status == 'disputed' %} selected{% endif %}>Live dispute</option></select></div>
+<div><label for="currency">Currency</label><select id="currency" name="currency"><option value="">All currencies</option>{% for c in currency_options %}<option value="{{ c }}"{% if selected_currency == c %} selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+<div><button class="btn btn-primary" type="submit">Filter</button> <a class="btn btn-ghost" href="{% url 'invoices:surcharges' %}">Reset</a></div></form></div>
+{% if mixed_currencies %}<div class="callout warn"><strong>Several currencies</strong>Totals are not combined across currencies. Choose a currency to see charged, waived, refunded and net cost.</div>
+{% else %}<div class="ops-kpis">
+<div class="ops-kpi"><span>Charged</span><strong>{{ charged|money:currency }}</strong></div>
+<div class="ops-kpi"><span>Waived before payment</span><strong>{{ waived|money:currency }}</strong></div>
+<div class="ops-kpi"><span>Refunds received</span><strong>{{ received|money:currency }}</strong></div>
+<div class="ops-kpi{% if refund_due %} warn{% endif %}"><span>Refunds outstanding</span><strong>{{ refund_due|money:currency }}</strong></div>
+<div class="ops-kpi"><span>Net cost</span><strong>{{ net_cost|money:currency }}</strong></div></div>
+<p class="ops-note">Net cost = charged − approved waivers − refunds actually received.</p>{% endif %}
+<div class="card"><h2>Invoices with a surcharge</h2><div class="table-wrap"><table class="ops-table"><thead><tr><th>Invoice</th><th>Issued</th><th class="num">Original gross</th><th class="num">Surcharge</th><th>Description</th><th>Review</th><th></th></tr></thead><tbody>
+{% for inv in page %}<tr><td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a><br><small class="muted">{{ inv.provider.short_code }} · {{ inv.service_account.account_number }}</small></td><td class="nowrap">{{ inv.issue_date|date:"d M Y" }}</td>
+<td class="num">{{ inv.amount_total|money:inv.currency }}</td><td class="num"><strong>{{ inv.surcharge_amount|money:inv.currency }}</strong></td><td>{{ inv.surcharge_description|default:"—" }}</td>
+<td>{% if inv.surcharge_reviewed_at %}<span class="badge badge-ok">Reviewed</span><br><small class="muted">{{ inv.surcharge_reviewed_by }}</small>{% else %}<span class="badge badge-warn">Awaiting</span>{% endif %}</td>
+<td class="nowrap"><a href="{% url 'invoices:surcharge' inv.pk %}">Manage</a> · <a href="{% url 'operations:case_new' %}?invoice={{ inv.pk }}&amp;surcharge=1">Dispute</a></td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No surcharges match this filter.</td></tr>{% endfor %}</tbody></table></div>{% include "includes/pagination.html" %}</div>
+<p class="ops-note">Review status records the separate finance assessment. An authorised full surcharge waiver already removes its payment hold. Figures below use surcharge-tagged adjustments, not unallocated whole-invoice adjustments.</p>
+<div class="split"><div class="card"><h2>By provider</h2><div class="table-wrap"><table class="ops-table ops-table-compact"><thead><tr><th>Provider</th><th class="num">Invoices</th><th class="num">Charged</th></tr></thead><tbody>
+{% for p in providers %}<tr><td>{{ p.provider__name }} <small class="muted">{{ p.provider__short_code }}</small>{% if p.count > 1 %} <span class="badge badge-warn">Repeat</span>{% endif %}</td><td class="num">{{ p.count }}</td><td class="num">{{ p.charged|money:p.currency }}</td></tr>{% empty %}<tr><td colspan="3" class="empty">None.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><h2>By service account</h2><div class="table-wrap"><table class="ops-table ops-table-compact"><thead><tr><th>Account</th><th>Owner</th><th class="num">Invoices</th><th class="num">Charged</th></tr></thead><tbody>
+{% for a in accounts %}<tr><td><a href="{% url 'providers:account' a.service_account_id %}">{{ a.service_account__account_number }}</a> <small class="muted">{{ a.provider__short_code }}</small>{% if a.count > 1 %} <span class="badge badge-warn">Repeat fee</span>{% endif %}</td><td>{{ a.service_account__owner|default:"—" }}</td><td class="num">{{ a.count }}</td><td class="num">{{ a.charged|money:a.currency }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">None.</td></tr>{% endfor %}</tbody></table></div></div></div>
+<div class="card mt"><h2>Monthly trend by invoice issue month</h2><div class="table-wrap"><table class="ops-table ops-table-compact"><thead><tr><th>Issue month</th><th>Currency</th><th class="num">Invoices</th><th class="num">Charged</th></tr></thead><tbody>
+{% for m in months %}<tr><td>{{ m.month|date:"M Y" }}</td><td>{{ m.currency }}</td><td class="num">{{ m.count }}</td><td class="num">{{ m.charged|money:m.currency }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">None.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block title %}Intake results{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Intake staged for review</h1><p>No invoices have been committed or approved.</p></div>
+<a class="btn" href="{% url 'imports:list' %}">All imports</a></div>
+<div class="card"><h2>Review batches</h2><ul>{% for b in batches %}
+<li><a href="{% url 'imports:batch' b.pk %}">Import #{{ b.pk }} · {{ b.original_name }}</a> · {{ b.rows.count }} rows · received {{ b.received_date|date:"d M Y" }}</li>
+{% endfor %}</ul>{% if registration_url %}<p><a class="btn" href="{{ registration_url }}">First-time registration</a> Route unregistered accounts to unit administrators.</p>{% endif %}</div>
+{% if skipped %}<div class="card mt"><h2>Files not imported</h2><p>These files were not supported; they were not silently discarded.</p><ul>{% for note in skipped %}<li>{{ note }}</li>{% endfor %}</ul></div>{% endif %}
+{% endblock %}

@@ -9,7 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 from django.db import connection
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
@@ -221,34 +221,73 @@ def settings_view(request, group=None):
 
 class TestForm(forms.Form):
     to = forms.CharField(label="Send a test to", max_length=254)
+    confirm = forms.BooleanField(label="I authorise sending one test message to this recipient.", required=True)
+
+
+class EmailTestForm(TestForm):
+    to = forms.EmailField(label="Send a test to", max_length=254)
+
+
+def gateway_readiness():
+    from core.notify import channel_readiness
+
+    labels = channel_readiness()
+    return {
+        "email": {"ready": settings.EMAIL_BACKEND == "integrations.mail.ConfigurableEmailBackend"
+                  and bool(config.get("SMTP_ENABLED") and config.get("SMTP_HOST")),
+                  "label": labels["email"]},
+        "sms": {"ready": bool(config.get("SMS_ENABLED") and config.get("SMS_URL")),
+                "label": labels["sms"]},
+    }
+
+
+@sysadmin_required
+def gateways(request):
+    day = timezone.now() - timedelta(days=1)
+    stats = list(OutboundMessage.objects.filter(created_at__gte=day).values("channel").annotate(
+        total=Count("pk"), submitted=Count("pk", filter=Q(status="sent")),
+        failed=Count("pk", filter=Q(status="failed")), skipped=Count("pk", filter=Q(status="skipped")),
+    ).order_by("channel"))
+    return render(request, "integrations/gateways.html", {
+        "channels": gateway_readiness(), "stats": stats,
+        "deliveries": OutboundMessage.objects.all()[:15], "tab": "gateways",
+    })
 
 
 @sysadmin_required
 def email_view(request):
+    from integrations.mail import ConfigurableEmailBackend
+
     keys = config.groups()["E-mail (SMTP)"]
-    form, test = _settings_form(keys), TestForm(initial={"to": request.user.email})
+    form, test = _settings_form(keys), EmailTestForm(initial={"to": request.user.email})
     if request.method == "POST" and request.POST.get("action") == "save":
         form, ok = _save_form(request, keys)
         if ok:
             return redirect("console:email")
     elif request.method == "POST" and request.POST.get("action") == "test":
-        test = TestForm(request.POST)
+        test = EmailTestForm(request.POST)
         if test.is_valid():
-            try:
-                send_mail(f"[{settings.BRAND_NAME}] Test e-mail", "SMTP is configured correctly.", None,
-                          [test.cleaned_data["to"]], fail_silently=False)
-                last = OutboundMessage.objects.filter(channel="email").first()
-                if last and last.status == "skipped":
-                    messages.warning(request, "SMTP is disabled: the message was written to the server log instead.")
-                else:
-                    messages.success(request, "Test e-mail sent.")
-            except Exception as exc:
-                messages.error(request, f"Sending failed: {exc.__class__.__name__}: {exc}")
-            AuditEvent.record("config.email_test", data={"to": test.cleaned_data["to"]})
+            if not gateway_readiness()["email"]["ready"]:
+                messages.warning(request, "Email is disabled or preview-only. No external test was sent.")
+            else:
+                try:
+                    count = ConfigurableEmailBackend(fail_silently=False).send_messages([
+                        EmailMessage(f"[{settings.BRAND_NAME}] Test email", "GovBills gateway connection test.",
+                                     config.get("SMTP_FROM") or settings.DEFAULT_FROM_EMAIL,
+                                     [test.cleaned_data["to"]])])
+                    if count:
+                        messages.success(request, "Test email submitted to SMTP. This does not confirm delivery.")
+                    else:
+                        messages.error(request, "SMTP did not accept the test email. Check the delivery log.")
+                except Exception:
+                    messages.error(request, "Email submission failed. Check the gateway configuration and delivery log.")
+            AuditEvent.record("config.email_test", actor=request.user, data={"to": test.cleaned_data["to"]})
             return redirect("console:email")
     return render(request, "integrations/channel.html", {
         "form": form, "test": test, "tab": "email", "title": "E-mail (SMTP)",
-        "intro": "Outbound e-mail for alerts, approvals and payment deadlines. Passwords are stored encrypted.",
+        "intro": "Outbound email for action alerts, approvals and payment deadlines. Passwords are stored encrypted. "
+                 "Leave a password blank to keep its stored value.",
+        "readiness": gateway_readiness()["email"],
         "log": OutboundMessage.objects.filter(channel="email")[:15]})
 
 
@@ -274,16 +313,17 @@ def sms_view(request):
                     OutboundMessage.objects.create(channel="sms", recipient=sms.mask(number), subject="Test",
                                                    status="sent", provider_reference=str(ref)[:120])
                     messages.success(request, "Test SMS accepted by the gateway.")
-                except sms.SmsError as exc:
+                except Exception as exc:
                     OutboundMessage.objects.create(channel="sms", recipient=sms.mask(number), subject="Test",
                                                    status="failed", error=str(exc))
-                    messages.error(request, str(exc))
-            AuditEvent.record("config.sms_test", data={"to": sms.mask(number) if number else ""})
+                    messages.error(request, "SMS submission failed. Check the gateway configuration and delivery log.")
+            AuditEvent.record("config.sms_test", actor=request.user, data={"to": sms.mask(number) if number else ""})
             return redirect("console:sms")
     return render(request, "integrations/channel.html", {
         "form": form, "test": test, "tab": "sms", "title": "SMS gateway",
-        "intro": "Critical alerts (SLA breaches, payment deadlines) are sent to users' mobile numbers. Works with a "
+        "intro": "Action-required alerts are sent to users' mobile numbers. The severity threshold applies to other alerts. Works with a "
                  "local operator's HTTP/JSON SMS API or Twilio. Tokens are stored encrypted; numbers are masked in logs.",
+        "readiness": gateway_readiness()["sms"],
         "log": OutboundMessage.objects.filter(channel="sms")[:15]})
 
 

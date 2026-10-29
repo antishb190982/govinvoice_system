@@ -4,9 +4,11 @@
 <h1>{{ si.reference }} · {{ si.total_amount|money:si.currency }}</h1>
 <p>{% status_badge si %} {{ si.org_unit }} · pay by <strong>{{ si.pay_by|date:"d M Y" }}</strong> · execution requested {{ si.requested_execution_date|date:"d M Y" }}</p></div>
 <div class="actions">
+{% if si.status == "executed" and can.bank %}<a class="btn" href="{% url 'reconciliation:bank_index' %}?status=all&amp;q={{ si.reference|urlencode }}">Bank reconciliation</a>{% endif %}
 {% if si.pdf %}<a class="btn" href="{% url 'settlements:pdf' si.pk %}">Signed PDF</a>{% endif %}
 {% if si.status in "authorised sent executed" %}<a class="btn" href="{% url 'settlements:export' si.pk 'xml' %}">ISO 20022 (pain.001)</a><a class="btn" href="{% url 'settlements:export' si.pk 'csv' %}">CSV</a>{% endif %}
 </div></div>
+{% if si.batch %}<div class="callout"><strong>Processing batch <a href="{{ si.batch.get_absolute_url }}">{{ si.batch.reference }}</a></strong>This instruction pays one provider ({{ si.batch.provider.name }}) for the whole batch.</div>{% endif %}
 {% if si.rejection_comment and si.status == 'draft' %}<div class="callout warn"><strong>Returned by authoriser</strong>{{ si.rejection_comment }}</div>{% endif %}
 <div class="split"><div class="stack">
 <div class="card"><h2>Amounts per provider</h2><div class="table-wrap"><table><thead><tr><th>Provider</th><th>Beneficiary account</th><th>Invoices</th><th>Earliest due</th><th class="num">Amount</th></tr></thead><tbody>

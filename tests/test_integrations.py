@@ -173,8 +173,13 @@ def test_sms_http_gateway(people, db):
     assert captured["auth"] == "Bearer tok"
     msg = OutboundMessage.objects.get(channel="sms")
     assert msg.status == "sent" and "3456" not in msg.recipient[:-3] and msg.recipient.endswith("456")
-    config.save({"SMS_URL": "http://insecure.example/send"}, people["admin"])
-    with mock.patch("urllib.request.urlopen", fake_urlopen):
+    from django.core.exceptions import ValidationError
+    from django.test import override_settings
+
+    with pytest.raises(ValidationError, match="HTTPS"):
+        config.save({"SMS_URL": "http://insecure.example/send"}, people["admin"])
+    # Legacy environment values must still fail closed in the transport.
+    with override_settings(SMS_URL="http://insecure.example/send"), mock.patch("urllib.request.urlopen", fake_urlopen):
         assert sms.send("57123456", "x") is False  # HTTPS required
 
 
@@ -191,7 +196,7 @@ def test_critical_notifications_go_by_sms(people, db, django_capture_on_commit_c
     assert send.call_count == 1 and "SLA breached" in send.call_args[0][1]
 
 
-@pytest.mark.parametrize("name", ["console:overview", "console:settings", "console:email", "console:sms",
+@pytest.mark.parametrize("name", ["console:overview", "console:gateways", "console:settings", "console:email", "console:sms",
                                   "console:api", "console:logs", "console:holidays"])
 def test_console_pages(client, people, name):
     root = make_user("root", superuser=True)

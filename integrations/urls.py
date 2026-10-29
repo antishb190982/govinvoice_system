@@ -4,6 +4,7 @@ from integrations import api, console, mcp
 
 console_patterns = ([
     path("", console.overview, name="overview"),
+    path("gateways/", console.gateways, name="gateways"),
     path("settings/", console.settings_view, name="settings"),
     path("settings/<slug:group>/", console.settings_view, name="settings_group"),
     path("email/", console.email_view, name="email"),

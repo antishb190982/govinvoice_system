@@ -12,6 +12,7 @@ def _log(message, status, error=""):
 
     for to in message.to:
         OutboundMessage.objects.create(channel=OutboundMessage.Channel.EMAIL, recipient=to[:254],
+                                       notification_id=getattr(message, "govbills_notification_id", None),
                                        subject=message.subject[:200], status=status, error=error[:2000])
 
 

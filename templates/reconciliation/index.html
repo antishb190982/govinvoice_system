@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Invoice reconciliation{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}">{% endblock %}
+{% block body_class %}recon{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs">Finance / Invoice reconciliation (pre-approval)</div>
+<h1>Invoice reconciliation</h1>
+<p>Checks invoices against the provider's own statement before approval. Only invoices matching the current provider statement on account, invoice number and full amount in the same currency may enter approval and settlement. Next action: clear the Unsorted exceptions below. Bank debits after payment are checked separately in {% if can.bank %}<a href="{% url 'reconciliation:bank_index' %}">Bank reconciliation</a>{% else %}Bank reconciliation{% endif %}.</p></div>
+<div class="actions"><a class="btn" href="{% url 'reconciliation:template' %}">Provider CSV template</a>{% if can_upload %}<a class="btn btn-primary" href="{% url 'reconciliation:upload' %}">Upload provider statement</a>{% endif %}</div></div>
+
+<div class="tiles">
+  <a class="tile danger {% if state == 'unsorted' %}current{% endif %}" href="?state=unsorted{% if q %}&amp;q={{ q|urlencode }}{% endif %}"><span class="label">Unsorted exceptions</span><div class="value">{{ counts.unsorted|default:0 }}</div><span class="sub">Investigate and resolve with provider</span></a>
+  <a class="tile ok {% if state == 'matched' %}current{% endif %}" href="?state=matched{% if q %}&amp;q={{ q|urlencode }}{% endif %}"><span class="label">Reconciled</span><div class="value">{{ counts.matched|default:0 }}</div><span class="sub">Last check matched</span></a>
+  <a class="tile neutral {% if state == 'superseded' %}current{% endif %}" href="?state=superseded{% if q %}&amp;q={{ q|urlencode }}{% endif %}"><span class="label">Superseded</span><div class="value">{{ counts.superseded|default:0 }}</div><span class="sub">Replaced by newer lines</span></a>
+</div>
+
+{% if checked %}<div class="card"><div class="card-head"><h2>Approval gate for <a href="{{ checked.invoice.get_absolute_url }}">{{ checked.invoice.reference }}</a></h2>{% status_badge checked.invoice %}</div>
+<div class="gate">
+  <div class="now {% if checked.valid %}valid{% else %}invalid{% endif %}"><h3>Current gate (live)</h3>
+    <strong>{% if checked.valid %}Eligible for approval and settlement{% else %}Not eligible{% endif %}</strong><p>{{ checked.reason }}</p></div>
+  <div><h3>Statement line on record</h3>
+    {% if checked.row %}<p><a href="{{ checked.row.get_absolute_url }}">Line {{ checked.row.line_number }}</a> {% include "reconciliation/_state.html" with r=checked.row %}<br><small>Status from the last check. The live gate above is what counts.</small></p>{% else %}<p class="muted">No reconciled line found.</p>{% endif %}
+    {% if checked.statement %}<small>Current statement: <a href="{{ checked.statement.get_absolute_url }}">{{ checked.statement.statement_date|date:"d M Y" }}</a></small>{% endif %}</div>
+</div></div>{% endif %}
+
+<div class="card"><div class="card-head"><h2>Provider statement lines</h2><span class="muted">Active statements only</span></div>
+<form method="get" class="searchbar" role="search">
+  <div><label for="q">Account, invoice, reference or provider</label><input type="search" id="q" name="q" value="{{ q }}" maxlength="100"></div>
+  <div><label for="state">Result</label><select id="state" name="state">
+    <option value="unsorted" {% if state == 'unsorted' %}selected{% endif %}>Unsorted exceptions</option>
+    <option value="matched" {% if state == 'matched' %}selected{% endif %}>Reconciled</option>
+    <option value="superseded" {% if state == 'superseded' %}selected{% endif %}>Superseded</option>
+    <option value="all" {% if state != 'unsorted' and state != 'matched' and state != 'superseded' %}selected{% endif %}>All</option></select></div>
+  <div><button class="btn btn-primary" type="submit">Search</button></div>
+</form>
+{% if page.object_list %}<div class="scroll"><div class="table-wrap"><table><thead><tr><th>Line</th><th>Provider</th><th>Account</th><th>Invoice</th><th class="num">Amount</th><th>Result</th><th>Reason</th><th>Responsible</th></tr></thead><tbody>
+{% for r in page.object_list %}<tr class="{% if r.status == 'unsorted' %}row-danger{% elif r.status == 'superseded' %}row-muted{% endif %}">
+<td><a href="{{ r.get_absolute_url }}">#{{ r.line_number }}</a></td><td>{{ r.statement.provider.name }}</td>
+<td class="raw">{{ r.account_number|default:"—" }}</td><td class="raw">{{ r.invoice_number|default:"—" }}{% if r.invoice %}<br><a href="{{ r.invoice.get_absolute_url }}">{{ r.invoice.reference }}</a>{% endif %}</td>
+<td class="num">{% if r.amount is not None %}{{ r.amount|money }}{% else %}—{% endif %}</td>
+<td>{% include "reconciliation/_state.html" %}</td><td class="reason">{{ r.parse_error|default:r.reason|default:"—" }}</td>
+<td>{{ r.assigned_unit }}{% if r.assigned_to %}<br><small>{{ r.assigned_to }}</small>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% include "includes/pagination.html" %}
+{% else %}<p class="empty">{% if q %}No lines match "{{ q }}" in this view.{% elif state == 'unsorted' %}The Unsorted basket is empty. Every current line is reconciled or superseded.{% else %}No statement lines in this view yet.{% endif %}</p>{% endif %}
+</div>
+
+<div class="card"><div class="card-head"><h2>Recent statements</h2></div>
+{% if statements %}<div class="table-wrap"><table><thead><tr><th>Date</th><th>Provider</th><th>Unit covered</th><th>Currency</th><th class="num">Lines</th><th>State</th><th>Uploaded by</th></tr></thead><tbody>
+{% for s in statements %}<tr class="{% if not s.is_active %}row-muted{% endif %}"><td class="nowrap"><a href="{{ s.get_absolute_url }}">{{ s.statement_date|date:"d M Y" }}</a></td><td>{{ s.provider.name }}</td><td>{{ s.org_unit }}</td><td>{{ s.currency }}</td><td class="num">{{ s.row_count }}</td>
+<td>{% if s.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Archived</span>{% endif %}</td><td>{{ s.uploaded_by }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="empty">No provider statements yet.{% if can_upload %} <a href="{% url 'reconciliation:upload' %}">Upload the first one</a>.{% endif %}</p>{% endif %}</div>
+{% endblock %}

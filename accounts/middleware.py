@@ -22,7 +22,10 @@ class IdleTimeoutMiddleware:
                 logout(request)
                 messages.info(request, "You were signed out after a period of inactivity.")
                 return redirect(settings.LOGIN_URL)
-            request.session[ACTIVITY_SESSION_KEY] = now
+            # Background badge refresh must not defeat staff idle sign-out.
+            is_poll = request.method == "GET" and request.path_info == "/notifications/activity/"
+            if not is_poll or ACTIVITY_SESSION_KEY not in request.session:
+                request.session[ACTIVITY_SESSION_KEY] = now
         return self.get_response(request)
 
 

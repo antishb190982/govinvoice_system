@@ -16,10 +16,12 @@ from org.access import can_view, has_role, scope, units_for
 from org.models import Role
 from settlements import services
 from settlements.models import SettlementInstruction
+from providers.models import Provider
 from signatures.services import active_identity
 
 
 class NewInstructionForm(forms.Form):
+    provider = forms.ModelChoiceField(queryset=Provider.objects.all(), label="Single utility provider")
     org_unit = forms.ModelChoiceField(queryset=None, label="Paying unit (ministry / authority)")
     currency = forms.CharField(max_length=3, initial=settings.DEFAULT_CURRENCY)
     cutoff_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"),
@@ -73,12 +75,12 @@ def instruction_new(request):
             ids = [int(i) for i in request.POST.getlist("invoice") if i.isdigit()]
             try:
                 si = services.create_instruction(request.user, d["org_unit"], d["currency"].upper(), d["cutoff_date"],
-                                                 ids, request.POST.get("notes", "")[:2000])
+                                                 ids, request.POST.get("notes", "")[:2000], provider=d["provider"])
                 messages.success(request, f"{si.reference} created. Review it, then sign and submit for authorisation.")
                 return redirect(si)
             except (ValidationError, PermissionDenied) as exc:
                 messages.error(request, _errors(exc))
-        lines = services.preview(d["org_unit"], d["currency"].upper(), d["cutoff_date"])
+        lines = services.preview(d["org_unit"], d["currency"].upper(), d["cutoff_date"], provider=d["provider"])
     return render(request, "settlements/new.html", {"form": form, "lines": lines,
                                                     "grand_total": sum(li["amount"] for li in lines) if lines else 0})
 

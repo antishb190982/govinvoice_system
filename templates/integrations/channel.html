@@ -1,12 +1,18 @@
 {% extends "base.html" %}{% block title %}{{ title }} · Admin console{% endblock %}
 {% block content %}{% with heading=title accent="" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
+{% if readiness %}<div class="callout {% if readiness.ready %}ok{% else %}warn{% endif %}" role="status"><strong>{% if readiness.ready %}Ready{% else %}Not configured{% endif %}</strong> {{ readiness.label }}{% if not readiness.ready %} External sending stays disabled until the settings below are complete.{% endif %} <a href="{% url 'console:gateways' %}">Gateway centre</a></div>{% endif %}
 <div class="split"><div class="card"><div class="card-head"><h2>{{ title }}</h2></div><p class="muted">{{ intro }}</p>
 <form method="post" novalidate autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="save">{% include "includes/form_errors.html" %}
+<p class="muted"><small>Password and secret fields are always shown blank. Leave them blank to keep the stored value.</small></p>
 <div class="form-grid">{% for f in form %}<div class="{% if f.name == 'SMS_BODY_TEMPLATE' %}wide{% endif %}">{% if f.widget_type == 'checkbox' %}<label>{{ f }} {{ f.label }}</label>{% else %}{{ f.label_tag }}{{ f }}{% endif %}<span class="helptext">{{ f.help_text }}</span>{{ f.errors }}</div>{% endfor %}</div>
 <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div></form></div>
-<div class="stack"><div class="card"><h2>Send a test</h2><form method="post">{% csrf_token %}<input type="hidden" name="action" value="test">{{ test.to.label_tag }}{{ test.to }}
-<div class="form-actions"><button class="btn" type="submit">Send test</button></div></form></div>
+<div class="stack"><div class="card"><h2>Send a test</h2>
+<p class="muted"><small>A test is a real message to an external recipient. "Submitted" means the gateway accepted it, not that it was delivered.</small></p>
+<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="action" value="test">{{ test.non_field_errors }}
+{{ test.to.label_tag }}{{ test.to }}{{ test.to.errors }}
+{% if test.confirm %}<label class="mt">{{ test.confirm }} {{ test.confirm.label }}</label>{% if test.confirm.help_text %}<span class="helptext">{{ test.confirm.help_text }}</span>{% endif %}{{ test.confirm.errors }}{% endif %}
+<div class="form-actions"><button class="btn" type="submit"{% if readiness and not readiness.ready %} disabled aria-disabled="true"{% endif %}>Send test</button></div></form></div>
 <div class="card"><div class="card-head"><h2>Recent deliveries</h2><a href="{% url 'console:logs' %}?kind=messages">All</a></div>
-<table><tbody>{% for m in log %}<tr><td><span class="status-dot {% if m.status == 'sent' %}ok{% elif m.status == 'failed' %}danger{% else %}warn{% endif %}"></span>{{ m.recipient }}<br><small class="muted">{{ m.subject|truncatechars:40 }}</small>{% if m.error %}<br><small class="muted">{{ m.error|truncatechars:80 }}</small>{% endif %}</td><td class="nowrap"><small>{{ m.created_at|date:"d M H:i" }}</small></td></tr>
-{% empty %}<tr><td class="empty">Nothing sent yet.</td></tr>{% endfor %}</tbody></table></div></div></div>
+<div class="table-wrap"><table><tbody>{% for m in log %}<tr><td><span class="status-dot {% if m.status == 'sent' %}ok{% elif m.status == 'failed' %}danger{% else %}warn{% endif %}"></span>{{ m.recipient }}<br><small class="muted">{{ m.subject|truncatechars:40 }}</small>{% if m.error %}<br><small class="muted">{{ m.error|truncatechars:80 }}</small>{% endif %}</td><td class="nowrap"><small>{{ m.created_at|date:"d M H:i" }}</small></td></tr>
+{% empty %}<tr><td class="empty">Nothing sent yet.</td></tr>{% endfor %}</tbody></table></div></div></div></div>
 {% endblock %}

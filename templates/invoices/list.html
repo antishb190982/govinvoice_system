@@ -15,7 +15,7 @@
 {% for inv in page %}<tr class="{% if inv.is_unpaid and inv.due_date < today %}row-danger{% endif %}">
 <td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a><br><small>{{ inv.invoice_number }}</small></td>
 <td>{{ inv.provider.name }}<br><small>{{ inv.service_account.account_number }} · {{ inv.get_utility_type_display }}</small></td>
-<td>{{ inv.org_unit.code }}</td><td class="nowrap">{{ inv.issue_date|date:"d M Y" }}</td><td class="nowrap">{{ inv.due_date|date:"d M Y" }}</td>
+<td>{{ inv.org_unit.code }}</td><td class="nowrap">{{ inv.issue_date|date:"d M Y" }}<br><small>Received {{ inv.received_date|date:"d M Y"|default:"unknown" }}</small></td><td class="nowrap">{{ inv.due_date|date:"d M Y" }}<br><span class="badge {% if inv.processing.priority == 'overdue' or inv.processing.priority == 'urgent' %}badge-danger{% elif inv.processing.priority == 'high' %}badge-warn{% else %}badge-info{% endif %}">{{ inv.processing.label }}</span></td>
 <td>{% status_badge inv %}</td>
 <td>{% for f in inv.flags %}<span class="chip {% if f|flag_severe %}severe{% endif %}" title="{{ f|flag_label }}">{{ f|cut:"_"|slice:":10" }}</span>{% endfor %}</td>
 <td class="num">{{ inv.amount_total|money:inv.currency }}</td></tr>

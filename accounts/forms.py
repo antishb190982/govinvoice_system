@@ -3,7 +3,7 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.forms import PasswordChangeForm
 
 from accounts.models import User
-from org.models import Membership, OrgUnit
+from org.models import Membership, OrgUnit, Role
 
 
 class LoginForm(forms.Form):
@@ -29,10 +29,17 @@ class StrongPasswordChangeForm(PasswordChangeForm):
 
 class UserCreateForm(forms.ModelForm):
     temporary_password = forms.CharField(widget=forms.PasswordInput, help_text="The user must change it on first sign-in.")
+    initial_unit = forms.ModelChoiceField(queryset=OrgUnit.objects.none(), label="Initial unit")
+    initial_role = forms.ChoiceField(choices=Role.choices, initial=Role.VIEWER, label="Initial role")
 
     class Meta:
         model = User
         fields = ["username", "full_name", "email", "job_title", "employee_id", "phone"]
+
+    def __init__(self, *args, allowed_units=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["initial_unit"].queryset = allowed_units if allowed_units is not None else OrgUnit.objects.none()
+        self.fields["initial_unit"].label_from_instance = lambda unit: unit.indented_name
 
     def clean_temporary_password(self):
         pw = self.cleaned_data["temporary_password"]

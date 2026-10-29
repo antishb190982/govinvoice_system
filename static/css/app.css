@@ -128,6 +128,8 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 1rem 0; }
 .page-head .btn:hover { background: rgba(255, 255, 255, .22); }
 .page-head .btn-primary { background: #fff; color: #1f2fb8; border-color: #fff; }
 .page-head .btn-primary:hover { background: #eef1fd; }
+/* Keep registration headings readable when status messages push them below the hero. */
+.page-head.registration-head { background: #2638bd; padding: 20px; border-radius: 16px; }
 .display { font-size: clamp(2rem, 4vw, 3.2rem); font-weight: 700; letter-spacing: -.03em; color: #fff; line-height: 1.1; }
 .footer { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; max-width: 1440px; margin: 0 auto;
   padding: 0 24px 28px; color: var(--muted); font-size: .78rem; }
@@ -338,7 +340,7 @@ details.disclosure summary { cursor: pointer; font-weight: 600; color: var(--roy
   body.hero-tall { --hero-h: 600px; }
   .nav-user .name { display: none; }
 }
-@media (max-width: 980px) {
+@media (max-width: 1180px) {
   .topnav { grid-template-columns: auto 1fr auto; border-radius: 24px; padding: 8px 10px; }
   .nav-toggle { display: inline-flex; }
   .brand { justify-self: start; }
@@ -346,6 +348,8 @@ details.disclosure summary { cursor: pointer; font-weight: 600; color: var(--roy
     background: #fff; border-radius: 20px; padding: 10px; box-shadow: 0 18px 40px rgba(14, 20, 90, .25); }
   body.nav-open .nav-menus { display: flex; }
   .menu-panel { position: static; box-shadow: none; border: 0; padding: 0 0 0 10px; min-width: 0; }
+}
+@media (max-width: 980px) {
   .auth { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .auth-intro .glass-row { display: none; }
 }
@@ -366,3 +370,8 @@ details.disclosure summary { cursor: pointer; font-weight: 600; color: var(--roy
   .page-head, .page-head h1, .page-head p { color: #000; }
   .card { box-shadow: none; break-inside: avoid; }
 }
+
+/* Skip link (accessibility) */
+.skip-link { position: absolute; left: 12px; top: -60px; z-index: 1000; background: #141a5c; color: #fff; padding: 10px 16px; border-radius: 8px; font-weight: 500; text-decoration: none; }
+.skip-link:focus { top: 12px; }
+.menu-panel a[aria-current="page"] { background: color-mix(in srgb, var(--accent) 10%, transparent); }

@@ -9,6 +9,7 @@
   <div>{{ form.invoice_number.label_tag }}{{ form.invoice_number }}{{ form.invoice_number.errors }}</div>
   <div>{{ form.issue_date.label_tag }}{{ form.issue_date }}{{ form.issue_date.errors }}</div>
   <div>{{ form.due_date.label_tag }}{{ form.due_date }}{{ form.due_date.errors }}</div>
+  <div>{{ form.received_date.label_tag }}{{ form.received_date }}{{ form.received_date.errors }}<small>{{ form.received_date.help_text }}</small></div>
   <div>{{ form.period_start.label_tag }}{{ form.period_start }}{{ form.period_start.errors }}</div>
   <div>{{ form.period_end.label_tag }}{{ form.period_end }}{{ form.period_end.errors }}</div>
   <div class="wide">{{ form.upload.label_tag }}{{ form.upload }}<span class="helptext">{% if invoice.document %}Current: {{ invoice.document_name }}. Choose a file only to replace it. {% endif %}{{ form.upload.help_text }}</span>{{ form.upload.errors }}</div>
@@ -18,6 +19,8 @@
   <div>{{ form.amount_net.label_tag }}{{ form.amount_net }}{{ form.amount_net.errors }}</div>
   <div>{{ form.amount_tax.label_tag }}{{ form.amount_tax }}{{ form.amount_tax.errors }}</div>
   <div>{{ form.amount_total.label_tag }}{{ form.amount_total }}{{ form.amount_total.errors }}</div>
+  <div>{{ form.surcharge_amount.label_tag }}{{ form.surcharge_amount }}<span class="helptext">{{ form.surcharge_amount.help_text }} A positive surcharge needs a finance review before approval or bank release. For a paid invoice, classify it on the surcharge page instead.</span>{{ form.surcharge_amount.errors }}</div>
+  <div>{{ form.surcharge_description.label_tag }}{{ form.surcharge_description }}{{ form.surcharge_description.errors }}</div>
   <div>{{ form.arrears.label_tag }}{{ form.arrears }}<span class="helptext">{{ form.arrears.help_text }}</span>{{ form.arrears.errors }}</div>
 </div></div>
 <div class="card"><h2>Consumption <small class="muted">(optional, used for trend analysis and anomaly checks)</small></h2><div class="form-grid">

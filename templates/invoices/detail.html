@@ -1,10 +1,14 @@
-{% extends "base.html" %}{% load gov %}{% block title %}{{ invoice.reference }}{% endblock %}
+{% extends "base.html" %}{% load static gov operations_ui %}{% block title %}{{ invoice.reference }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'invoices:list' %}">Invoices</a> / {{ invoice.reference }}</div>
 <h1>{{ invoice.provider.name }} · {{ invoice.amount_total|money:invoice.currency }}</h1>
 <p>{% status_badge invoice %} Invoice {{ invoice.invoice_number }} · due <strong>{{ invoice.due_date|date:"d M Y" }}</strong>{% with d=invoice.due_date|days_until %}{% if invoice.is_unpaid %} ({% if d < 0 %}overdue{% elif d == 0 %}today{% else %}in {{ d }} days{% endif %}){% endif %}{% endwith %}</p></div>
 <div class="actions">
-  {% if invoice.document %}<a class="btn" href="{% url 'invoices:document' invoice.pk %}" target="_blank" rel="noopener">View document</a>{% endif %}
+  <a class="btn" href="{% url 'workflow:process' invoice.pk %}">Process map</a>
+  <a class="btn" href="{% url 'reconciliation:index' %}?q={{ invoice.reference|urlencode }}&amp;state=all">Reconcile</a>
+  {% if approval_evidence %}<a class="btn btn-primary" href="{% url 'invoices:approved_copy' invoice.pk %}" target="_blank" rel="noopener">{% icon "file" %} Approved invoice copy</a>{% endif %}
+  {% if invoice.document %}<a class="btn" href="{% url 'invoices:document' invoice.pk %}" target="_blank" rel="noopener">Original document</a>{% endif %}
   {% if my_task %}<a class="btn btn-primary" href="{% url 'workflow:task' my_task.pk %}">Decide: {{ my_task.name }}</a>{% endif %}
   {% if can_capture and invoice.is_editable %}<a class="btn" href="{% url 'invoices:edit' invoice.pk %}">Edit</a>{% endif %}
   {% if can_capture and invoice.status in "draft returned disputed" %}<form method="post" action="{% url 'invoices:submit' invoice.pk %}" class="inline-form" data-confirm="Submit this invoice for approval?">{% csrf_token %}<button class="btn btn-primary" type="submit">{% if invoice.status == 'draft' %}Submit for approval{% else %}Resubmit{% endif %}</button></form>{% endif %}
@@ -20,9 +24,12 @@
     <dt>Service account</dt><dd><a href="{% url 'providers:account' invoice.service_account_id %}">{{ invoice.service_account.account_number }}</a>{% if invoice.service_account.meter_number %} · meter {{ invoice.service_account.meter_number }}{% endif %} · {{ invoice.service_account.premises }}</dd>
     <dt>Unit</dt><dd><a href="{% url 'org:detail' invoice.org_unit_id %}">{{ invoice.org_unit }}</a></dd>
     <dt>Issued</dt><dd>{{ invoice.issue_date|date:"d M Y" }}</dd>
+    <dt>Received</dt><dd>{{ invoice.received_date|date:"d M Y"|default:"Unknown (legacy record)" }}</dd>
+    <dt>Processing priority</dt><dd><span class="badge {% if invoice.processing.priority in 'overdue urgent' %}badge-danger{% elif invoice.processing.priority == 'high' %}badge-warn{% else %}badge-info{% endif %}">{{ invoice.processing.label }}</span>
+    {% for note in invoice.processing.notes %}<br>{{ note }}{% endfor %}</dd>
     <dt>Billing period</dt><dd>{{ invoice.period_start|date:"d M Y"|default:"—" }} – {{ invoice.period_end|date:"d M Y"|default:"—" }}</dd>
     <dt>Net / tax</dt><dd>{{ invoice.amount_net|money:invoice.currency }} + {{ invoice.amount_tax|money }}</dd>
-    <dt>Total payable</dt><dd><strong>{{ invoice.amount_total|money:invoice.currency }}</strong>{% if invoice.amount_total == 0 %} <span class="badge badge-info">Nothing to pay</span>{% endif %}</dd>
+    <dt>Original billed total</dt><dd><strong>{{ invoice.amount_total|money:invoice.currency }}</strong>{% if invoice.amount_total == 0 %} <span class="badge badge-info">Nothing to pay</span>{% endif %}</dd>
     {% if invoice.arrears %}<dt>Arrears shown</dt><dd>{{ invoice.arrears|money:invoice.currency }} <small class="muted">from earlier bills – check they were paid</small></dd>{% endif %}
     <dt>Consumption</dt><dd>{% if invoice.consumption is not None %}{{ invoice.consumption|floatformat:"-3g" }} {{ invoice.consumption_unit }}{% if invoice.previous_reading is not None %} (readings {{ invoice.previous_reading|floatformat:"-3g" }} → {{ invoice.current_reading|floatformat:"-3g" }}){% endif %}{% else %}—{% endif %}</dd>
     <dt>Approve by</dt><dd>{{ invoice.must_approve_by|date:"d M Y H:i" }} <small class="muted">to leave time for settlement before the due date</small></dd>
@@ -41,6 +48,24 @@
     <form method="post" action="{% url 'invoices:comment' invoice.pk %}">{% csrf_token %}{{ comment_form.body }}<div class="form-actions"><button class="btn btn-sm" type="submit">Add note</button></div></form></div>
 </div>
 <div class="stack">
+  <section class="card evidence-card" aria-labelledby="evidence-h"><div class="card-head"><h2 id="evidence-h">Approval evidence</h2>{% if approval_evidence %}<a href="{% url 'invoices:approval_record' invoice.pk %}">Full approval record</a>{% endif %}</div>
+  {% if approval_evidence %}{% with ev=approval_evidence %}
+    <p class="muted"><small>The approved copy is a derived PDF stamped with this evidence. It is <strong>not</strong> a digitally signed document; individual decision signatures are checked in the Approval panel below.</small></p>
+    <dl class="props">
+      <dt>Approved</dt><dd>{{ ev.approved_at|date:"d M Y H:i"|default:"—" }}</dd>
+      <dt>Recorded</dt><dd>{{ ev.recorded_by|default:"—" }} · {{ ev.recorded_at|date:"d M Y H:i" }}</dd>
+      <dt>Received / submitted</dt><dd>{{ ev.received_date|date:"d M Y"|default:"Unknown" }} / {{ ev.submitted_at|date:"d M Y H:i"|default:"—" }}</dd>
+      {% for d in ev.decisions %}<dt>{{ d.name }}</dt><dd>{{ d.person }} <small class="muted">({{ d.role }})</small> · {{ d.at|date:"d M Y H:i" }}</dd>{% empty %}<dt>Decisions</dt><dd class="muted">None recorded</dd>{% endfor %}
+      <dt>Batch</dt><dd>{% if ev.batch_reference %}{{ ev.batch_reference }}{% if ev.processing_started_at %} · processing since {{ ev.processing_started_at|date:"d M Y H:i" }}{% endif %}{% else %}<span class="badge badge-info">Not yet batched</span>{% endif %}</dd>
+      <dt>Settlement</dt><dd>{% if ev.settlement_reference %}{{ ev.settlement_reference }} · {{ ev.settlement_status|default:"—" }}{% else %}<span class="badge badge-info">Awaiting settlement</span>{% endif %}</dd>
+      <dt>Bank</dt><dd>{% if ev.bank_reference %}ref {{ ev.bank_reference }}{% if ev.settled_at %} · settled {{ ev.settled_at|date:"d M Y" }}{% endif %}{% else %}<span class="badge badge-warn">No bank confirmation yet</span>{% endif %}</dd>
+      <dt>Source file</dt><dd><small class="mono">SHA-256 {{ ev.source_sha256|slice:":32"|default:"—" }}…</small></dd>
+      <dt>Evidence as of</dt><dd>{{ ev.generated_at|date:"d M Y H:i" }}</dd>
+    </dl>
+  {% endwith %}{% else %}<p class="muted">An approved invoice copy becomes available once every approval step is complete. {% if pending_task %}Currently waiting for: {{ pending_task.get_role_display }}.{% endif %}</p>{% endif %}
+  </section>
+  {% invoice_operations invoice %}
+  {% include "invoices/_surcharge.html" %}
   <div class="card"><h2>Approval</h2>
   {% for round, tasks in rounds %}{% if not forloop.first %}<details class="disclosure mt"><summary>Earlier round {{ round }}</summary>{% else %}{% if rounds|length > 1 %}<p class="muted"><small>Round {{ round }}</small></p>{% endif %}{% endif %}
     <ul class="timeline">{% for t in tasks %}<li class="{% if t.status == 'approved' %}ok{% elif t.status == 'pending' %}active{% elif t.status in 'returned disputed' %}danger{% endif %}">

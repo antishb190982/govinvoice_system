@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load gov %}{% block title %}Registration request #{{ item.pk }}{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'imports:registration_queue' %}">Registration requests</a> / #{{ item.pk }}</div><h1>Import #{{ item.batch_id }} · {{ item.batch.original_name|truncatechars:48 }}</h1>
+<p><span class="badge {% if item.status == 'ready' %}badge-ok{% else %}badge-warn{% endif %}">{{ item.get_status_display }}</span> {{ item.org_unit }} · requested by {{ item.requested_by.full_name|default:item.requested_by }} on {{ item.created_at|date:"d M Y H:i" }}{% if item.completed_at %} · completed {{ item.completed_at|date:"d M Y H:i" }}{% endif %}</p></div>
+<div class="actions">{% if request.user.pk == item.batch.uploaded_by_id or request.user.is_superuser %}<a class="btn" href="{% url 'imports:batch' item.batch_id %}">Invoice review</a>{% else %}<a class="btn" href="{% url 'imports:registration_queue' %}">Back to queue</a>{% endif %}</div></div>
+<div class="callout info"><strong>Registration only</strong>Registering accounts does not approve invoices. Registration pages return here and re-check rows automatically.</div>
+{% if pending %}<div class="callout warn"><strong>{{ pending }} document{{ pending|pluralize }} still being read</strong>The uploader's OCR must finish before these rows can be checked.</div>{% endif %}
+<div class="card"><h2>Missing accounts</h2>
+{% if missing %}<div class="table-wrap"><table><thead><tr><th>Provider</th><th>Account</th><th>Service no.</th><th>Evidence</th><th class="num">Rows</th><th></th></tr></thead><tbody>
+{% for g in missing %}<tr><td>{{ g.provider_label }}</td><td>{{ g.account_number|default:"—" }}</td><td>{{ g.service_number|default:"—" }}</td><td><a href="{{ g.source_url }}">Download row {{ g.row.row_number }}</a></td><td class="num">{{ g.count }}</td>
+<td class="right">{% if can_register and item.batch.status == 'staged' and g.register_url %}<a class="btn btn-sm btn-primary" href="{{ g.register_url }}">Register account</a>{% elif not g.provider %}<span class="muted">Provider needed</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="empty">No missing accounts{% if not pending %}{% if item.status == 'ready' %}; the import can return to invoice review{% else %}; an administrator must re-check to complete registration{% endif %}{% endif %}.</p>{% endif %}
+</div>
+{% if can_register and item.batch.status == 'staged' %}
+<div class="grid cols-2 mt">
+<div class="card"><h2>Provider for unidentified invoices</h2>
+<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="action" value="provider"><div class="form-stack">{{ provider_form.as_div }}</div><div class="form-actions"><button class="btn" type="submit">Apply provider</button></div></form>
+{% if can_create_provider %}<p class="mt"><a href="{{ provider_create_url }}">Create a new provider</a></p>{% endif %}</div>
+<div class="card"><h2>Re-check</h2><p>Check rows again with the uploader's permissions.</p>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="recheck"><button class="btn btn-primary" type="submit">Re-check and complete registration</button></form></div>
+</div>
+{% elif item.batch.status != 'staged' %}<p class="muted mt">This import is {{ item.batch.get_status_display|lower }}; registration is closed.</p>
+{% else %}<p class="muted mt">Only the unit administrators can register accounts for this request.</p>{% endif %}
+{% endblock %}

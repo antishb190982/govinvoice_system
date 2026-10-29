@@ -1,0 +1,25 @@
+/* Finance & administration history (analytics page only). */
+.an-head { background: #2638bd; padding: 20px; border-radius: 16px; }
+.an-nav { display: flex; gap: 6px; flex-wrap: wrap; margin: 16px 0 0; padding: 0; list-style: none; }
+.an-nav a { display: inline-block; padding: 6px 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink-2); font-weight: 500; font-size: .84rem; }
+.an-nav a:hover { border-color: var(--royal); color: var(--royal); text-decoration: none; }
+.an-section { scroll-margin-top: 90px; margin-top: 30px; }
+.an-section > .an-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--line-strong); }
+.an-section > .an-title h2 { font-size: 1.2rem; margin: 0; }
+.an-section > .an-title p { margin: 0; color: var(--muted); font-size: .84rem; max-width: 720px; }
+.an-period { font-variant-numeric: tabular-nums; }
+.an-defs { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: .84rem; }
+.an-defs li + li { margin-top: 4px; }
+.an-filter-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.an-insight { border-left: 4px solid var(--line-strong); padding: 12px 14px; border-radius: 12px; background: var(--surface-2); }
+.an-insight.rise { border-left-color: var(--danger); }
+.an-insight.fall { border-left-color: var(--info); }
+.an-insight.gap { border-left-color: var(--warn); }
+.an-insight h3 { margin: 0 0 4px; }
+.an-insight dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 12px; margin: 8px 0 0; font-size: .84rem; font-variant-numeric: tabular-nums; }
+.an-insight dt { color: var(--muted); }
+.an-insight dd { margin: 0; }
+.an-insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+details.an-table { margin-top: 12px; }
+details.an-table summary { cursor: pointer; font-weight: 600; color: var(--royal); }
+@media (max-width: 720px) { .an-head { padding: 16px; } }

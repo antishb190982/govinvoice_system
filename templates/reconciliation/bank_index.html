@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Bank reconciliation{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}"><link rel="stylesheet" href="{% static 'css/bank.css' %}">{% endblock %}
+{% block body_class %}recon bank{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs">Finance / Bank reconciliation (post-settlement)</div>
+<h1>Bank reconciliation</h1>
+<p>Confirms that each executed settlement actually left the bank account: debit amount, settlement reference, currency, beneficiary transfer and value date. This check never changes invoice or payment status. For pre-approval checks against provider statements, use <a href="{% url 'reconciliation:index' %}">Invoice reconciliation</a>.</p></div>
+<div class="actions"><a class="btn" href="{% url 'reconciliation:bank_template' %}">Bank CSV template</a>{% if can_manage %}<a class="btn btn-primary" href="{% url 'reconciliation:bank_upload' %}">Upload bank debits</a>{% endif %}</div></div>
+
+<div class="tiles">
+  <a class="tile danger {% if status == 'exception' %}current{% endif %}" href="?status=exception{% if q %}&amp;q={{ q|urlencode }}{% endif %}"><span class="label">Needs investigation</span><div class="value">{{ counts.exception|default:0 }}</div><span class="sub">Recheck after correcting the settlement record</span></a>
+  <a class="tile ok {% if status == 'matched' %}current{% endif %}" href="?status=matched{% if q %}&amp;q={{ q|urlencode }}{% endif %}"><span class="label">Bank reconciled</span><div class="value">{{ counts.matched|default:0 }}</div><span class="sub">Debit verified against execution</span></a>
+  <a class="tile neutral {% if status == 'duplicate' %}current{% endif %}" href="?status=duplicate{% if q %}&amp;q={{ q|urlencode }}{% endif %}"><span class="label">Previously reconciled</span><div class="value">{{ counts.duplicate|default:0 }}</div><span class="sub">Same transaction in an earlier upload</span></a>
+  <div class="tile neutral"><span class="label">Settlements awaiting bank</span><div class="value">{{ pending_count }}</div><span class="sub">Executed, not every transfer matched</span></div>
+</div>
+
+<div class="card"><div class="card-head"><h2>Bank debit lines</h2><span class="muted">Parsed source values are read-only</span></div>
+<form method="get" class="searchbar" role="search">
+  <div><label for="q">Transaction ID, settlement or bank reference, account alias</label><input type="search" id="q" name="q" value="{{ q }}" maxlength="120"></div>
+  <div><label for="status">Result</label><select id="status" name="status">
+    <option value="exception" {% if status == 'exception' %}selected{% endif %}>Needs investigation</option>
+    <option value="matched" {% if status == 'matched' %}selected{% endif %}>Bank reconciled</option>
+    <option value="duplicate" {% if status == 'duplicate' %}selected{% endif %}>Previously reconciled</option>
+    <option value="all" {% if status != 'exception' and status != 'matched' and status != 'duplicate' %}selected{% endif %}>All</option></select></div>
+  <div class="search-actions"><button class="btn btn-primary" type="submit">Search</button>{% if q or status != 'exception' %}<a class="btn" href="{% url 'reconciliation:bank_index' %}">Reset</a>{% endif %}</div>
+</form>
+{% if page.object_list %}<div class="scroll"><div class="table-wrap"><table><thead><tr><th scope="col">Line</th><th scope="col">Account</th><th scope="col">Transaction</th><th scope="col">Settlement</th><th scope="col" class="num">Debit</th><th scope="col">Value date</th><th scope="col">Result</th><th scope="col">Reason</th></tr></thead><tbody>
+{% for r in page.object_list %}<tr class="{% if r.status == 'exception' %}row-danger{% elif r.status == 'duplicate' %}row-muted{% endif %}">
+<td><a href="{{ r.get_absolute_url }}" aria-label="Open bank line {{ r.line_number }} of statement {{ r.statement_id }}">#{{ r.line_number }}</a></td>
+<td>{{ r.statement.account_label }}<br><small>{{ r.statement.statement_date|date:"d M Y" }}</small></td>
+<td class="raw">{{ r.transaction_id|default:"—" }}</td>
+<td class="raw">{{ r.settlement_reference|default:"—" }}{% if r.provider_code %}<br><small>Provider {{ r.provider_code }}</small>{% endif %}{% if r.instruction %}<br><a href="{{ r.instruction.get_absolute_url }}">{{ r.instruction.reference }}</a>{% endif %}</td>
+<td class="num">{% if r.amount is not None %}{{ r.amount|money:r.statement.currency }}{% else %}—{% endif %}</td>
+<td class="nowrap">{{ r.value_date|date:"d M Y"|default:"—" }}</td>
+<td>{% include "reconciliation/_bank_state.html" %}</td><td class="reason">{{ r.reason|default:r.parse_error|default:"—" }}</td></tr>{% endfor %}
+</tbody></table></div>{% include "includes/pagination.html" %}
+{% else %}<p class="empty">{% if q %}No bank lines match "{{ q }}" in this view.{% elif status == 'exception' %}No bank exceptions to investigate.{% if can_manage %} Upload the latest bank debits to keep this current.{% endif %}{% else %}No bank lines in this view yet.{% endif %}</p>{% endif %}
+</div>
+
+<div class="bank-split">
+<div class="card"><div class="card-head"><h2>Executed settlements</h2><span class="muted">Latest 20{% if q %} matching "{{ q }}"{% endif %}</span></div>
+{% if executed %}<div class="scroll"><div class="table-wrap"><table><thead><tr><th scope="col">Settlement</th><th scope="col">Executed</th><th scope="col" class="num">Total</th><th scope="col">Bank check</th></tr></thead><tbody>
+{% for si in executed %}<tr><td><a href="{{ si.get_absolute_url }}">{{ si.reference }}</a></td><td class="nowrap">{{ si.executed_at|date:"d M Y"|default:"—" }}</td><td class="num">{{ si.total_amount|money:si.currency }}</td>
+<td>{% if si.bank_check.valid %}<span class="badge badge-ok">{{ si.bank_check.label }}</span>{% elif si.bank_check.cleared %}<span class="badge badge-warn">{{ si.bank_check.label }}</span>{% else %}<span class="badge badge-neutral">{{ si.bank_check.label }}</span>{% endif %}<br><small>{{ si.bank_check.cleared }} of {{ si.bank_check.total }} transfers</small></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty">No executed settlements in your scope{% if q %} match "{{ q }}"{% endif %}.</p>{% endif %}</div>
+
+<div class="card"><div class="card-head"><h2>Recent bank uploads</h2><span class="muted">Latest 20</span></div>
+{% if statements %}<div class="scroll"><div class="table-wrap"><table><thead><tr><th scope="col">Statement date</th><th scope="col">Account</th><th scope="col">Unit</th><th scope="col">Uploaded by</th></tr></thead><tbody>
+{% for s in statements %}<tr><td class="nowrap"><a href="{{ s.get_absolute_url }}">{{ s.statement_date|date:"d M Y" }}</a></td><td>{{ s.account_label }} <small>{{ s.currency }}</small></td><td>{{ s.org_unit }}</td><td>{{ s.uploaded_by }}<br><small>{{ s.created_at|date:"d M Y H:i" }}</small></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="empty">No bank debit files uploaded yet.{% if can_manage %} <a href="{% url 'reconciliation:bank_upload' %}">Upload the first one</a>.{% endif %}</p>{% endif %}</div>
+</div>
+{% endblock %}

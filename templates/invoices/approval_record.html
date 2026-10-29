@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% block title %}Approval record · {{ invoice.reference }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{{ invoice.get_absolute_url }}">{{ invoice.reference }}</a> / Approval record</div>
+<h1>Invoice approval record</h1><p>Recorded approvals and current settlement details for invoice {{ invoice.invoice_number }}.</p></div>
+<div class="actions"><a class="btn btn-primary" href="{% url 'invoices:approved_copy' invoice.pk %}">Download watermarked PDF</a>
+{% if invoice.document %}<a class="btn" href="{% url 'invoices:document' invoice.pk %}">Original document</a>{% endif %}
+<a class="btn" href="{{ invoice.get_absolute_url }}">Back to invoice</a></div></div>
+<div class="callout">This is a derived operational copy, not a new digital signature. Original invoices and signed evidence remain unchanged.
+Bank references appear only after settlement is recorded. Details are current as of {{ evidence.generated_at|date:"d M Y H:i T" }}.</div>
+{% if not invoice.document %}<div class="callout warn">No original invoice document is attached. The PDF contains the approval record only.</div>{% endif %}
+<div class="card"><h2>Review and approval</h2><dl class="props">
+<dt>Current status</dt><dd>{{ invoice.get_status_display }}</dd>
+<dt>Recorded by</dt><dd>{{ evidence.recorded_by }} · {{ evidence.recorded_at|date:"d M Y H:i T" }}</dd>
+<dt>Received</dt><dd>{{ evidence.received_date|date:"d M Y"|default:"Not recorded" }}</dd>
+<dt>Submitted</dt><dd>{{ evidence.submitted_at|date:"d M Y H:i T"|default:"Not recorded" }}</dd>
+{% for decision in evidence.decisions %}<dt>{{ decision.name }} · {{ decision.role }}</dt>
+<dd>{{ decision.person }} · {{ decision.at|date:"d M Y H:i T"|default:"Not recorded" }}</dd>
+{% empty %}<dt>Review / approval actors</dt><dd>Not recorded in the available workflow history.</dd>{% endfor %}
+<dt>Approved</dt><dd>{{ evidence.approved_at|date:"d M Y H:i T" }}</dd>
+</dl></div>
+<div class="card"><h2>Batch processing and settlement</h2><dl class="props">
+<dt>Batch number</dt><dd>{{ evidence.batch_reference }}</dd>
+<dt>Processing started</dt><dd>{{ evidence.processing_started_at|date:"d M Y H:i T"|default:"Not recorded" }}</dd>
+<dt>Finance processing</dt><dd>{{ evidence.finance_prepared_by }} · {{ evidence.finance_prepared_at|date:"d M Y H:i T"|default:"Not recorded" }}</dd>
+<dt>Settlement instruction</dt><dd>{{ evidence.settlement_reference }} · {{ evidence.settlement_status }}</dd>
+<dt>Bank settlement reference</dt><dd>{{ evidence.bank_reference }}</dd>
+<dt>Settled on</dt><dd>{{ evidence.settled_at|date:"d M Y"|default:"Pending settlement" }}</dd>
+</dl></div>
+{% endblock %}

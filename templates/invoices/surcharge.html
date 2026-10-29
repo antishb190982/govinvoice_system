@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Surcharge · {{ invoice.reference }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'invoices:surcharges' %}">Surcharge monitor</a> / <a href="{{ invoice.get_absolute_url }}">{{ invoice.reference }}</a></div>
+<h1>Surcharge · {{ invoice.reference }}</h1>
+<p>{% status_badge invoice %} {{ invoice.provider.name }} · account {{ invoice.service_account.account_number }} · issued {{ invoice.issue_date|date:"d M Y" }}</p></div>
+<div class="actions"><a class="btn" href="{{ invoice.get_absolute_url }}">Invoice</a>{% if invoice.surcharge_amount %}<a class="btn btn-primary" href="{% url 'operations:case_new' %}?invoice={{ invoice.pk }}&amp;surcharge=1">Dispute surcharge</a>{% endif %}</div></div>
+{% if error %}<div class="callout danger" role="alert"><strong>Action not completed</strong>{{ error }}</div>{% endif %}
+<div class="callout"><strong>Already inside the billed total</strong>The surcharge is a classification of part of the original gross of {{ invoice.amount_total|money:invoice.currency }}. It is never added or deducted automatically. Only an authorised waiver or refund case changes what is paid or recovered.</div>
+<div class="ops-kpis">
+<div class="ops-kpi"><span>Charged</span><strong>{{ fee.charged|money:invoice.currency }}</strong></div>
+<div class="ops-kpi"><span>Waived before payment</span><strong>{{ fee.waived|money:invoice.currency }}</strong></div>
+<div class="ops-kpi"><span>Refund received</span><strong>{{ fee.received|money:invoice.currency }}</strong></div>
+<div class="ops-kpi{% if fee.refund_due %} warn{% endif %}"><span>Refund outstanding</span><strong>{{ fee.refund_due|money:invoice.currency }}</strong></div>
+<div class="ops-kpi"><span>Net cost</span><strong>{{ fee.net_cost|money:invoice.currency }}</strong></div>
+<div class="ops-kpi{% if fee.pending_cases %} warn{% endif %}"><span>Live cases</span><strong>{{ fee.pending_cases }}</strong></div>
+</div>
+<p class="ops-note">Net cost = surcharge charged − approved waivers before payment − refunds actually received. Outstanding refunds are not deducted until received.</p>
+<div class="split"><div class="stack">
+<div class="card"><h2>Classification</h2>
+{% if can_record %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="record">{% include "includes/form_errors.html" %}
+<label for="{{ form.surcharge_amount.id_for_label }}">{{ form.surcharge_amount.label }}</label>{{ form.surcharge_amount }}{{ form.surcharge_amount.errors }}
+<label for="{{ form.surcharge_description.id_for_label }}">{{ form.surcharge_description.label }}</label>{{ form.surcharge_description }}{{ form.surcharge_description.errors }}
+<p class="ops-note">This works for processed and paid invoices too: the gross and the original payment history are not rewritten. Changing the amount or description clears any earlier finance review. Once a surcharge dispute case exists, the amount and description are locked.</p>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Save classification</button></div></form>
+{% else %}<dl class="props"><dt>Amount</dt><dd>{{ invoice.surcharge_amount|money:invoice.currency }}</dd><dt>Description</dt><dd>{{ invoice.surcharge_description|default:"—" }}</dd></dl>{% endif %}</div>
+<div class="card"><h2>Surcharge cases</h2>{% for c in cases %}<p><a href="{{ c.get_absolute_url }}">{{ c.reference }}</a> {% status_badge c %}<br><span class="meta">{{ c.get_kind_display }} · {{ c.amount|money:invoice.currency }} · {{ c.opened_at|date:"d M Y" }}</span></p>{% empty %}<p class="muted">No surcharge disputes, waivers or refunds.</p>{% endfor %}
+<p class="ops-note">Fees on processed or paid invoices can still be disputed. A waiver approved after payment becomes a refund receivable; the payment is not rewritten.</p></div>
+{% include "operations/_history.html" %}
+</div><div class="stack">
+<div class="card"><h2>Finance review</h2>
+{% if invoice.surcharge_reviewed_at %}<p><span class="badge badge-ok">Reviewed</span> {{ invoice.surcharge_reviewed_by }} · {{ invoice.surcharge_reviewed_at|date:"d M Y H:i" }}</p><p>{{ invoice.surcharge_review_note|linebreaksbr }}</p>
+{% elif invoice.surcharge_amount %}<p><span class="badge badge-warn">Awaiting finance review</span></p><p class="ops-note">A positive surcharge needs a finance assessment before workflow or bank release. A fully authorised waiver of the fee also satisfies this, leaving nothing to review.</p>
+{% else %}<p class="muted">No surcharge to review.</p>{% endif %}
+{% if can_review and invoice.surcharge_amount %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="review">
+<label for="review-note">Assessment</label><textarea id="review-note" name="note" rows="3" required></textarea>
+<p class="ops-note">Accepting the line records the assessment only. It does not waive anything; open a dispute for that.</p>
+<div class="form-actions"><button class="btn btn-primary" type="submit">{% if invoice.surcharge_reviewed_at %}Record new assessment{% else %}Record assessment{% endif %}</button></div></form>{% endif %}</div>
+</div></div>
+{% endblock %}

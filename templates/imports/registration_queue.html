@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Registration requests{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'imports:list' %}">Imports</a> / Registration requests</div><h1>Registration requests</h1>
+<p>Account registration does not approve any invoice.</p></div></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Request</th><th>Status</th><th>Unit</th><th>Requested by</th><th>Import</th><th>Created</th></tr></thead><tbody>
+{% for r in requests %}<tr><td><a href="{% url 'imports:registration_request' r.pk %}">#{{ r.pk }}</a></td><td><span class="badge {% if r.status == 'ready' %}badge-ok{% else %}badge-warn{% endif %}">{{ r.get_status_display }}</span></td><td>{{ r.org_unit }}</td><td>{{ r.requested_by.full_name|default:r.requested_by }}</td><td>#{{ r.batch_id }} · {{ r.batch.original_name|truncatechars:40 }}</td><td>{{ r.created_at|date:"d M Y H:i" }}</td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No registration requests.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

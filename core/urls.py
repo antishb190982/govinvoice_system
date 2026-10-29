@@ -1,10 +1,13 @@
 from django.urls import path
 
 from core import views
+from analytics.overviews import overview
 
 app_name = "core"
 
 urlpatterns = [
+    path("insights/<slug:section>/", overview, name="section_overview"),
+    path("notifications/activity/", views.activity, name="activity"),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("notifications/", views.notifications, name="notifications"),
     path("notifications/read/", views.notification_read, name="notifications_read_all"),

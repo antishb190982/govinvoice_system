@@ -46,10 +46,16 @@ def validate_business_rules(invoice):
 
 def detect_flags(invoice):
     flags = set()
+    from invoices.intake_dates import assess_dates
+
+    recorded = timezone.localdate(invoice.created_at) if invoice.created_at else timezone.localdate()
+    flags.update(assess_dates(invoice.issue_date, invoice.due_date, invoice.received_date, recorded)["flags"])
     pct = Decimal(settings.ANOMALY_THRESHOLD_PCT) / 100
 
     if invoice.amount_net or invoice.amount_tax:
-        if abs((invoice.amount_net or 0) + (invoice.amount_tax or 0) - invoice.amount_total) > TOLERANCE:
+        subtotal = (invoice.amount_net or 0) + (invoice.amount_tax or 0)
+        if min(abs(subtotal - invoice.amount_total),
+               abs(subtotal + (invoice.surcharge_amount or 0) - invoice.amount_total)) > TOLERANCE:
             flags.add(Flag.TOTAL_MISMATCH)
 
     if invoice.previous_reading is not None and invoice.current_reading is not None \
@@ -90,8 +96,6 @@ def detect_flags(invoice):
         if same.exists():
             flags.add(Flag.SAME_DOCUMENT)
 
-    if invoice.due_date and timezone.now() > approval_deadline(invoice.due_date):
-        flags.add(Flag.LATE_ARRIVAL)
     if invoice.amount_total == 0:
         flags.add(Flag.NOTHING_TO_PAY)
     if invoice.arrears and invoice.arrears > 0:
@@ -102,6 +106,8 @@ def detect_flags(invoice):
 def prepare(invoice):
     """Derive copied fields, validate, flag. Does not save."""
     account = invoice.service_account
+    if not invoice.pk and not invoice.received_date:
+        invoice.received_date = timezone.localdate()
     invoice.provider = account.provider
     invoice.org_unit = account.org_unit if not invoice.org_unit_id or invoice.is_editable else invoice.org_unit
     invoice.utility_type = account.provider.utility_type
@@ -127,7 +133,40 @@ def save_invoice(invoice, user, audit_action=None, changed=None):
     if creating:
         invoice.reference = Counter.next("INV")
         invoice.created_by = user
+    from operations.services import payable
+    invoice.surcharge_amount = Decimal(str(invoice.surcharge_amount or 0))
+    fee_changed = not invoice.pk
+    fee_before = Decimal("0")
+    if not invoice.surcharge_amount.is_finite() or invoice.surcharge_amount < 0 or invoice.surcharge_amount > invoice.amount_total:
+        raise ValidationError("The surcharge must be between zero and the invoice total; it is already included in that total.")
+    if invoice.pk:
+        old_fee = Invoice.objects.get(pk=invoice.pk)
+        fee_before = old_fee.surcharge_amount
+        fee_changed = old_fee.surcharge_amount != invoice.surcharge_amount or old_fee.surcharge_description != invoice.surcharge_description
+        if old_fee.surcharge_amount != invoice.surcharge_amount or old_fee.surcharge_description != invoice.surcharge_description:
+            if invoice.dispute_cases.filter(is_surcharge=True).exists():
+                raise ValidationError("A surcharge with dispute history cannot be rewritten. Keep the original charge and use an authorised adjustment.")
+            invoice.surcharge_reviewed_by, invoice.surcharge_reviewed_at, invoice.surcharge_review_note = None, None, ""
+    if invoice.pk:
+        from operations.services import ministry_for
+        for membership in invoice.batch_memberships.select_related("batch"):
+            batch = membership.batch
+            if ministry_for(invoice.org_unit).pk != batch.ministry_id:
+                raise ValidationError("A batched invoice keeps its original ministry. Cancel an incorrectly allocated invoice and register it correctly.")
+            if membership.active and (invoice.provider_id != batch.provider_id or invoice.currency != batch.currency or
+                                      not invoice.org_unit.path.startswith(batch.org_unit.path)):
+                raise ValidationError("Release this invoice from its active batch before changing provider, currency or unit.")
+        if invoice.dispute_cases.exclude(org_unit=invoice.org_unit).exists():
+            raise ValidationError("An invoice with dispute history must retain its original organisational unit.")
+    if invoice.pk and payable(invoice) < 0:
+        raise ValidationError("Invoice amount cannot fall below its authorised internal waivers.")
     invoice.save()
+    if fee_changed and (invoice.surcharge_amount > 0 or fee_before > 0):
+        AuditEvent.record("invoice.surcharge_captured", obj=invoice, actor=user, data={
+            "amount": str(invoice.surcharge_amount), "description": invoice.surcharge_description,
+            "included_in_original_total": True})
+    from reconciliation.services import invoice_saved
+    invoice_saved(invoice)
     AuditEvent.record(audit_action or ("invoice.created" if creating else "invoice.updated"), obj=invoice,
                       actor=user, data={"reference": invoice.reference, "amount": invoice.amount_total,
                                         "flags": invoice.flags, "fields": changed or []})

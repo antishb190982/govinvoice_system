@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block title %}Gateway centre · Admin console{% endblock %}
+{% block content %}{% with heading="Gateway" accent="centre" %}{% include "integrations/_head.html" %}{% endwith %}{% include "integrations/_tabs.html" %}
+<div class="callout info"><strong>How to read this page</strong> “Submitted” means the e-mail server or SMS provider accepted the message — it does not confirm the recipient received it. In preview environments e-mail is kept locally and never leaves the server. External channels stay disabled until they are fully configured.</div>
+<div class="split">
+{% for key, ch in channels.items %}<section class="card" aria-labelledby="gw-{{ key }}"><div class="card-head"><h2 id="gw-{{ key }}">{% if key == 'email' %}E-mail (SMTP){% else %}SMS{% endif %}</h2><span class="badge {% if ch.ready %}badge-ok{% else %}badge-warn{% endif %}">{% if ch.ready %}Ready{% else %}Not configured{% endif %}</span></div>
+<p>{{ ch.label }}</p>
+<div class="form-actions"><a class="btn btn-primary" href="{% if key == 'email' %}{% url 'console:email' %}{% else %}{% url 'console:sms' %}{% endif %}">Configure &amp; test</a><a class="btn" href="{% url 'console:logs' %}?kind=messages">Delivery logs</a></div></section>{% endfor %}
+</div>
+<div class="card"><h2>Last 24 hours</h2><div class="table-wrap"><table><caption class="sr-only">Messages per channel in the last 24 hours</caption>
+<thead><tr><th scope="col">Channel</th><th scope="col" class="num">Total</th><th scope="col" class="num">Submitted</th><th scope="col" class="num">Failed</th><th scope="col" class="num">Skipped</th></tr></thead>
+<tbody>{% for s in stats %}<tr><th scope="row">{% if s.channel == 'email' %}E-mail{% else %}SMS{% endif %}</th><td class="num">{{ s.total }}</td><td class="num">{{ s.submitted }}</td><td class="num">{% if s.failed %}<span class="badge badge-danger">{{ s.failed }}</span>{% else %}0{% endif %}</td><td class="num">{{ s.skipped }}</td></tr>
+{% empty %}<tr><td colspan="5" class="empty">No messages in the last 24 hours.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="card"><div class="card-head"><h2>Latest deliveries</h2><a href="{% url 'console:logs' %}?kind=messages">All logs</a></div><div class="table-wrap"><table>
+<thead><tr><th scope="col">Recipient</th><th scope="col">Status</th><th scope="col">When</th></tr></thead>
+<tbody>{% for m in deliveries %}<tr><td>{{ m.recipient }}<br><small class="muted">{{ m.subject|truncatechars:50 }}</small>{% if m.error %}<br><small class="muted">{{ m.error|truncatechars:90 }}</small>{% endif %}</td><td><span class="status-dot {% if m.status == 'sent' %}ok{% elif m.status == 'failed' %}danger{% else %}warn{% endif %}"></span>{% if m.status == 'sent' %}Submitted{% else %}{{ m.status|capfirst }}{% endif %}</td><td class="nowrap"><small>{{ m.created_at|date:"d M H:i" }}</small></td></tr>
+{% empty %}<tr><td colspan="3" class="empty">Nothing sent yet.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}

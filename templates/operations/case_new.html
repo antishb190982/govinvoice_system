@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Open dispute, waiver or refund{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:cases' %}">Dispute basket</a> / New case</div><h1>Open dispute, waiver or refund</h1>
+<p>The original invoice gross is never edited. Approved waivers reduce the payable amount; refunds keep the paid invoice and track money returned.</p></div></div>
+<div class="split"><div class="stack"><div class="card">
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{% include "includes/form_errors.html" %}
+<label for="{{ form.invoice.id_for_label }}">Invoice</label>{{ form.invoice }}{{ form.invoice.errors }}
+<label for="{{ form.kind.id_for_label }}">Case type</label>{{ form.kind }}{{ form.kind.errors }}
+<label for="{{ form.reason.id_for_label }}">Reason</label>{{ form.reason }}{{ form.reason.errors }}
+<div class="mt"><label class="nowrap">{{ form.is_surcharge }} {{ form.is_surcharge.label }}</label><small class="muted">{{ form.is_surcharge.help_text }} Leave the amount blank and enter only the waiver or refund you are requesting.</small>{{ form.is_surcharge.errors }}</div>
+<h3 class="mt">Scope</h3><div class="ops-choice"><div><strong>Whole invoice</strong><p class="ops-note">Leave both item fields blank.</p></div><div><strong>Specific item</strong><p class="ops-note">Describe the charge as printed on the source invoice and give its original amount.</p></div></div>
+<label for="{{ form.item_description.id_for_label }}">{{ form.item_description.label }}</label>{{ form.item_description }}{{ form.item_description.errors }}
+<label for="{{ form.item_amount.id_for_label }}">{{ form.item_amount.label }} (required for a specific item)</label>{{ form.item_amount }}{{ form.item_amount.errors }}
+<label for="{{ form.amount.id_for_label }}">{{ form.amount.label }}</label>{{ form.amount }}<small class="muted">Must be positive for a waiver or refund, and cannot exceed the invoice or item amount.</small>{{ form.amount.errors }}
+<label for="{{ form.evidence.id_for_label }}">Evidence (optional)</label>{{ form.evidence }}<small class="muted">{{ form.evidence.help_text }}</small>{{ form.evidence.errors }}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Open case</button> <a class="btn btn-ghost" href="{% url 'operations:cases' %}">Cancel</a></div>
+</form></div></div>
+<div class="stack"><div class="card"><h2>How cases are decided</h2><ul class="timeline">
+<li><strong>Finance review</strong><br><span class="meta">A finance officer endorses the case with an assessment.</span></li>
+<li><strong>Independent authorisation</strong><br><span class="meta">An authoriser who did not open or review it decides with their signing PIN.</span></li>
+<li><strong>Internal waiver</strong><br><span class="meta">Reduces the payable amount; the original gross stays on record. On a paid invoice it becomes a refund receivable.</span></li>
+<li><strong>Refund</strong><br><span class="meta">The paid invoice stays paid; finance records each bank receipt until the approved amount is received.</span></li>
+<li><strong>Hold</strong><br><span class="meta">While a case is open, an unpaid invoice cannot be approved or settled.</span></li></ul></div></div></div>
+{% endblock %}

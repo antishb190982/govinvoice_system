@@ -1,0 +1,52 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Statement line {{ row.line_number }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}">{% endblock %}
+{% block body_class %}recon{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'reconciliation:index' %}">Reconciliation</a> / <a href="{{ row.statement.get_absolute_url }}">{{ row.statement.provider.name }} {{ row.statement.statement_date|date:"d M Y" }}</a> / Line {{ row.line_number }}</div>
+<h1>{% if row.is_ledger_only %}Missing from provider listing{% else %}Statement line {{ row.line_number }}{% endif %}</h1>
+<p>{% include "reconciliation/_state.html" with r=row %} {{ row.statement.org_unit }} · {{ row.statement.currency }}</p></div>
+<div class="actions">{% if row.invoice %}<a class="btn" href="{{ row.invoice.get_absolute_url }}">Invoice record</a><a class="btn" href="{% url 'reconciliation:index' %}?q={{ row.invoice.reference|urlencode }}&amp;state=all">Check live gate</a>{% endif %}<a class="btn" href="{% url 'reconciliation:index' %}?state=unsorted">Unsorted basket</a></div></div>
+
+{% if error %}<div class="callout danger" role="alert"><strong>Action not completed</strong>{{ error }}</div>{% endif %}
+{% if not row.statement.is_active %}<div class="callout warn"><strong>Archived statement</strong>This line belongs to a replaced statement and is not evidence for approval.</div>{% endif %}
+<div class="callout {% if row.status == 'matched' %}ok{% elif row.status == 'unsorted' %}danger{% else %}info{% endif %}"><strong>{{ row.get_status_display }}</strong>{{ row.reason|default:row.parse_error|default:"No reason recorded." }}
+{% if row.status == 'matched' %}<br><small>This was the result of the last check. If the invoice changed or a newer statement arrived it may no longer hold; use Recheck or the live gate.</small>{% endif %}</div>
+
+<div class="split"><div class="stack">
+<div class="card"><h2>Statement versus recorded invoice</h2>
+<div class="table-wrap"><table class="compare"><thead><tr><th>Field</th><th>Provider statement (read-only)</th><th>Recorded invoice</th></tr></thead><tbody>
+<tr><td>Account</td><td class="raw">{{ row.account_number|default:"—" }}</td>{% if row.invoice %}<td class="raw {% if differences.account %}diff{% else %}same{% endif %}">{{ row.invoice.service_account.account_number }}</td>{% else %}<td class="muted">No invoice found</td>{% endif %}</tr>
+<tr><td>Invoice number</td><td class="raw">{{ row.invoice_number|default:"—" }}</td>{% if row.invoice %}<td class="raw {% if differences.invoice %}diff{% else %}same{% endif %}">{{ row.invoice.invoice_number }}</td>{% else %}<td class="muted">—</td>{% endif %}</tr>
+<tr><td>Amount</td><td class="num">{% if row.amount is not None %}{{ row.amount|money:row.statement.currency }}{% else %}Not listed{% endif %}</td>{% if row.invoice %}<td class="num {% if differences.amount %}diff{% else %}same{% endif %}">{{ row.invoice.amount_total|money:row.invoice.currency }}</td>{% else %}<td class="muted">—</td>{% endif %}</tr>
+<tr><td>Currency</td><td>{{ row.statement.currency }}</td>{% if row.invoice %}<td class="{% if row.invoice.currency == row.statement.currency %}same{% else %}diff{% endif %}">{{ row.invoice.currency }}</td>{% else %}<td class="muted">—</td>{% endif %}</tr>
+{% if row.invoice %}<tr><td>Invoice</td><td class="muted">—</td><td><a href="{{ row.invoice.get_absolute_url }}">{{ row.invoice.reference }}</a> {% status_badge row.invoice %}</td></tr>{% endif %}
+</tbody></table></div>
+<p class="muted"><small>Statement values are fixed as uploaded. To resolve a mismatch, correct the invoice record or upload a newer provider statement, then recheck.</small></p>
+{% if row.invoice and row.invoice.status in "draft returned disputed" %}<p><a class="btn btn-sm" href="{{ row.invoice.get_absolute_url }}">Open invoice to correct it</a> <small class="muted">After editing, recheck here, then resubmit for approval.</small></p>{% endif %}
+</div>
+<div class="card"><details class="disclosure"><summary>Raw uploaded values</summary>
+<dl class="props mt">{% for k, v in row.raw.items %}<dt>{{ k }}</dt><dd class="raw">{{ v }}</dd>{% empty %}<dt>—</dt><dd class="muted">No raw values stored.</dd>{% endfor %}</dl></details></div>
+</div>
+<div class="stack">
+<div class="card"><h2>Responsibility and audit</h2><dl class="props">
+<dt>Unit</dt><dd>{{ row.assigned_unit }}</dd><dt>Staff</dt><dd>{{ row.assigned_to|default:"Any eligible staff in the unit" }}</dd>
+<dt>Last checked</dt><dd>{% if row.checked_at %}{{ row.checked_at|date:"d M Y H:i" }} by {{ row.checked_by|default:"system" }}{% else %}Not yet{% endif %}</dd>
+<dt>Fingerprint</dt><dd class="raw">{{ row.fingerprint|slice:":24"|default:"—" }}</dd>
+{% if row.notes %}<dt>Notes</dt><dd>{{ row.notes|linebreaksbr }}</dd>{% endif %}</dl>
+{% if can_recheck %}<form method="post" class="form-actions">{% csrf_token %}<input type="hidden" name="action" value="recheck"><button class="btn btn-primary" type="submit">Recheck against invoice</button></form>{% endif %}</div>
+
+{% if can_manage %}<div class="card"><h2>Reassign</h2>
+<form method="get"><label for="pick-unit">Responsible unit</label><select id="pick-unit" name="org_unit">{% for u in form.fields.org_unit.queryset %}<option value="{{ u.pk }}" {% if u.pk|stringformat:"s" == request.GET.org_unit or not request.GET.org_unit and u.pk == row.assigned_unit_id %}selected{% endif %}>{{ u }}</option>{% endfor %}</select>
+<div class="form-actions"><button class="btn btn-sm" type="submit">Load staff for unit</button></div></form>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="assign">
+{% if form.non_field_errors %}<ul class="errorlist nonfield">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+<div class="form-stack">{% for f in form %}<div><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% if f.name == 'assigned_to' %}<span class="helptext">Leave blank to route to the unit.</span>{% endif %}{{ f.errors }}</div>{% endfor %}</div>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Reassign and recheck</button></div></form></div>{% endif %}
+
+{% if can_return %}<div class="card"><h2>Return invoice for correction</h2>
+<p><small>Returns {{ row.invoice.reference }} to invoice capture for correction and a new approval round. Past signed decisions stay in history. Any active settlement must be cancelled first. This does not force a match.</small></p>
+<form method="post" data-confirm="Return this invoice for correction and a new approval round?">{% csrf_token %}<input type="hidden" name="action" value="return">
+<label for="return-reason">Reason</label><textarea id="return-reason" name="reason" rows="3" maxlength="2000" required></textarea>
+<div class="form-actions"><button class="btn btn-danger" type="submit">Return for correction</button></div></form></div>{% endif %}
+</div></div>
+{% endblock %}

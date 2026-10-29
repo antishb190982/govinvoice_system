@@ -110,7 +110,7 @@ def make_invoice(account, people):
 
     counter = {"n": 0}
 
-    def _make(amount="1000.000", due_in=30, number=None, **extra):
+    def _make(amount="1000.000", due_in=30, number=None, reconciled=True, **extra):
         counter["n"] += 1
         today = timezone.localdate()
         inv = Invoice(service_account=account, invoice_number=number or f"INV-{counter['n']}",
@@ -122,7 +122,21 @@ def make_invoice(account, people):
 
         f.seek(0)
         inv.document_sha256 = hashlib.sha256(f.read()).hexdigest()
-        return save_invoice(inv, people["clerk"])
+        saved = save_invoice(inv, people["clerk"])
+        if reconciled:
+            from reconciliation.models import Statement, StatementRow
+            from reconciliation.services import fingerprint
+            statement, _ = Statement.objects.get_or_create(provider=saved.provider, org_unit=saved.org_unit,
+                currency=saved.currency, is_active=True, defaults={"statement_date": today, "uploaded_by": people["finance"]})
+            row = statement.rows.filter(invoice=saved).first()
+            if row is None:
+                row = StatementRow(statement=statement, line_number=(statement.rows.count() + 2), assigned_unit=saved.org_unit)
+            row.invoice = saved
+            row.account_number, row.invoice_number, row.amount = saved.service_account.account_number, saved.invoice_number, saved.amount_total
+            row.status, row.fingerprint = StatementRow.Status.MATCHED, fingerprint(saved)
+            row.is_ledger_only, row.parse_error, row.reason = False, "", ""
+            row.save()
+        return saved
 
     return _make
 

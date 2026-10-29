@@ -1,18 +1,18 @@
 {% extends "base.html" %}{% load gov %}{% block title %}New settlement instruction{% endblock %}
 {% block content %}
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'settlements:list' %}">Settlement instructions</a></div><h1>New settlement instruction</h1>
-<p>Collects approved invoices and totals them per utility provider. Pay-by is the earliest due date; execution is requested one working day earlier.</p></div></div>
+<p>Collects approved invoices for a single utility provider, using the adjusted payable amount. Pay-by is the earliest due date; execution is requested one working day earlier.</p></div></div>
 <div class="card"><form method="get" class="filters">{% for f in form %}<div>{{ f.label_tag }}{{ f }}{{ f.errors }}</div>{% endfor %}<div><button class="btn btn-primary" type="submit">Find approved invoices</button></div></form></div>
 {% if lines is not None %}
 <form method="post" action="?{{ request.GET.urlencode }}">{% csrf_token %}
-<div class="card"><div class="card-head"><h2>{{ lines|length }} providers · {{ grand_total|money:form.cleaned_data.currency }}</h2>
+<div class="card"><div class="card-head"><h2>{% if lines %}{{ lines.0.provider.name }}{% else %}Selected provider{% endif %} · {{ grand_total|money:form.cleaned_data.currency }}</h2>
 <label class="nowrap"><input type="checkbox" data-select-all="inv" checked> Select all</label></div>
 <p class="muted" id="inv-summary"></p>
 {% for line in lines %}<h3 class="mt">{{ line.provider.name }} <small class="muted">· {{ line.provider.get_utility_type_display }} · earliest due {{ line.earliest_due|date:"d M Y" }} · {{ line.amount|money:form.cleaned_data.currency }}</small>
 {% if line.missing_bank %}<span class="badge badge-danger">No bank details</span>{% endif %}</h3>
-<div class="table-wrap"><table><thead><tr><th></th><th>Invoice</th><th>Account</th><th>Unit</th><th>Due</th><th class="num">Amount</th></tr></thead><tbody>
-{% for inv in line.invoices %}<tr><td><input type="checkbox" name="invoice" value="{{ inv.pk }}" data-group="inv" data-amount="{{ inv.amount_total }}" checked aria-label="Include {{ inv.reference }}"></td>
-<td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a> · {{ inv.invoice_number }}</td><td>{{ inv.service_account.account_number }}</td><td>{{ inv.org_unit.code }}</td><td>{{ inv.due_date|date:"d M Y" }}</td><td class="num">{{ inv.amount_total|money }}</td></tr>{% endfor %}
+<div class="table-wrap"><table><thead><tr><th></th><th>Invoice</th><th>Account</th><th>Unit</th><th>Due</th><th class="num">Payable</th></tr></thead><tbody>
+{% for inv in line.invoices %}<tr><td><input type="checkbox" name="invoice" value="{{ inv.pk }}" data-group="inv" data-amount="{{ inv.payable_amount }}" checked aria-label="Include {{ inv.reference }}"></td>
+<td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a> · {{ inv.invoice_number }}</td><td>{{ inv.service_account.account_number }}</td><td>{{ inv.org_unit.code }}</td><td>{{ inv.due_date|date:"d M Y" }}</td><td class="num">{{ inv.payable_amount|money }}{% if inv.payable_amount != inv.amount_total %}<br><small class="muted">gross {{ inv.amount_total|money }}</small>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>{% empty %}<p class="empty">No approved invoices due by this date. Invoices still in approval appear once fully approved.</p>{% endfor %}
 {% if lines %}<label for="notes" class="mt">Notes for the bank / treasury (optional)</label><textarea id="notes" name="notes" rows="2"></textarea>
 <div class="form-actions"><button class="btn btn-primary" type="submit">Create draft instruction</button></div>{% endif %}

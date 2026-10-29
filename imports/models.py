@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from core.files import private_upload_path
 from providers.models import Provider
@@ -49,6 +50,10 @@ class ImportBatch(models.Model):
     sha256 = models.CharField(max_length=64, db_index=True)
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.STAGED)
     created_at = models.DateTimeField(auto_now_add=True)
+    received_date = models.DateField(default=timezone.localdate)
+    intake_source = models.CharField(max_length=12, default="upload")
+    intake_notes = models.JSONField(default=list, blank=True)
+    registration_mode = models.BooleanField(default=False)
     committed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
@@ -87,5 +92,36 @@ class ImportRow(models.Model):
     confirmed_at = models.DateTimeField(null=True, blank=True)
     invoice = models.ForeignKey("invoices.Invoice", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
 
+    @property
+    def processing(self):
+        from datetime import date
+        from invoices.intake_dates import assess_dates
+
+        return assess_dates(
+            date.fromisoformat(self.data["issue_date"]) if self.data.get("issue_date") else None,
+            date.fromisoformat(self.data["due_date"]) if self.data.get("due_date") else None,
+            date.fromisoformat(self.data["received_date"]) if self.data.get("received_date") else self.batch.received_date,
+            timezone.localdate(self.batch.created_at),
+        )
+
     class Meta:
         ordering = ["row_number"]
+
+
+class RegistrationRequest(models.Model):
+    class Status(models.TextChoices):
+        REQUESTED = "requested", "Awaiting unit administrator"
+        READY = "ready", "Registration complete"
+
+    batch = models.OneToOneField(ImportBatch, on_delete=models.PROTECT, related_name="registration_request")
+    org_unit = models.ForeignKey("org.OrgUnit", on_delete=models.PROTECT)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.REQUESTED)
+    revision = models.PositiveIntegerField(default=1)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True,
+                                      on_delete=models.PROTECT, related_name="+")
+
+    class Meta:
+        ordering = ["-created_at"]

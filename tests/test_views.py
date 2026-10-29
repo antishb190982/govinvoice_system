@@ -36,6 +36,7 @@ def test_invoice_detail_and_task_pages(client, signers, policy, make_invoice):
     assert client.get(reverse("invoices:detail", args=[inv.pk])).status_code == 200
     r = client.post(reverse("workflow:task", args=[task.pk]), {"decision": "approve", "comment": "ok"})
     assert r.status_code == 302
+    assert r.url == inv.get_absolute_url()
     task.refresh_from_db()
     assert task.status == "approved"
 

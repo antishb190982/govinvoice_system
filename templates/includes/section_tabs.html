@@ -1,0 +1,4 @@
+{% with t=section_tabs %}<nav class="tabs section-tabs" aria-label="{{ t.title }} views">
+  <a href="{{ t.overview_url }}"{% if t.active == 'overview' %} class="active" aria-current="page"{% endif %}>Overview (dashboard)</a>
+  <a href="{{ t.records_url }}"{% if t.active == 'records' %} class="active" aria-current="page"{% endif %}>{{ t.records_label }}</a>
+</nav>{% endwith %}

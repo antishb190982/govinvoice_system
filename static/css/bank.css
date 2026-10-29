@@ -1,0 +1,39 @@
+/* Bank reconciliation (post-settlement) — scoped to body.bank */
+.bank .tiles { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.bank .bank-split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.bank .bank-upload { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.bank .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+.bank .scroll table { min-width: 640px; }
+.bank .bank-split .scroll table { min-width: 420px; }
+.bank .bank-form .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.bank .bank-form .help, .bank p.help { color: #5a6190; font-size: .82rem; }
+.bank .field-error { color: #b42318; font-size: .85rem; margin: 0; }
+.bank .has-error input, .bank .has-error select { border-color: #b42318; }
+.bank .search-actions { display: flex; gap: 8px; align-items: end; }
+.bank dl.cols { display: grid; grid-template-columns: minmax(120px, max-content) 1fr; gap: 6px 16px; margin: 0; }
+.bank dl.cols dt { color: #5a6190; font-size: .85rem; }
+.bank dl.cols dd { margin: 0; overflow-wrap: anywhere; }
+.bank .format-help dl.cols dt { font-family: ui-monospace, monospace; font-size: .8rem; }
+.bank .raw-source { margin-top: 16px; }
+.bank .raw-source summary { cursor: pointer; font-weight: 500; }
+.bank .raw-source dl { margin-top: 10px; }
+.bank .review { border: 1px solid #d9ddf2; border-radius: 12px; padding: 14px 16px; margin: 0 0 14px; }
+.bank .review legend { font-weight: 500; padding: 0 6px; }
+.bank .check { display: flex; gap: 8px; align-items: center; margin: 8px 0 12px; }
+.bank .sub-h { font-size: .95rem; margin: 18px 0 8px; }
+.bank .mono { font-family: ui-monospace, monospace; }
+.bank .text-danger { color: #b42318; }
+.bank h1 .badge { vertical-align: middle; font-size: .8rem; }
+.bank .registration-head p a:not(.btn) {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: .16em;
+  font-weight: 500;
+}
+@media (max-width: 900px) {
+  .bank .bank-split, .bank .bank-upload { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .bank dl.cols { grid-template-columns: 1fr; }
+  .bank dl.cols dt { margin-top: 6px; }
+}

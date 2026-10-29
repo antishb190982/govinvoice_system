@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}{{ case.reference }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'operations:cases' %}">Dispute basket</a> / {{ case.reference }}</div>
+<h1>{{ case.reference }} · {{ case.get_kind_display }}</h1>
+<p>{% status_badge case %} Invoice <a href="{{ case.invoice.get_absolute_url }}">{{ case.invoice.reference }}</a> · {{ case.org_unit }}</p></div>
+<div class="actions">{% if case.invoice.document %}<a class="btn" href="{% url 'invoices:document' case.invoice.pk %}" target="_blank" rel="noopener">Source invoice PDF</a>{% endif %}
+{% if case.evidence %}<a class="btn" href="{% url 'operations:document' case.pk 'evidence' %}">Evidence</a>{% endif %}</div></div>
+{% if error %}<div class="callout danger" role="alert"><strong>Action not completed</strong>{{ error }}</div>{% endif %}
+<div class="ops-kpis">
+<div class="ops-kpi"><span>Original gross</span><strong>{{ case.invoice.amount_total|money:case.invoice.currency }}</strong></div>
+<div class="ops-kpi"><span>Current payable</span><strong>{{ payable|money:case.invoice.currency }}</strong></div>
+<div class="ops-kpi"><span>Case amount</span><strong>{{ case.amount|money:case.invoice.currency }}</strong></div>
+{% if case.kind != 'issue' and receipts or case.status == 'refund_due' or case.status == 'refunded' %}<div class="ops-kpi{% if case.status == 'refund_due' %} warn{% endif %}"><span>Refund received</span><strong>{{ received_total|money }} of {{ case.amount|money }}</strong></div>{% endif %}
+</div>
+<div class="split"><div class="stack">
+<div class="card"><h2>Case</h2><dl class="props">
+<dt>Item</dt><dd>{% if case.item_description %}{{ case.item_description }} · original {{ case.item_amount|money:case.invoice.currency }}{% else %}Whole invoice{% endif %}</dd>
+<dt>Reason</dt><dd>{{ case.reason|linebreaksbr }}</dd>
+<dt>Opened</dt><dd>{{ case.opened_by }} · {{ case.opened_at|date:"d M Y H:i" }}</dd>
+<dt>Finance review</dt><dd>{% if case.finance_by %}{{ case.finance_by }}<br>{{ case.finance_note|linebreaksbr }}{% else %}<span class="muted">Pending</span>{% endif %}</dd>
+<dt>Authorisation</dt><dd>{% if case.approved_by %}{{ case.approved_by }} · {{ case.decided_at|date:"d M Y H:i" }}<br>{{ case.decision_note|linebreaksbr }}{% else %}<span class="muted">Pending</span>{% endif %}</dd>
+<dt>Payable adjustment</dt><dd>{% if case.applies_payable %}Applied; original gross unchanged{% else %}None{% endif %}</dd>
+</dl>
+<details class="disclosure mt"><summary>Invoice snapshot when opened (read-only)</summary><dl class="props">{% for k, v in case.invoice_snapshot.items %}<dt>{{ k }}</dt><dd>{{ v|default:"—" }}</dd>{% endfor %}</dl></details></div>
+{% if receipts or case.status == 'refund_due' or case.status == 'refunded' %}<div class="card"><h2>Refund receipts</h2>
+<p class="ops-note">{% if case.status == 'refunded' %}Fully received.{% else %}Outstanding until receipts equal the approved {{ case.amount|money:case.invoice.currency }}.{% endif %} Received so far: <strong>{{ received_total|money:case.invoice.currency }}</strong>.</p>
+<div class="table-wrap"><table class="ops-table"><thead><tr><th>Received</th><th>Bank reference</th><th class="num">Amount</th><th>Recorded by</th><th>Document</th></tr></thead><tbody>
+{% for r in receipts %}<tr><td>{{ r.received_date|date:"d M Y" }}</td><td class="mono">{{ r.reference }}</td><td class="num">{{ r.amount|money }}</td><td>{{ r.recorded_by }}<br><small class="muted">{{ r.recorded_at|date:"d M Y H:i" }}</small></td><td><a href="{{ r.get_absolute_url }}">Download</a></td></tr>
+{% empty %}<tr><td colspan="5" class="empty">No refund received yet.</td></tr>{% endfor %}</tbody></table></div></div>{% endif %}
+{% include "operations/_history.html" %}
+</div><div class="stack">
+{% if can_finance %}{% if case.status == 'open' or case.status == 'authorisation' %}<div class="card"><h2>Finance review / refresh</h2><p class="ops-note">A changed invoice requires a fresh finance review before authorisation.</p><form method="post">{% csrf_token %}<input type="hidden" name="action" value="endorse">
+<label for="endorse-note">Assessment</label><textarea id="endorse-note" name="note" rows="3" required></textarea><div class="form-actions"><button class="btn btn-primary" type="submit">Endorse for authorisation</button></div></form></div>{% endif %}{% endif %}
+{% if case.status == 'authorisation' and can_authorise %}<div class="card"><h2>Independent decision</h2><form method="post">{% csrf_token %}
+<label for="decide-note">Decision reason</label><textarea id="decide-note" name="note" rows="3" required></textarea>
+<label for="pin">Signing PIN</label><input id="pin" type="password" name="pin" autocomplete="off" required>
+<div class="form-actions"><button class="btn btn-primary" type="submit" name="action" value="approve">Approve</button> <button class="btn btn-danger" type="submit" name="action" value="reject">Reject</button></div></form></div>{% endif %}
+{% if case.status == 'refund_due' and can_finance %}<div class="card"><h2>Record refund receipt</h2><p class="ops-note">Record each bank receipt actually received. Partial receipts are allowed.</p>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}<input type="hidden" name="action" value="refund">{% include "includes/form_errors.html" with form=refund_form %}
+{% for f in refund_form %}<label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{{ f.errors }}{% endfor %}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Record receipt</button></div></form></div>{% endif %}
+{% if can_withdraw %}<div class="card"><h2>Withdraw</h2><form method="post" data-confirm="Withdraw this case?">{% csrf_token %}<input type="hidden" name="action" value="withdraw">
+<label for="withdraw-note">Reason</label><textarea id="withdraw-note" name="note" rows="2" required></textarea><div class="form-actions"><button class="btn btn-danger btn-sm" type="submit">Withdraw case</button></div></form></div>{% endif %}
+</div></div>
+{% endblock %}

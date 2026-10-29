@@ -8,6 +8,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET
+from django.views.decorators.cache import never_cache
+from django.http import JsonResponse
 
 from analytics import queries
 from core.models import AuditEvent, Notification
@@ -18,6 +21,20 @@ from org.models import Role
 from settlements.models import SettlementInstruction
 from workflow.engine import pending_for
 from workflow.models import ApprovalTask
+
+
+@login_required
+@require_GET
+@never_cache
+def activity(request):
+    from operations.workspace import counts_for
+    notes = request.user.notifications
+    return JsonResponse({
+        "unread_notifications": notes.filter(read_at__isnull=True).count(),
+        "pending_approvals": pending_for(request.user).count(),
+        "batch_folders": counts_for(request.user),
+        "latest_notification_id": notes.values_list("pk", flat=True).first() or 0,
+    })
 
 
 @login_required
@@ -69,8 +86,11 @@ def dashboard(request):
 
 @login_required
 def notifications(request):
-    page = paginate(request, request.user.notifications.all(), 30)
-    return render(request, "core/notifications.html", {"page": page})
+    from core.notify import channel_readiness
+    page = paginate(request, request.user.notifications.prefetch_related("deliveries"), 30)
+    return render(request, "core/notifications.html", {
+        "page": page, "channel_readiness": channel_readiness(),
+    })
 
 
 @login_required

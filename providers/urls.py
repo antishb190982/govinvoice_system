@@ -5,6 +5,7 @@ from providers import views
 app_name = "providers"
 
 urlpatterns = [
+    path("accounts/", views.accounts, name="accounts"),
     path("", views.provider_list, name="list"),
     path("new/", views.provider_form, name="create"),
     path("<int:pk>/", views.provider_detail, name="detail"),

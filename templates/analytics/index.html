@@ -1,48 +1,142 @@
-{% extends "base.html" %}{% load gov %}{% block title %}Trends &amp; analysis{% endblock %}
+{% extends "base.html" %}{% load static gov %}{% block title %}Billing history &amp; analysis{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/analytics.css' %}">{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Trends &amp; analysis</h1><p>Spend, consumption, approval performance and payment discipline · {{ currency }} · last {{ months }} months, by billing period.</p></div>
-<div class="actions"><a class="btn" href="?{{ request.GET.urlencode }}&amp;export=csv">Export monthly data</a></div></div>
-<div class="card"><form method="get" class="filters">{% for f in form %}<div>{{ f.label_tag }}{{ f }}</div>{% endfor %}<div><button class="btn btn-primary" type="submit">Apply</button></div></form></div>
+<div class="page-head registration-head an-head"><div><div class="crumbs">Payments / Finance &amp; administration history</div><h1>Billing history &amp; analysis</h1>
+<p>{% if invalid_filters %}Correct the filters below to load the history.{% else %}Billed amounts, current balances, provider mix and review prompts · <strong>{{ currency }}</strong> · <span class="an-period">{{ history.start|date:"M Y" }} to {{ history.end|date:"M Y" }}</span> ({{ months }} complete billing months).{% endif %}</p></div>
+{% if not invalid_filters %}<div class="actions"><a class="btn" href="?{{ request.GET.urlencode }}&amp;export=csv">Export monthly CSV</a><a class="btn" href="?{{ request.GET.urlencode }}&amp;export=providers">Export provider CSV</a></div>{% endif %}</div>
 
-<div class="grid cols-4 mt">
-  <div class="card kpi tone-info"><div class="label">Approval SLA met</div><div class="value">{% if sla.on_time_pct is not None %}{{ sla.on_time_pct }}%{% else %}—{% endif %}</div><div class="sub">{{ sla.decided }} decisions · {{ sla.breached }} breached</div></div>
-  <div class="card kpi tone-info"><div class="label">Avg. step decision time</div><div class="value">{% if sla.avg_hours is not None %}{{ sla.avg_hours }} h{% else %}—{% endif %}</div><div class="sub">working hours</div></div>
-  <div class="card kpi {% if timeliness.on_time_pct is not None and timeliness.on_time_pct < 95 %}tone-danger{% else %}tone-ok{% endif %}"><div class="label">Paid by due date</div><div class="value">{% if timeliness.on_time_pct is not None %}{{ timeliness.on_time_pct }}%{% else %}—{% endif %}</div><div class="sub">{{ timeliness.paid }} paid · {{ timeliness.late_amount|money }} paid late</div></div>
-  <div class="card kpi tone-info"><div class="label">Intake → approved</div><div class="value">{% if cycle_days is not None %}{{ cycle_days }} d{% else %}—{% endif %}</div><div class="sub">average calendar days</div></div>
+<div class="card"><form method="get" class="filters" action="{% url 'analytics' %}">
+  {% if form.non_field_errors %}<ul class="errorlist nonfield">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  {% for f in form %}<div>{{ f.label_tag }}{{ f }}{% if f.errors %}<ul class="errorlist">{% for e in f.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>{% endfor %}
+  <div class="an-filter-actions"><button class="btn btn-primary" type="submit">Apply</button><a class="btn btn-ghost" href="{% url 'analytics' %}">Clear filters</a></div>
+</form></div>
+
+{% if invalid_filters %}
+<div class="callout danger mt" role="alert"><strong>These filters could not be applied</strong>
+No figures, charts or exports are shown, because results for an invalid selection would be misleading. Fix the highlighted fields: the ending month must be a complete month (last month or earlier), the currency must be a three-letter code such as MUR, and the period must be 6, 12, 24 or 36 months. Or <a href="{% url 'analytics' %}">reset to the default view</a>.</div>
+{% else %}
+
+<nav aria-label="Sections on this page"><ul class="an-nav">
+  <li><a href="#summary">Summary</a></li><li><a href="#definitions">Definitions</a></li><li><a href="#review">Review prompts</a></li>
+  <li><a href="#providers">Provider mix</a></li><li><a href="#ledger">Monthly ledger</a></li><li><a href="#utilities">Utilities &amp; units</a></li>
+  <li><a href="#outlook">Year on year &amp; projection</a></li><li><a href="#accounts">Accounts &amp; anomalies</a></li><li><a href="#performance">Approval &amp; payment performance</a></li>
+</ul></nav>
+
+<section class="an-section" id="summary" aria-labelledby="h-summary">
+<div class="an-title"><h2 id="h-summary">Billing cohort summary</h2><p>Comparison window: {{ history.previous_start|date:"M Y" }} to {{ history.previous_end|date:"M Y" }} (same length, immediately preceding).</p></div>
+{% with t=history.totals %}
+<div class="grid cols-4">
+  <div class="card kpi tone-info"><div class="label">Billed amount</div><div class="value">{{ t.total|money }}</div>
+    <div class="sub">{% if not t.count %}No comparable records{% elif not t.previous_count %}New baseline, no prior-period invoices{% elif t.change_pct is not None %}{% if t.change_pct > 0 %}+{% endif %}{{ t.change_pct }}% vs {{ t.previous|money }} prior{% else %}No comparable records{% endif %}</div></div>
+  <div class="card kpi tone-info"><div class="label">Invoices</div><div class="value">{{ t.count }}</div><div class="sub">{{ t.previous_count }} in prior period{% if history.drafts_excluded %} · {{ history.drafts_excluded }} draft{{ history.drafts_excluded|pluralize }} excluded{% endif %}</div></div>
+  <div class="card kpi tone-ok"><div class="label">Recorded paid (current status)</div><div class="value">{{ t.paid|money }}</div><div class="sub">of this cohort, not cash paid in the period</div></div>
+  <div class="card kpi {% if t.outstanding %}tone-warn{% else %}tone-ok{% endif %}"><div class="label">Outstanding now</div><div class="value">{{ t.outstanding|money }}</div><div class="sub">{% if t.average is not None %}average invoice {{ t.average|money }}{% else %}no invoices to average{% endif %}</div></div>
 </div>
+{% endwith %}
+</section>
 
-<div class="grid cols-2 mt">
-  <div class="card span-2"><div class="card-head"><h2>Monthly spend by utility</h2></div>
-    <div class="chart tall"><canvas data-chart="monthly" data-stacked="true" data-currency="{{ currency }}" aria-label="Monthly spend by utility"></canvas></div>{{ monthly|json_script:"monthly" }}</div>
-  <div class="card"><div class="card-head"><h2>Consumption trend</h2><span class="muted">index, each utility's average = 100</span></div>
-    <div class="chart"><canvas data-chart="consumption" data-type="line" aria-label="Consumption by utility"></canvas></div>{{ consumption|json_script:"consumption" }}</div>
-  <div class="card"><div class="card-head"><h2>Spend by unit</h2><span class="muted">{% if form.cleaned_data.org_unit %}below {{ form.cleaned_data.org_unit.code }}{% else %}top level{% endif %}</span></div>
-    <div class="chart"><canvas data-chart="units" data-horizontal="true" data-currency="{{ currency }}" aria-label="Spend by unit"></canvas></div>{{ by_unit_chart|json_script:"units" }}</div>
+<section class="an-section" id="definitions" aria-labelledby="h-def">
+<div class="an-title"><h2 id="h-def">How to read these figures</h2></div>
+<div class="card"><ul class="an-defs">
+  <li><strong>Billing month</strong>: invoices are grouped by service period end, falling back to issue date. Only complete months are included; draft and cancelled invoices are excluded.</li>
+  <li><strong>Billed amount</strong> is what providers invoiced. It is not cash spend.</li>
+  <li><strong>Recorded paid / Outstanding now</strong> are the current statuses of invoices in the selected billing cohort. They are not an as-of historical reconstruction or a cash-flow statement.</li>
+  <li><strong>Provider comparisons</strong> use the equal-length window immediately before the selected period. "New baseline" means there were no prior invoices to compare with.</li>
+  <li><strong>Review prompts</strong> need invoices in each of the three months before the ending month, and flag changes of 20% or more against that three-month average. A latest month with no invoices is a data gap, not proof of zero cost. Prompts are for review, not conclusions about cause or fraud.</li>
+  <li><strong>Year on year</strong> always compares the rolling 12 months ending {{ history.end|date:"M Y" }} with the preceding 12, whatever period length is chosen. <strong>Projections</strong> are simple estimates from data up to the ending month; uncertainty is not available.</li>
+  <li><strong>Approval SLA and payment timeliness</strong> count events dated within the selected calendar months, filtered by the same unit, provider, utility and currency.</li>
+  <li>Amounts are in {{ currency }} only. Other currencies are never mixed in or converted.</li>
+</ul></div>
+</section>
+
+<section class="an-section" id="review" aria-labelledby="h-review">
+<div class="an-title"><h2 id="h-review">Review prompts for {{ history.end|date:"F Y" }}</h2><p>Rule-based: latest month vs the average of the three preceding months, by provider.</p></div>
+{% if history.insights %}<div class="an-insights">
+{% for i in history.insights %}<article class="an-insight {{ i.kind }}">
+  <span class="badge badge-{% if i.kind == 'rise' %}danger{% elif i.kind == 'fall' %}info{% else %}warn{% endif %}">{{ i.title }}</span>
+  <h3 class="mt"><a href="{{ i.provider.url }}">{{ i.provider.name }}</a></h3><small>{{ i.provider.code }} · {{ i.provider.utility }}</small>
+  <dl><dt>3-month average</dt><dd>{{ i.baseline|money }} ({{ i.baseline_count|floatformat:1 }} invoices/month)</dd>
+  <dt>Latest month</dt><dd>{% if i.latest is None %}No invoices recorded (data gap){% else %}{{ i.latest|money }} ({{ i.count }} invoice{{ i.count|pluralize }}){% endif %}</dd>
+  <dt>Change</dt><dd>{% if i.change_pct is None %}Not calculated{% else %}{% if i.change_pct > 0 %}+{% endif %}{{ i.change_pct }}%{% endif %}</dd></dl>
+</article>{% endfor %}</div>
+{% else %}<div class="card"><p class="empty">No provider meets the review rule for this month, or there is insufficient history (invoices needed in all three preceding months).</p></div>{% endif %}
+</section>
+
+<section class="an-section" id="providers" aria-labelledby="h-prov">
+<div class="an-title"><h2 id="h-prov">Provider mix</h2><p>Select a provider to drill down with the same filters.</p></div>
+<div class="grid cols-2">
+  <div class="card span-2"><div class="card-head"><h2>Monthly billed amount by provider</h2><span class="muted">stacked, top 6 plus other providers</span></div>
+    <div class="chart tall"><canvas data-chart="provider-trend" data-stacked="true" data-currency="{{ currency }}" role="img" aria-label="Stacked monthly billed amount by provider; exact values in the provider table"></canvas></div>{{ history.provider_trend|json_script:"provider-trend" }}</div>
+  <div class="card span-2"><div class="card-head"><h2>Provider ranking</h2><span class="muted">top 8, remainder as Other providers</span></div>
+    <div class="chart"><canvas data-chart="provider-rank" data-horizontal="true" data-currency="{{ currency }}" role="img" aria-label="Billed amount ranking by provider; exact values in the provider table"></canvas></div>{{ history.provider_chart|json_script:"provider-rank" }}</div>
 </div>
+<div class="card mt"><div class="card-head"><h2>Provider table</h2><span class="muted">{{ history.providers|length }} provider{{ history.providers|length|pluralize }}</span></div>
+<div class="table-wrap"><table><caption class="hidden">Billed amount by provider for the selected period</caption><thead><tr><th>Provider</th><th>Utility</th><th class="num">Invoices</th><th class="num">Billed</th><th class="num">Share</th><th class="num">Average</th><th class="num">Paid</th><th class="num">Outstanding</th><th class="num">Prior period</th><th class="num">Change</th></tr></thead><tbody>
+{% for p in history.providers %}<tr{% if not p.count %} class="row-muted"{% endif %}><td><a href="{{ p.url }}">{{ p.name }}</a><br><small>{{ p.code }}</small></td><td>{{ p.utility }}</td><td class="num">{{ p.count }}</td><td class="num">{{ p.total|money }}</td><td class="num">{% if p.share is not None %}{{ p.share }}%{% else %}-{% endif %}</td><td class="num">{% if p.average is not None %}{{ p.average|money }}{% else %}-{% endif %}</td><td class="num">{{ p.paid|money }}</td><td class="num">{{ p.outstanding|money }}</td><td class="num">{{ p.previous|money }}</td>
+<td class="num">{% if not p.count %}<span class="badge badge-neutral">No comparable records</span>{% elif not p.previous_count %}<span class="badge badge-info">New baseline</span>{% elif p.change_pct is not None %}<span class="badge badge-{% if p.change_pct > 10 %}danger{% elif p.change_pct < -5 %}ok{% else %}neutral{% endif %}">{% if p.change_pct > 0 %}+{% endif %}{{ p.change_pct }}%</span>{% else %}No comparable amount{% endif %}</td></tr>
+{% empty %}<tr><td colspan="10" class="empty">No billed invoices for this selection.</td></tr>{% endfor %}</tbody></table></div></div>
+</section>
 
-<div class="grid cols-2 mt">
+<section class="an-section" id="ledger" aria-labelledby="h-ledger">
+<div class="an-title"><h2 id="h-ledger">Monthly ledger</h2><p>Month-on-month change is shown only when both months have invoices.</p></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Billing month</th><th class="num">Invoices</th><th class="num">Providers</th><th class="num">Billed</th><th class="num">Paid now</th><th class="num">Outstanding now</th><th class="num">vs prior month</th></tr></thead><tbody>
+{% for r in history.ledger %}<tr{% if not r.count %} class="row-warn"{% endif %}><td>{{ r.month|date:"F Y" }}</td><td class="num">{{ r.count }}</td><td class="num">{{ r.provider_count }}</td><td class="num">{% if r.count %}{{ r.total|money }}{% else %}No invoices recorded{% endif %}</td><td class="num">{{ r.paid|money }}</td><td class="num">{{ r.outstanding|money }}</td>
+<td class="num">{% if r.change_pct is not None %}{% if r.change_pct > 0 %}+{% endif %}{{ r.change_pct }}%{% else %}<span class="muted">No comparable records</span>{% endif %}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No months in range.</td></tr>{% endfor %}</tbody>
+{% with t=history.totals %}<tfoot><tr><td>Total</td><td class="num">{{ t.count }}</td><td class="num">{{ t.provider_count }}</td><td class="num">{{ t.total|money }}</td><td class="num">{{ t.paid|money }}</td><td class="num">{{ t.outstanding|money }}</td><td></td></tr></tfoot>{% endwith %}</table></div></div>
+</section>
+
+<section class="an-section" id="utilities" aria-labelledby="h-util">
+<div class="an-title"><h2 id="h-util">Utilities &amp; units</h2></div>
+<div class="grid cols-2">
+  <div class="card span-2"><div class="card-head"><h2>Monthly billed amount by utility</h2></div>
+    <div class="chart tall"><canvas data-chart="monthly" data-stacked="true" data-currency="{{ currency }}" role="img" aria-label="Monthly billed amount by utility"></canvas></div>{{ monthly|json_script:"monthly" }}</div>
+  <div class="card"><div class="card-head"><h2>Consumption trend</h2><span class="muted">observed-month average = 100 per utility and measurement unit; missing readings are gaps</span></div>
+    <div class="chart"><canvas data-chart="consumption" data-type="line" role="img" aria-label="Consumption index by utility"></canvas></div>{{ consumption|json_script:"consumption" }}</div>
+  <div class="card"><div class="card-head"><h2>Billed by unit</h2><span class="muted">{% if form.cleaned_data.org_unit %}below {{ form.cleaned_data.org_unit.code }}{% else %}top level{% endif %}</span></div>
+    <div class="chart"><canvas data-chart="units" data-horizontal="true" data-currency="{{ currency }}" role="img" aria-label="Billed amount by unit"></canvas></div>{{ by_unit_chart|json_script:"units" }}
+    <details class="an-table"><summary>Show unit table</summary><div class="table-wrap"><table><thead><tr><th>Unit</th><th class="num">Billed</th></tr></thead><tbody>
+    {% for r in by_unit %}<tr><td>{{ r.unit.name }}</td><td class="num">{{ r.total|money }}</td></tr>{% empty %}<tr><td colspan="2" class="empty">No data.</td></tr>{% endfor %}</tbody></table></div></details></div>
+</div>
+</section>
+
+<section class="an-section" id="outlook" aria-labelledby="h-out">
+<div class="an-title"><h2 id="h-out">Year on year &amp; projection</h2><p>Rolling 12 months ending {{ history.end|date:"M Y" }} vs the preceding 12.</p></div>
+<div class="grid cols-2">
   <div class="card"><h2>Year on year</h2><div class="table-wrap"><table><thead><tr><th>Utility</th><th class="num">Previous 12 m</th><th class="num">Last 12 m</th><th class="num">Change</th></tr></thead><tbody>
     {% for r in yoy %}<tr><td>{{ r.utility }}</td><td class="num">{{ r.previous|money }}</td><td class="num">{{ r.current|money }}</td>
-    <td class="num">{% if r.change_pct is not None %}<span class="badge badge-{% if r.change_pct > 10 %}danger{% elif r.change_pct < -5 %}ok{% else %}neutral{% endif %}">{% if r.change_pct > 0 %}+{% endif %}{{ r.change_pct }}%</span>{% else %}new{% endif %}</td></tr>
+    <td class="num">{% if r.change_pct is not None %}<span class="badge badge-{% if r.change_pct > 10 %}danger{% elif r.change_pct < -5 %}ok{% else %}neutral{% endif %}">{% if r.change_pct > 0 %}+{% endif %}{{ r.change_pct }}%</span>{% else %}<span class="badge badge-info">New baseline</span>{% endif %}</td></tr>
     {% empty %}<tr><td colspan="4" class="empty">Not enough history.</td></tr>{% endfor %}</tbody></table></div></div>
-  <div class="card"><h2>Projection for {{ forecast.month|date:"F Y" }}</h2><p class="muted"><small>Average of the last three complete months, adjusted by last year's seasonal change. Use for budgeting cash, not as a commitment.</small></p>
+  <div class="card"><h2>Projection for {{ forecast.month|date:"F Y" }}</h2><p class="muted"><small>Simple estimate: average of the last three complete months to {{ history.end|date:"M Y" }}, adjusted by last year's seasonal change. Uncertainty is not available; use for budgeting, not as a commitment.</small></p>
     <div class="table-wrap"><table><thead><tr><th>Utility</th><th class="num">3-month avg</th><th class="num">Seasonal</th><th class="num">Projected</th></tr></thead><tbody>
-    {% for r in forecast.rows %}<tr><td>{{ r.utility }}</td><td class="num">{{ r.basis|money }}</td><td class="num">×{{ r.seasonal_factor }}</td><td class="num"><strong>{{ r.projection|money }}</strong></td></tr>
+    {% for r in forecast.rows %}<tr><td>{{ r.utility }}</td><td class="num">{{ r.basis|money }}</td><td class="num">x{{ r.seasonal_factor }}</td><td class="num"><strong>{{ r.projection|money }}</strong></td></tr>
     {% empty %}<tr><td colspan="4" class="empty">Not enough history.</td></tr>{% endfor %}</tbody></table></div></div>
 </div>
+</section>
 
-<div class="grid cols-2 mt">
-  <div class="card"><h2>Top providers</h2><div class="table-wrap"><table><thead><tr><th>Provider</th><th>Invoices</th><th class="num">Spend</th></tr></thead><tbody>
-    {% for p in providers %}<tr><td>{{ p.provider__name }}</td><td>{{ p.n }}</td><td class="num">{{ p.total|money }}</td></tr>{% empty %}<tr><td colspan="3" class="empty">No data.</td></tr>{% endfor %}</tbody></table></div></div>
-  <div class="card"><h2>Highest-cost accounts</h2><div class="table-wrap"><table><thead><tr><th>Account</th><th>Unit</th><th class="num">Consumption</th><th class="num">Spend</th></tr></thead><tbody>
-    {% for a in accounts %}<tr><td><a href="{% url 'providers:account' a.service_account_id %}">{{ a.provider__short_code }} {{ a.service_account__account_number }}</a><br><small>{{ a.service_account__premises }}</small></td><td>{{ a.org_unit__code }}</td><td class="num">{{ a.consumption|floatformat:"0g"|default:"—" }}</td><td class="num">{{ a.total|money }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">No data.</td></tr>{% endfor %}</tbody></table></div></div>
-</div>
-
-<div class="grid cols-2 mt">
-  <div class="card"><h2>Approval SLA by step</h2><div class="table-wrap"><table><thead><tr><th>Step</th><th>Decisions</th><th>Breached</th><th class="num">On time</th></tr></thead><tbody>
-    {% for s in sla.by_step %}<tr><td>{{ s.name }}</td><td>{{ s.n }}</td><td>{{ s.breached }}</td><td class="num">{{ s.on_time_pct }}%</td></tr>{% empty %}<tr><td colspan="4" class="empty">No decisions in this period.</td></tr>{% endfor %}</tbody></table></div></div>
-  <div class="card"><h2>Unpaid invoices with anomalies</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Checks</th><th class="num">Amount</th></tr></thead><tbody>
+<section class="an-section" id="accounts" aria-labelledby="h-acc">
+<div class="an-title"><h2 id="h-acc">Accounts, providers &amp; anomalies</h2></div>
+<div class="grid cols-2">
+  <div class="card"><h2>Top providers by billed amount</h2><div class="table-wrap"><table><thead><tr><th>Provider</th><th class="num">Invoices</th><th class="num">Billed</th></tr></thead><tbody>
+    {% for p in providers %}<tr><td>{{ p.provider__name }}</td><td class="num">{{ p.n }}</td><td class="num">{{ p.total|money }}</td></tr>{% empty %}<tr><td colspan="3" class="empty">No data.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card"><h2>Highest-cost accounts</h2><div class="table-wrap"><table><thead><tr><th>Account</th><th>Unit</th><th class="num">Invoices</th><th class="num">Billed</th></tr></thead><tbody>
+    {% for a in accounts %}<tr><td><a href="{% url 'providers:account' a.service_account_id %}">{{ a.provider__short_code }} {{ a.service_account__account_number }}</a><br><small>{{ a.service_account__premises }}</small></td><td>{{ a.org_unit__code }}</td><td class="num">{{ a.n }}</td><td class="num">{{ a.total|money }}</td></tr>{% empty %}<tr><td colspan="4" class="empty">No data.</td></tr>{% endfor %}</tbody></table></div></div>
+  <div class="card span-2"><h2>Unpaid invoices with anomalies</h2><div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Checks</th><th class="num">Amount</th></tr></thead><tbody>
     {% for inv, labels in anomalies %}<tr><td><a href="{{ inv.get_absolute_url }}">{{ inv.reference }}</a><br><small>{{ inv.provider.name }} · {{ inv.org_unit.code }}</small></td><td>{% for l in labels %}<span class="chip">{{ l|truncatechars:40 }}</span>{% endfor %}</td><td class="num">{{ inv.amount_total|money }}</td></tr>
     {% empty %}<tr><td colspan="3" class="empty">No open anomalies.</td></tr>{% endfor %}</tbody></table></div></div>
 </div>
+</section>
+
+<section class="an-section" id="performance" aria-labelledby="h-perf">
+<div class="an-title"><h2 id="h-perf">Approval &amp; payment performance</h2><p>Events dated {{ history.start|date:"M Y" }} to {{ history.end|date:"M Y" }}, same filters.</p></div>
+<div class="grid cols-4">
+  <div class="card kpi tone-info"><div class="label">Approval SLA met</div><div class="value">{% if sla.on_time_pct is not None %}{{ sla.on_time_pct }}%{% else %}-{% endif %}</div><div class="sub">{{ sla.decided }} decisions · {{ sla.breached }} breached</div></div>
+  <div class="card kpi tone-info"><div class="label">Avg. step decision time</div><div class="value">{% if sla.avg_hours is not None %}{{ sla.avg_hours }} h{% else %}-{% endif %}</div><div class="sub">working hours</div></div>
+  <div class="card kpi {% if timeliness.on_time_pct is not None and timeliness.on_time_pct < 95 %}tone-danger{% else %}tone-ok{% endif %}"><div class="label">Paid by due date</div><div class="value">{% if timeliness.on_time_pct is not None %}{{ timeliness.on_time_pct }}%{% else %}-{% endif %}</div><div class="sub">{{ timeliness.paid }} paid · {{ timeliness.late_amount|money }} paid late</div></div>
+  <div class="card kpi tone-info"><div class="label">Intake to approved</div><div class="value">{% if cycle_days is not None %}{{ cycle_days }} d{% else %}-{% endif %}</div><div class="sub">average calendar days</div></div>
+</div>
+<div class="card mt"><h2>Approval SLA by step</h2><div class="table-wrap"><table><thead><tr><th>Step</th><th class="num">Decisions</th><th class="num">Breached</th><th class="num">On time</th></tr></thead><tbody>
+  {% for s in sla.by_step %}<tr><td>{{ s.name }}</td><td class="num">{{ s.n }}</td><td class="num">{{ s.breached }}</td><td class="num">{{ s.on_time_pct }}%</td></tr>{% empty %}<tr><td colspan="4" class="empty">No decisions in this period.</td></tr>{% endfor %}</tbody></table></div></div>
+</section>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,1 @@
+<span class="badge {% if a.status == 'active' %}badge-ok{% elif a.status == 'decommissioned' %}badge-neutral{% elif a.status == 'on_hold' %}badge-warn{% else %}badge-danger{% endif %}">{{ a.get_status_display }}</span>

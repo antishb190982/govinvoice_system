@@ -1,0 +1,44 @@
+{% extends "base.html" %}{% load static %}{% block title %}{% if policy %}Edit {{ policy.name }}{% else %}New workflow{% endif %}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/process.css' %}"><script src="{% static 'js/workflow-editor.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'workflow:policies' %}">Workflows &amp; roles</a>{% if policy %} / <a href="{% url 'workflow:policy' policy.pk %}">{{ policy.name }}</a>{% endif %}</div>
+<h1>{% if policy %}Edit workflow{% else %}New workflow{% endif %}</h1><p>Steps run in order. A step with an amount runs only when the invoice total reaches it.</p></div></div>
+<div class="callout warn"><strong>Saving affects future submissions only</strong>Invoices already in approval keep the steps, owners and deadlines they started with.</div>
+<form method="post" novalidate>{% csrf_token %}
+{% if form.non_field_errors %}<ul class="errorlist nonfield">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+{% if steps.non_form_errors %}<ul class="errorlist nonfield">{% for e in steps.non_form_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+<div class="card"><h2>Scope and rules</h2>{% for h in form.hidden_fields %}{{ h }}{% for e in h.errors %}<ul class="errorlist nonfield"><li>{{ e }}</li></ul>{% endfor %}{% endfor %}
+<div class="form-grid">{% for f in form.visible_fields %}<div{% if f.name == 'name' %} class="full"{% endif %}>{% if f.field.widget.input_type == 'checkbox' %}<label for="{{ f.id_for_label }}">{{ f }} {{ f.label }}</label>{% else %}{{ f.label_tag }}{{ f }}{% endif %}{% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}{{ f.errors }}</div>{% endfor %}</div></div>
+
+<div class="card" id="step-editor" data-prefix="{{ steps.prefix }}"><div class="card-head"><h2>Steps</h2><span class="muted" id="step-live" aria-live="polite"></span></div>
+{{ steps.management_form }}
+<ol class="step-list" id="step-list">
+{% for sf in steps %}<li class="step-row"><div class="step-head"><h3>Step {{ forloop.counter }}</h3><span class="step-del">{{ sf.DELETE }}<label for="{{ sf.DELETE.id_for_label }}">Remove step</label></span></div>
+{% if sf.non_field_errors %}<ul class="errorlist nonfield">{% for e in sf.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+<div class="step-grid">
+<div>{{ sf.order.label_tag }}{{ sf.order }}{{ sf.order.errors }}</div>
+<div>{{ sf.name.label_tag }}{{ sf.name }}{{ sf.name.errors }}</div>
+<div>{{ sf.role.label_tag }}{{ sf.role }}{{ sf.role.errors }}</div>
+<div>{{ sf.sla_hours.label_tag }}{{ sf.sla_hours }}{{ sf.sla_hours.errors }}</div>
+<div>{{ sf.min_amount.label_tag }}{{ sf.min_amount }}<span class="helptext">0 runs for every amount; higher values make this step conditional.</span>{{ sf.min_amount.errors }}</div>
+<div>{{ sf.escalation_role.label_tag }}{{ sf.escalation_role }}{{ sf.escalation_role.errors }}</div>
+<div class="check wide2">{{ sf.requires_signature }}<label for="{{ sf.requires_signature.id_for_label }}">{{ sf.requires_signature.label }}</label>{{ sf.requires_signature.errors }}</div>
+</div></li>{% endfor %}
+</ol>
+<template id="step-template">{% with ef=steps.empty_form %}<li class="step-row"><div class="step-head"><h3>Step __num__</h3><span class="step-del">{{ ef.DELETE }}<label for="{{ ef.DELETE.id_for_label }}">Remove step</label></span></div>
+{% if ef.non_field_errors %}<ul class="errorlist nonfield">{% for e in ef.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+<div class="step-grid">
+<div>{{ ef.order.label_tag }}{{ ef.order }}{{ ef.order.errors }}</div>
+<div>{{ ef.name.label_tag }}{{ ef.name }}{{ ef.name.errors }}</div>
+<div>{{ ef.role.label_tag }}{{ ef.role }}{{ ef.role.errors }}</div>
+<div>{{ ef.sla_hours.label_tag }}{{ ef.sla_hours }}{{ ef.sla_hours.errors }}</div>
+<div>{{ ef.min_amount.label_tag }}{{ ef.min_amount }}<span class="helptext">0 runs for every amount; higher values make this step conditional.</span>{{ ef.min_amount.errors }}</div>
+<div>{{ ef.escalation_role.label_tag }}{{ ef.escalation_role }}{{ ef.escalation_role.errors }}</div>
+<div class="check wide2">{{ ef.requires_signature }}<label for="{{ ef.requires_signature.id_for_label }}">{{ ef.requires_signature.label }}</label>{{ ef.requires_signature.errors }}</div>
+</div></li>{% endwith %}</template>
+<div class="editor-bar"><button class="btn" type="button" id="step-add">Add step</button><span class="muted"><small>Maximum 20 steps. Saved order numbers are renumbered 1, 2, 3 in sequence.</small></span></div></div>
+
+{% if nodes %}<div class="card"><h2>Currently saved sequence</h2>{% include "workflow/_process_map.html" with nodes=nodes label="Saved workflow" %}</div>{% endif %}
+<div class="form-actions">{% if policy %}<a class="btn" href="{% url 'workflow:policy' policy.pk %}">Cancel</a>{% else %}<a class="btn" href="{% url 'workflow:policies' %}">Cancel</a>{% endif %}<button class="btn btn-primary" type="submit">Save workflow</button></div>
+</form>
+{% endblock %}

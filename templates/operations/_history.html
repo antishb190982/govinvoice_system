@@ -1,0 +1,7 @@
+{% load gov %}<div class="card" id="history"><h2>Audit history</h2>
+<div class="table-wrap"><table class="ops-table"><thead><tr><th>#</th><th>When</th><th>Actor</th><th>Action</th><th>Data</th><th>Entry hash</th></tr></thead><tbody>
+{% for e in history %}<tr><td class="mono">{{ e.sequence }}</td><td class="nowrap">{{ e.occurred_at|date:"d M Y H:i" }}</td><td>{{ e.actor_label }}</td><td><code>{{ e.action }}</code></td>
+<td>{% if e.data %}<details class="disclosure"><summary>View</summary><pre class="ops-data">{% for k, v in e.data.items %}{{ k }}: {{ v }}
+{% endfor %}</pre></details>{% else %}<span class="muted">—</span>{% endif %}</td><td class="ops-hash">{{ e.entry_hash|slice:":16" }}…</td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No audit events recorded yet.</td></tr>{% endfor %}</tbody></table></div>
+{% if history.paginator %}{% include "includes/pagination.html" with page=history %}{% endif %}</div>

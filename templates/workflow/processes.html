@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Process monitor{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/process.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><h1>Process monitor</h1><p>Where every invoice in your units is waiting, who can act on it and what is blocking it.</p></div>
+<div class="actions"><a class="btn" href="{{ request.get_full_path }}">Refresh</a>{% if can_configure %}<a class="btn" href="{% url 'workflow:policies' %}">Workflows &amp; roles</a>{% endif %}</div></div>
+{% if summary %}<nav class="summary-strip" aria-label="Invoices by status">{% for s in summary %}<a href="{{ s.url }}" class="{% if form.status.value == s.key %}on{% endif %}"{% if form.status.value == s.key %} aria-current="true"{% endif %}><span class="n">{{ s.count }}</span><span class="l">{{ s.label }}</span></a>{% endfor %}</nav>{% endif %}
+<div class="card"><form method="get" class="filters" role="search">
+{% for f in form %}<div>{{ f.label_tag }}{{ f }}{{ f.errors }}</div>{% endfor %}
+<div class="actions"><button class="btn btn-primary" type="submit">Filter</button><a class="btn" href="{% url 'workflow:processes' %}">Clear</a></div></form>
+{% if form.non_field_errors %}<ul class="errorlist nonfield mt">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}</div>
+{% if invalid_filters %}<div class="card mt empty">These filters are not valid. Correct them to see results.</div>{% else %}
+<div class="card mt"><ul class="bpm-legend" aria-label="Legend"><li><span class="sw complete"></span>Complete</li><li><span class="sw active"></span>Current</li><li><span class="sw blocked"></span>Blocked</li><li><span class="sw overdue"></span>Overdue</li><li><span class="sw waiting"></span>Queued</li><li><span class="sw preview"></span>Preview, not executed</li><li><span class="sw cancelled"></span>Cancelled</li></ul>
+{% for p in processes %}{% with inv=p.invoice cur=p.current %}
+<section class="proc-row" aria-label="{{ inv.reference }}"><div>
+<a href="{% url 'workflow:process' inv.pk %}"><strong>{{ inv.reference }}</strong></a> {% status_badge inv %}{% if p.needs_attention %} <span class="badge badge-danger">Attention</span>{% endif %}<br>
+<span class="who">{{ inv.provider.name }} · {{ inv.amount_total|money:inv.currency }} · due {{ inv.due_date|date:"d M Y" }}</span><br>
+<span class="who">{{ inv.org_unit }}</span>
+<p class="mt"><span class="muted"><small>Current stage</small></span><br><strong>{{ cur.label }}</strong>{% if cur.role %} · {{ cur.role }}{% endif %}{% if cur.due_at and cur.state != 'complete' %}<br><small>Due {{ cur.due_at|date:"d M Y H:i" }}</small>{% endif %}
+{% if cur.owners %}<br><small>Owners: {% for o in cur.owners %}{{ o.full_name|default:o.username }}{% if not forloop.last %}, {% endif %}{% endfor %}{% if cur.owner_count > cur.owners|length %} and others ({{ cur.owner_count }}){% endif %}</small>{% endif %}</p>
+{% if p.attention %}<ul class="attn">{% for a in p.attention %}<li>{{ a }}</li>{% endfor %}</ul>{% endif %}
+<a class="btn btn-sm mt" href="{% url 'workflow:process' inv.pk %}">Open process map</a></div>
+{% include "workflow/_process_map.html" with nodes=p.nodes mini=True label=inv.reference %}
+</section>{% endwith %}
+{% empty %}<p class="empty">No invoices match these filters.</p>{% endfor %}
+{% if page %}{% include "includes/pagination.html" %}{% endif %}</div>{% endif %}
+{% endblock %}

@@ -312,6 +312,21 @@ class Command(BaseCommand):
             for start in (last_month,):
                 spike = i in (0, 13)
                 inv, clerk, _ = self._make(acct, base * (1.9 if spike else 1), cons * (1.9 if spike else 1), start, users, "")
+                # Demo-only provider evidence goes through the same importer as staff uploads.
+                # Never automatically reconcile real workspace records on ordinary startup.
+                import csv
+                import io
+                from django.core.files.base import ContentFile
+                from reconciliation.services import upload_statement
+                listing = io.StringIO()
+                writer = csv.writer(listing)
+                writer.writerow(["account_number", "invoice_number", "amount", "currency"])
+                for pending in Invoice.objects.filter(provider=inv.provider, currency=inv.currency,
+                        org_unit=inv.org_unit, status__in=Invoice.OPEN).select_related("service_account"):
+                    writer.writerow([pending.service_account.account_number, pending.invoice_number,
+                                     str(pending.amount_total), pending.currency])
+                upload_statement(users["sysadmin"], inv.provider, inv.org_unit, inv.currency, today,
+                                 ContentFile(listing.getvalue().encode(), name="demo-provider-pending.csv"))
                 stage = [0, 1, 2, 3, 5, 5, 4, 5][i % 8]
                 if stage == 0:
                     continue  # draft
@@ -385,14 +400,16 @@ class Command(BaseCommand):
         # MOH telecom & data: fully executed, signed by preparer and authoriser.
         ids = list(settle.eligible_invoices(moh, "MUR", soon).filter(provider__short_code__in=["MT", "EMTEL", "WMA"])
                    .values_list("pk", flat=True))
-        if ids:
-            si = settle.create_instruction(users["f.finance"], moh, "MUR", soon, ids, "Monthly utilities run.")
+        for provider_id in Invoice.objects.filter(pk__in=ids).order_by().values_list("provider_id", flat=True).distinct():
+            provider_ids = list(Invoice.objects.filter(pk__in=ids, provider_id=provider_id).values_list("pk", flat=True))
+            si = settle.create_instruction(users["f.finance"], moh, "MUR", soon, provider_ids, "Monthly utilities run — single provider.")
             settle.submit_for_authorisation(si, users["f.finance"], DEMO_PIN)
             settle.authorise(si, users["a.authoriser"], DEMO_PIN)
             settle.mark_sent(si, users["f.finance"])
-            settle.mark_executed(si, users["f.finance"], "TRY-EFT-2026-10-0412", timezone.localdate())
+            settle.mark_executed(si, users["f.finance"], f"TRY-EFT-2026-10-0412-{provider_id}", timezone.localdate())
         # MOE: awaiting authorisation.
         ids = list(settle.eligible_invoices(moe, "MUR", soon).values_list("pk", flat=True))
-        if ids:
-            si = settle.create_instruction(users["f.finance"], moe, "MUR", soon, ids)
+        for provider_id in Invoice.objects.filter(pk__in=ids).order_by().values_list("provider_id", flat=True).distinct():
+            provider_ids = list(Invoice.objects.filter(pk__in=ids, provider_id=provider_id).values_list("pk", flat=True))
+            si = settle.create_instruction(users["f.finance"], moe, "MUR", soon, provider_ids)
             settle.submit_for_authorisation(si, users["f.finance"], DEMO_PIN)

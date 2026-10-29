@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% load gov %}{% block title %}First-time registration{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'imports:list' %}">Imports</a> / First-time registration</div><h1>Account registration</h1>
+<p>Route unregistered accounts to unit administrators. Your uploaded files stay saved.</p></div>
+<div class="actions"><a class="btn" href="{% url 'imports:registration_queue' %}">Registration requests</a></div></div>
+{% for b in bundles %}{% with batch=b.batch %}
+<section class="card mt">
+<h2>Import #{{ batch.pk }} · {{ batch.original_name }}</h2>
+<p>{% status_badge batch %} Provider: {{ batch.provider|default:"Not set" }} · uploaded {{ batch.created_at|date:"d M Y H:i" }}</p>
+{% if batch.intake_notes %}<details class="mt"><summary>Files not imported ({{ batch.intake_notes|length }})</summary><ul>{% for note in batch.intake_notes %}<li>{{ note }}</li>{% endfor %}</ul></details>{% endif %}
+{% if batch.status != 'staged' %}
+<p class="muted">This import is no longer staged, so registration changes are closed.</p>
+<a class="btn" href="{% url 'imports:batch' batch.pk %}">Open import</a>
+{% else %}
+{% if b.registration_request %}<div class="callout {% if b.registration_request.status == 'ready' %}ok{% else %}info{% endif %}"><strong>{{ b.registration_request.get_status_display }}</strong>Routed to {{ b.registration_request.org_unit }} on {{ b.registration_request.created_at|date:"d M Y H:i" }}. <a href="{% url 'imports:registration_request' b.registration_request.pk %}">View request</a></div>{% endif %}
+{% if b.pending %}<div class="callout warn"><strong>{{ b.pending }} document{{ b.pending|pluralize }} still being read</strong>Accounts can only be checked after OCR finishes.
+<form method="post" action="{% url 'imports:analyse' batch.pk %}" class="mt">{% csrf_token %}<input type="hidden" name="return_to" value="registration"><input type="hidden" name="registration_batches" value="{{ registration_batches }}"><button class="btn" type="submit">Analyse next documents</button></form></div>{% endif %}
+{% if b.missing %}
+<div class="table-wrap"><table><thead><tr><th>Provider</th><th>Account</th><th>Service no.</th><th>Example row</th><th class="num">Rows</th><th></th></tr></thead><tbody>
+{% for g in b.missing %}<tr><td>{{ g.provider_label }}</td><td>{{ g.account_number|default:"—" }}</td><td>{{ g.service_number|default:"—" }}</td><td>{{ g.row.row_number }}{% if g.row.source_name %} <small>{{ g.row.source_name|truncatechars:28 }}</small>{% endif %}</td><td class="num">{{ g.count }}</td>
+<td class="right">{% if g.register_url %}<a class="btn btn-sm" href="{{ g.register_url }}">Register account</a>{% elif not g.provider %}<span class="muted">Provider needed</span>{% else %}<span class="muted">Unit administrator</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="grid cols-2 mt">
+<div><h3>Send to unit administrators</h3>
+<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="batch" value="{{ batch.pk }}"><input type="hidden" name="action" value="request">
+{% if b.routing_form.non_field_errors %}<div class="errorlist">{{ b.routing_form.non_field_errors }}</div>{% endif %}
+<div class="form-stack">{{ b.routing_form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">{% if b.registration_request %}Update request{% else %}Request registration{% endif %}</button></div></form></div>
+<div><h3>Provider for unidentified invoices</h3>
+<form method="post" novalidate>{% csrf_token %}<input type="hidden" name="batch" value="{{ batch.pk }}"><input type="hidden" name="action" value="provider">
+<div class="form-stack">{{ b.provider_form.as_div }}</div><div class="form-actions"><button class="btn" type="submit">Apply provider</button></div></form>
+{% if can_create_provider %}<p class="mt"><a href="{{ provider_create_url }}">Create a new provider</a></p>{% endif %}</div>
+</div>
+{% elif not b.pending %}
+{% if b.registration_request.status == 'requested' %}
+<div class="callout warn"><strong>Accounts found; administrator completion pending</strong>The unit administrator must re-check and complete this request before invoices can be imported.</div>
+{% else %}
+<div class="callout ok"><strong>All accounts registered</strong>Continue to invoice review. Nothing has been approved.</div>
+<a class="btn btn-primary" href="{% url 'imports:batch' batch.pk %}">Review invoices</a>
+{% endif %}
+{% endif %}
+<form method="post" class="mt">{% csrf_token %}<input type="hidden" name="batch" value="{{ batch.pk }}"><input type="hidden" name="action" value="recheck"><button class="btn btn-ghost" type="submit">Re-check accounts</button></form>
+{% endif %}
+</section>
+{% endwith %}{% endfor %}
+{% endblock %}

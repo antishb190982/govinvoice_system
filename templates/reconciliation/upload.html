@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% load static %}{% block title %}Upload statement{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}">{% endblock %}
+{% block body_class %}recon{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'reconciliation:index' %}">Reconciliation</a> / Upload</div>
+<h1>Upload provider statement</h1><p>A list of every invoice the provider still shows as pending.</p></div>
+<div class="actions"><a class="btn" href="{% url 'reconciliation:template' %}">Download CSV template</a></div></div>
+<div class="split">
+<div class="card"><h2>Statement</h2>
+<form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+{% if form.non_field_errors %}<ul class="errorlist nonfield">{% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+<div class="form-grid">{% for f in form %}<div class="{% if f.name == 'document' %}full{% endif %}"><label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f }}{% if f.help_text %}<span class="helptext">{{ f.help_text }}</span>{% endif %}{{ f.errors }}</div>{% endfor %}</div>
+<div class="form-actions"><a class="btn" href="{% url 'reconciliation:index' %}">Cancel</a><button class="btn btn-primary" type="submit">Upload and reconcile</button></div>
+</form></div>
+<div class="stack">
+<div class="card"><h2>File rules</h2><ul class="rules">
+<li>CSV, XLS or XLSX, up to 10 MB and 10,000 rows.</li>
+<li>First worksheet only, first row holds headers. No formulas, no password protection.</li>
+<li>Required columns: <code>account_number</code>, <code>invoice_number</code>, <code>amount</code>. Optional: <code>currency</code>.</li>
+<li>One invoice per row, with the full invoice amount, not the account balance.</li>
+<li>Format identifiers as text so leading zeroes are kept.</li></ul></div>
+<div class="card"><h2>How matching works</h2><ul class="rules">
+<li>Exact account, invoice number and amount; the currency must equal the statement currency.</li>
+<li>No exchange-rate conversion, fuzzy matching or tolerance.</li>
+<li>This statement replaces the previous one for the same provider, unit and currency. Invoices it omits become ineligible, including ones already approved.</li>
+<li>Mismatches go to the Unsorted basket. Nothing is approved or paid by uploading.</li></ul></div>
+</div></div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% load static %}{% block title %}{{ policy.name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/process.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head registration-head"><div><div class="crumbs"><a href="{% url 'workflow:policies' %}">Workflows &amp; roles</a> / {{ policy.name }}</div>
+<h1>{{ policy.name }}</h1><p>{% if policy.is_active %}Active{% else %}Inactive{% endif %} · {{ policy.org_unit }} and below</p></div>
+{% if can_edit %}<div class="actions"><a class="btn btn-primary" href="{% url 'workflow:policy_edit' policy.pk %}">Edit workflow</a></div>{% endif %}</div>
+<div class="card"><div class="card-head"><h2>Saved sequence</h2></div>
+<ul class="bpm-legend" aria-label="Legend"><li><span class="sw waiting"></span>Step in sequence</li><li><span class="cond-tag">From amount</span>Runs only when invoice total reaches the amount</li><li><span class="badge badge-info">Signature</span>Signing PIN and signature required</li></ul>
+{% include "workflow/_process_map.html" with nodes=nodes label="Saved workflow steps" %}</div>
+<div class="grid cols-2 mt">
+<div class="card"><h2>Applies to</h2><dl class="props">
+<dt>Unit</dt><dd>{{ policy.org_unit }} and below</dd>
+<dt>Utility</dt><dd>{{ policy.get_utility_type_display|default:"All utilities" }}</dd>
+<dt>Minimum amount</dt><dd>{{ policy.min_amount|floatformat:"-3g" }}</dd>
+<dt>Maximum amount</dt><dd>{{ policy.max_amount|floatformat:"-3g"|default:"No limit" }}</dd>
+<dt>Priority</dt><dd>{{ policy.priority }}</dd>
+<dt>Status</dt><dd>{% if policy.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Inactive</span>{% endif %}</dd></dl></div>
+<div class="card"><h2>Steps</h2><div class="table-wrap"><table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>SLA</th><th>Signature</th><th>Applies from</th><th>Escalates to</th></tr></thead><tbody>
+{% for s in policy.steps.all %}<tr><td>{{ s.order }}</td><td>{{ s.name }}</td><td>{{ s.get_role_display }}</td><td>{{ s.sla_hours }} working h</td><td>{% if s.requires_signature %}<span class="badge badge-info">Required</span>{% else %}Not required{% endif %}</td><td>{% if s.min_amount %}<span class="cond-tag">{{ s.min_amount|floatformat:"-3g" }}</span>{% else %}Any amount{% endif %}</td><td>{{ s.get_escalation_role_display }}</td></tr>
+{% empty %}<tr><td colspan="7" class="empty">No steps.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}

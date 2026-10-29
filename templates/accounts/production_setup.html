@@ -1,0 +1,15 @@
+{% extends "auth_base.html" %}
+{% block content %}
+<h1>Set up GovBills</h1>
+{% if setup_unavailable %}
+<p>Production setup has not been authorized. Add a strong GOVBILLS_SETUP_TOKEN in the project's production secrets, then publish again.</p>
+{% else %}
+<p class="muted">Create the first production administrator. Use the one-time setup token saved in the project secrets. Public demo credentials do not work here.</p>
+<form method="post" class="form-stack" novalidate>{% csrf_token %}
+  {% include "includes/form_errors.html" %}
+  {{ form.as_div }}
+  <p class="muted">You must enroll your own authenticator before accessing the portal.</p>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Create administrator</button></div>
+</form>
+{% endif %}
+{% endblock %}

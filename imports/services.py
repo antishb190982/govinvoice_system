@@ -60,6 +60,22 @@ def validate_row(row, user, default_provider, template=None):
     if data.get("issue_date") and data.get("due_date") and data["due_date"] < data["issue_date"]:
         errors.append("due date is before issue date")
     notes = []
+    from invoices.intake_dates import assess_dates
+
+    if row.batch.intake_source == "email" and data.get("received_date") and \
+            data["received_date"] != row.batch.received_date.isoformat():
+        notes.append("Attachment receipt date differs from the actual email receipt; email receipt date is used.")
+    if not data.get("received_date") or row.batch.intake_source == "email":
+        data["received_date"] = row.batch.received_date.isoformat()
+    assessment = assess_dates(
+        date.fromisoformat(data["issue_date"]) if data.get("issue_date") else None,
+        date.fromisoformat(data["due_date"]) if data.get("due_date") else None,
+        date.fromisoformat(data["received_date"]),
+        timezone.localdate(row.batch.created_at) if row.batch.created_at else timezone.localdate(),
+    )
+    data["date_anomalies"] = assessment["notes"]
+    data["processing_priority"] = assessment["priority"]
+    notes.extend(assessment["notes"])
     if data.get("due_date") and date.fromisoformat(data["due_date"]) < timezone.localdate():
         notes.append("already past due")  # not an error – it must still be paid
     if data.get("amount_total") is not None and data.get("amount_total") != "" and Decimal(data["amount_total"]) == 0:
@@ -93,7 +109,7 @@ def _mark_batch_duplicates(batch):
 
 
 @transaction.atomic
-def stage_spreadsheet(user, uploaded, provider=None):
+def stage_spreadsheet(user, uploaded, provider=None, *, received_date=None, intake_source="upload"):
     kind, digest = validate_upload(uploaded, {"xlsx", "xls", "csv"})
     template = _template_for(provider, ImportTemplate.Kind.SPREADSHEET)
     content = uploaded.read()
@@ -106,7 +122,8 @@ def stage_spreadsheet(user, uploaded, provider=None):
     if len(rows) > 5000:
         raise ValidationError("Import at most 5,000 rows at a time.")
     batch = ImportBatch(uploaded_by=user, provider=provider, template=template, kind=kind,
-                        original_name=uploaded.name[:255], sha256=digest)
+                        original_name=getattr(uploaded, "intake_path", uploaded.name)[:255], sha256=digest,
+                        received_date=received_date or timezone.localdate(), intake_source=intake_source)
     batch.file.save(uploaded.name, ContentFile(content), save=False)
     batch.save()
     for number, raw in rows:
@@ -122,12 +139,12 @@ def stage_spreadsheet(user, uploaded, provider=None):
 DOCUMENT_KINDS = {"pdf", "png", "jpg", "tif"}
 
 
-def stage_documents(user, files, provider=None):
+def stage_documents(user, files, provider=None, *, received_date=None, intake_source="upload"):
     """Stage PDF and image invoices. Each file becomes an OCR document and one row;
     small uploads are analysed immediately, larger ones by the background worker."""
     from django.conf import settings
 
-    batch = _stage_documents(user, files, provider)
+    batch = _stage_documents(user, files, provider, received_date=received_date, intake_source=intake_source)
     if len(files) <= settings.OCR_SYNC_MAX_FILES:
         for row in batch.rows.filter(status=ImportRow.Status.ANALYSING).select_related("ocr_document"):
             apply_ocr(row)
@@ -135,7 +152,7 @@ def stage_documents(user, files, provider=None):
 
 
 @transaction.atomic
-def _stage_documents(user, files, provider):
+def _stage_documents(user, files, provider, *, received_date=None, intake_source="upload"):
     from ocr import services as ocr
 
     if not files:
@@ -150,11 +167,13 @@ def _stage_documents(user, files, provider):
     first = checked[0]
     batch = ImportBatch(uploaded_by=user, provider=provider, kind="documents",
                         original_name=(first[0].name if len(files) == 1 else f"{len(files)} scanned / PDF invoices")[:255],
-                        sha256=first[2])
+                        sha256=first[2], received_date=received_date or timezone.localdate(),
+                        intake_source=intake_source)
     batch.file.save(first[0].name, ContentFile(first[3]), save=False)
     batch.save()
     for number, (f, kind, digest, content) in enumerate(checked, start=1):
-        row = ImportRow(batch=batch, row_number=number, source_name=f.name[:255], source_sha256=digest,
+        row = ImportRow(batch=batch, row_number=number,
+                        source_name=getattr(f, "intake_path", f.name)[:255], source_sha256=digest,
                         status=ImportRow.Status.ANALYSING)
         row.source_file.save(f.name, ContentFile(content), save=False)
         row.ocr_document = ocr.create_document(user, content, f.name, kind)
@@ -258,6 +277,11 @@ def commit(batch, user):
         raise ValidationError("This import was already processed.")
     if batch.uploaded_by_id != user.pk:
         raise PermissionDenied("Only the person who uploaded the file can commit it.")
+    if batch.registration_mode:
+        from imports.registration import registration_blocked
+
+        if registration_blocked(batch):
+            raise ValidationError("Finish service-account registration and re-check this batch before importing invoices.")
     created, failed, unconfirmed = [], 0, 0
     for row in batch.rows.filter(status=ImportRow.Status.VALID, include=True):
         if row.needs_review and not row.confirmed_at:
@@ -277,9 +301,12 @@ def commit(batch, user):
         inv = Invoice(
             service_account=account, invoice_number=d["invoice_number"],
             issue_date=date.fromisoformat(d["issue_date"]), due_date=date.fromisoformat(d["due_date"]),
+            received_date=date.fromisoformat(d["received_date"]),
             period_start=date.fromisoformat(d["period_start"]) if d.get("period_start") else None,
             period_end=date.fromisoformat(d["period_end"]) if d.get("period_end") else None,
             amount_net=net, amount_tax=tax, amount_total=total,
+            surcharge_amount=Decimal(d["surcharge_amount"]) if d.get("surcharge_amount") else Decimal("0"),
+            surcharge_description=(d.get("surcharge_description") or "")[:240],
             arrears=Decimal(d["arrears"]) if d.get("arrears") else None,
             consumption=Decimal(d["consumption"]) if d.get("consumption") else None,
             previous_reading=Decimal(d["previous_reading"]) if d.get("previous_reading") else None,

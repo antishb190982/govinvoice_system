@@ -1,0 +1,29 @@
+/* Reconciliation: scoped to .recon pages. No inline styles (CSP). */
+.recon .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.recon .tile { display: block; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px 18px; border-left: 4px solid var(--line-strong); }
+.recon .tile:hover { text-decoration: none; border-color: var(--royal); }
+.recon .tile.ok { border-left-color: var(--ok); } .recon .tile.danger { border-left-color: var(--danger); } .recon .tile.neutral { border-left-color: var(--muted); }
+.recon .tile.current { outline: 2px solid var(--royal); outline-offset: -2px; }
+.recon .tile .label { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.recon .tile .value { font-size: 1.7rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.recon .tile .sub { font-size: .78rem; color: var(--muted); }
+.recon .scroll { max-height: 620px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.recon .scroll table th { position: sticky; top: 0; z-index: 1; border-radius: 0; }
+.recon .raw { font-family: var(--mono); font-size: .82rem; overflow-wrap: anywhere; }
+.recon .reason { max-width: 340px; font-size: .82rem; color: var(--ink-2); }
+.recon .gate { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.recon .gate > div { padding: 12px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.recon .gate .now.valid { background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.recon .gate .now.invalid { background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.recon .gate h3 { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.recon .compare { width: 100%; }
+.recon .compare td.diff { background: var(--danger-soft); color: var(--danger); font-weight: 600; }
+.recon .compare td.same { color: var(--ok); }
+.recon .rules { margin: 0; padding-left: 18px; font-size: .86rem; color: var(--ink-2); }
+.recon .rules li + li { margin-top: 4px; }
+.recon .searchbar { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto; gap: 10px; align-items: end; margin-bottom: 14px; }
+.recon .archived { border-left: 4px solid var(--warn); }
+@media (max-width: 720px) {
+  .recon .tiles, .recon .gate, .recon .searchbar { grid-template-columns: minmax(0, 1fr); }
+  .recon .scroll { max-height: 70vh; }
+}

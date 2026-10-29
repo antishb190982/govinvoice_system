@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Upload bank debits{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/reconciliation.css' %}"><link rel="stylesheet" href="{% static 'css/bank.css' %}">{% endblock %}
+{% block body_class %}recon bank{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'reconciliation:bank_index' %}">Bank reconciliation</a> / Upload</div>
+<h1>Upload bank debits</h1>
+<p>Each line is checked against executed settlement instructions in the selected unit. The original file is kept unchanged; no invoice or payment status is altered.</p></div>
+<div class="actions"><a class="btn" href="{% url 'reconciliation:bank_template' %}">Download CSV template</a></div></div>
+
+<div class="bank-upload">
+<div class="card"><div class="card-head"><h2>Bank file</h2></div>
+{% if form.non_field_errors %}<div class="callout danger" role="alert"><strong>The file was not accepted</strong>{% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}</div>{% endif %}
+<form method="post" enctype="multipart/form-data" class="bank-form" novalidate>{% csrf_token %}
+{% for field in form %}<div class="field{% if field.errors %} has-error{% endif %}">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+  {% if field.name == 'currency' %}<small class="help" id="{{ field.id_for_label }}-help">Three-letter ISO code, e.g. MUR. Must match the bank file and the settlements; no FX conversion.</small>
+  {% elif field.name == 'statement_date' %}<small class="help">Date the bank produced this extract. Cannot be in the future; value dates after it are flagged.</small>
+  {% elif field.help_text %}<small class="help">{{ field.help_text }}</small>{% endif %}
+  {% for e in field.errors %}<p class="field-error" role="alert">{{ e }}</p>{% endfor %}
+</div>{% endfor %}
+<div class="form-actions"><button class="btn btn-primary" type="submit">Upload and check</button><a class="btn" href="{% url 'reconciliation:bank_index' %}">Cancel</a></div>
+</form></div>
+
+<aside class="card format-help" aria-labelledby="fmt"><div class="card-head"><h2 id="fmt">File format</h2></div>
+<p>UTF-8 CSV, up to 10 MB and 10,000 rows. Comma, semicolon or tab separated. One positive debit per row; this is not a full balance or closing statement.</p>
+<dl class="cols">
+  <dt>transaction_id</dt><dd>Required. Bank's unique ID. Re-uploading the same ID for this account alias is flagged, never double-counted.</dd>
+  <dt>settlement_reference</dt><dd>Required. e.g. SI-2026-000001.</dd>
+  <dt>provider_code</dt><dd>Optional. Selects one beneficiary transfer within the settlement. Leave blank to match the settlement total.</dd>
+  <dt>amount</dt><dd>Required. Positive, e.g. 1234.50. Fees, credits and reversals become exceptions.</dd>
+  <dt>currency</dt><dd>Required. Same as the statement currency.</dd>
+  <dt>value_date</dt><dd>Required. <strong>YYYY-MM-DD</strong>, e.g. 2026-03-31.</dd>
+  <dt>bank_reference</dt><dd>Optional. If provided, must match the execution reference recorded on the settlement.</dd>
+</dl></aside>
+</div>
+{% endblock %}

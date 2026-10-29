@@ -1,11 +1,14 @@
-{% extends "base.html" %}{% block title %}Approval policies{% endblock %}
+{% extends "base.html" %}{% load static %}{% block title %}Workflows &amp; roles{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/process.css' %}">{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1>Approval policies</h1><p>The most specific active policy applies: deepest unit first, then a matching utility type, then priority. SLAs count working hours only and never run past the invoice's settlement deadline.</p></div>
-{% if can.sysadmin %}<div class="actions"><a class="btn" href="{% url 'admin:workflow_approvalpolicy_changelist' %}">Configure</a></div>{% endif %}</div>
-{% for p in policies %}<div class="card"><div class="card-head"><h2>{{ p.name }}</h2>{% if p.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Inactive</span>{% endif %}</div>
-<p class="muted">{{ p.org_unit }} and below · {{ p.get_utility_type_display|default:"all utilities" }} · amounts {{ p.min_amount|floatformat:"-3g" }} – {{ p.max_amount|floatformat:"-3g"|default:"no limit" }} · priority {{ p.priority }}</p>
-<div class="table-wrap"><table><thead><tr><th>#</th><th>Step</th><th>Role</th><th>SLA</th><th>Signature</th><th>Applies from</th><th>Escalates to</th></tr></thead><tbody>
-{% for s in p.steps.all %}<tr><td>{{ s.order }}</td><td>{{ s.name }}</td><td>{{ s.get_role_display }}</td><td>{{ s.sla_hours }} working h</td><td>{% if s.requires_signature %}<span class="badge badge-info">Required</span>{% else %}—{% endif %}</td><td>{{ s.min_amount|floatformat:"-3g" }}</td><td>{{ s.get_escalation_role_display }}</td></tr>{% endfor %}
-</tbody></table></div></div>
-{% empty %}<div class="card empty">No policies configured.</div>{% endfor %}
+<div class="page-head registration-head"><div><h1>Workflows &amp; roles</h1><p>The most specific active workflow applies: deepest unit first, then a matching utility type, then priority. SLAs count working hours only and never run past the invoice's settlement deadline.</p></div>
+<div class="actions"><a class="btn" href="{% url 'workflow:processes' %}">Process monitor</a>
+{% if can_configure %}<a class="btn" href="{% url 'accounts:user_list' %}">Users &amp; roles</a><a class="btn" href="{% url 'accounts:user_create' %}">New user</a><a class="btn btn-primary" href="{% url 'workflow:policy_new' %}">New workflow</a>{% endif %}</div></div>
+{% for p in policies %}<div class="card policy-card"><div class="card-head"><h2><a href="{% url 'workflow:policy' p.pk %}">{{ p.name }}</a></h2>
+<div class="actions">{% if p.is_active %}<span class="badge badge-ok">Active</span>{% else %}<span class="badge badge-neutral">Inactive</span>{% endif %}
+<a class="btn btn-sm" href="{% url 'workflow:policy' p.pk %}">Details</a>{% if p.can_edit %}<a class="btn btn-sm" href="{% url 'workflow:policy_edit' p.pk %}">Edit</a>{% endif %}</div></div>
+<p class="rules">{{ p.org_unit }} and below · {{ p.get_utility_type_display|default:"all utilities" }} · amounts {{ p.min_amount|floatformat:"-3g" }} – {{ p.max_amount|floatformat:"-3g"|default:"no limit" }} · priority {{ p.priority }}</p>
+{% include "workflow/_process_map.html" with nodes=p.nodes mini=False label=p.name %}
+</div>
+{% empty %}<div class="card empty">No workflows are visible for your units.{% if can_configure %} <a href="{% url 'workflow:policy_new' %}">Create the first workflow</a>.{% endif %}</div>{% endfor %}
 {% endblock %}

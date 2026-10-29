@@ -1,0 +1,1 @@
+{% if r.status == "matched" %}<span class="badge badge-ok">Reconciled</span>{% elif r.status == "superseded" %}<span class="badge badge-neutral">Superseded</span>{% else %}<span class="badge badge-danger">Unsorted</span>{% endif %}

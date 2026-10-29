@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate, login, logout, update_session_auth
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -60,7 +61,8 @@ def otp_verify(request):
     user = request.user
     if not user.has_two_factor:
         return redirect("accounts:otp_enroll")
-    form = OtpForm(request.POST or None)
+    fixed_code = security.fixed_otp_code()
+    form = OtpForm(request.POST or None, initial={"code": fixed_code} if fixed_code else None)
     ip = client_ip(request)
     if request.method == "POST" and form.is_valid():
         if security.is_locked_out(user.username, ip):
@@ -81,7 +83,7 @@ def otp_verify(request):
             return redirect(request.session.pop("after_otp", None) or "core:dashboard")
         AuditEvent.record("auth.otp_failed", obj=user, actor=user)
         form.add_error("code", "That code is not valid.")
-    return render(request, "accounts/otp_verify.html", {"form": form})
+    return render(request, "accounts/otp_verify.html", {"form": form, "fixed_otp_code": fixed_code})
 
 
 @login_required
@@ -165,9 +167,9 @@ def _manageable_users(admin):
     if admin.is_superuser:
         return User.objects.all()
     units = units_for(admin, [Role.UNIT_ADMIN])
-    # Users who belong somewhere in the admin's subtree, plus users with no
-    # role yet (just created); never system administrators.
-    return User.objects.filter(Q(memberships__org_unit__in=units) | Q(memberships__isnull=True)) \
+    # Initial membership is assigned atomically at creation; orphan accounts
+    # are handled by system administrators rather than exposed to every unit.
+    return User.objects.filter(memberships__org_unit__in=units) \
         .exclude(is_superuser=True).distinct()
 
 
@@ -184,11 +186,17 @@ def user_list(request):
 @login_required
 def user_create(request):
     _require_user_admin(request)
-    form = UserCreateForm(request.POST or None)
+    form = UserCreateForm(request.POST or None, allowed_units=units_for(request.user, [Role.UNIT_ADMIN]),
+                          initial={"initial_unit": request.GET.get("unit"), "initial_role": request.GET.get("role", Role.VIEWER)})
     if request.method == "POST" and form.is_valid():
-        user = form.save()
-        AuditEvent.record("user.created", obj=user, data={"username": user.username})
-        messages.success(request, f"{user} created. Now grant them a role.")
+        with transaction.atomic():
+            user = form.save()
+            membership = Membership.objects.create(user=user, org_unit=form.cleaned_data["initial_unit"],
+                                                    role=form.cleaned_data["initial_role"])
+            AuditEvent.record("user.created", obj=user, actor=request.user, data={"username": user.username})
+            AuditEvent.record("user.role_granted", obj=user, actor=request.user, org_unit_id=membership.org_unit_id,
+                              data={"role": membership.role, "unit": membership.org_unit.code})
+        messages.success(request, f"{user} created with their initial unit role.")
         return redirect("accounts:user_detail", pk=user.pk)
     return render(request, "accounts/user_form.html", {"form": form, "title": "New user"})
 
@@ -198,12 +206,22 @@ def user_detail(request, pk):
     _require_user_admin(request)
     target = get_object_or_404(_manageable_users(request.user), pk=pk)
     allowed_units = units_for(request.user, [Role.UNIT_ADMIN])
+    can_edit_profile = request.user.is_superuser or not target.memberships.exclude(org_unit__in=allowed_units).exists()
     edit_form = UserEditForm(request.POST if request.POST.get("form") == "edit" else None, instance=target)
     role_form = MembershipForm(request.POST if request.POST.get("form") == "role" else None,
                                allowed_units=allowed_units)
     if request.method == "POST":
         action = request.POST.get("form")
+        if action in ["edit", "reset_2fa"] and not can_edit_profile:
+            raise PermissionDenied("Only a system administrator may change a cross-unit user's global account.")
         if action == "edit" and edit_form.is_valid():
+            if target == request.user and not edit_form.cleaned_data["is_active"]:
+                edit_form.add_error("is_active", "Another administrator must deactivate your account.")
+                return render(request, "accounts/user_detail.html", {
+                    "target": target, "edit_form": edit_form, "role_form": role_form,
+                    "memberships": target.memberships.filter(org_unit__in=allowed_units).select_related("org_unit"),
+                    "allowed_unit_ids": set(allowed_units.values_list("pk", flat=True)), "can_edit_profile": can_edit_profile,
+                })
             changed = edit_form.changed_data
             edit_form.save()
             AuditEvent.record("user.updated", obj=target, data={"fields": changed})
@@ -216,12 +234,22 @@ def user_detail(request, pk):
             if created:
                 AuditEvent.record("user.role_granted", obj=target, org_unit_id=membership.org_unit_id,
                                   data={"role": membership.role, "unit": membership.org_unit.code,
-                                        "valid_until": membership.valid_until})
+                                        "valid_until": membership.valid_until.isoformat() if membership.valid_until else None})
                 messages.success(request, "Role granted.")
+            elif membership.valid_until != role_form.cleaned_data["valid_until"]:
+                membership.valid_until = role_form.cleaned_data["valid_until"]
+                membership.save(update_fields=["valid_until"])
+                AuditEvent.record("user.role_expiry_updated", obj=target, actor=request.user,
+                                  org_unit_id=membership.org_unit_id,
+                                  data={"role": membership.role,
+                                        "valid_until": membership.valid_until.isoformat() if membership.valid_until else None})
+                messages.success(request, "Role expiry updated.")
             return redirect("accounts:user_detail", pk=pk)
         if action == "revoke":
             membership = get_object_or_404(Membership, pk=request.POST.get("membership"), user=target,
                                            org_unit__in=allowed_units)
+            if target == request.user and membership.role == Role.UNIT_ADMIN:
+                raise PermissionDenied("Another administrator must revoke your administrative role.")
             AuditEvent.record("user.role_revoked", obj=target, org_unit_id=membership.org_unit_id,
                               data={"role": membership.role, "unit": membership.org_unit.code})
             membership.delete()
@@ -239,6 +267,7 @@ def user_detail(request, pk):
             return redirect("accounts:user_detail", pk=pk)
     return render(request, "accounts/user_detail.html", {
         "target": target, "edit_form": edit_form, "role_form": role_form,
-        "memberships": target.memberships.select_related("org_unit"),
+        "memberships": target.memberships.filter(org_unit__in=allowed_units).select_related("org_unit"),
+        "can_edit_profile": can_edit_profile,
         "allowed_unit_ids": set(allowed_units.values_list("pk", flat=True)),
     })
