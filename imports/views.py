@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import Http404
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -13,7 +14,7 @@ from imports import parsers, services
 from imports.bulk import apply_folder_paths, stage_uploads
 from imports.models import ImportBatch, ImportRow
 from org.models import Role
-from providers.models import Provider
+from providers.models import BillingCycle, Provider
 
 
 class MultipleFileInput(forms.ClearableFileInput):
@@ -33,6 +34,10 @@ class MultipleFileField(forms.FileField):
 
 
 class UploadForm(forms.Form):
+    billing_cycle = forms.ModelChoiceField(
+        queryset=BillingCycle.objects.exclude(code="UNASSIGNED").select_related("provider"),
+        required=False, empty_label="Automatic per invoice — mixed cycles allowed",
+        help_text="Optionally choose a common cycle. Otherwise identify each invoice from its period or provider file.")
     provider = forms.ModelChoiceField(queryset=Provider.objects.filter(is_active=True), required=False,
                                       empty_label="Detect from the file",
                                       help_text="Choose the provider unless the file has a provider column.")
@@ -64,7 +69,8 @@ def batch_list(request):
         try:
             apply_folder_paths(folder_files, form.cleaned_data["folder_paths"])
             batches, skipped = stage_uploads(
-                request.user, files + folder_files, provider, received_date=form.cleaned_data["received_date"]
+                request.user, files + folder_files, provider, received_date=form.cleaned_data["received_date"],
+                billing_cycle=form.cleaned_data["billing_cycle"]
             )
             if request.POST.get("intake_route") == "registration":
                 from imports.registration import registration_url
@@ -141,11 +147,38 @@ def batch_detail(request, pk):
 
     return render(request, "imports/batch.html", {
         "batch": batch, "rows": rows, "counts": counts, "edit_row": edit_row, "review_needed": review_needed,
+        "cycle_options": BillingCycle.objects.exclude(code="UNASSIGNED").select_related("provider"),
+        "can_assign_cycle": batch.uploaded_by_id == request.user.pk,
         "preparation": batch.preparations.filter(prepared_by=request.user, completed_batch__isnull=True).first(),
         "registration_blocked": registration_blocked(batch) if batch.status == ImportBatch.Status.STAGED else False,
         "registration_url": registration_url([batch]),
         "row_form": RowForm(row=edit_row) if edit_row else None,
     })
+
+
+@login_required
+@require_POST
+@transaction.atomic
+def batch_cycle(request, pk):
+    batch = _get_batch(request, pk)
+    if batch.status != ImportBatch.Status.STAGED:
+        raise PermissionDenied("Only staged files can be assigned a common cycle.")
+    try:
+        cycle_pk = int(request.POST.get("billing_cycle", 0))
+    except (ValueError, TypeError):
+        raise Http404
+    cycle = get_object_or_404(BillingCycle.objects.exclude(code="UNASSIGNED"), pk=cycle_pk)
+    if batch.provider_id and batch.provider_id != cycle.provider_id:
+        messages.error(request, "The cycle belongs to another provider.")
+        return redirect("imports:batch", pk=pk)
+    batch.billing_cycle = cycle
+    batch.save(update_fields=["billing_cycle"])
+    services.recheck(batch, request.user)
+    batch.refresh_billing_cycles()
+    AuditEvent.record("import.cycle_assigned", obj=batch, actor=request.user,
+                      data={"billing_cycle": cycle.pk})
+    messages.success(request, "Staged files rechecked against the selected cycle. No invoices were approved or paid.")
+    return redirect("imports:batch", pk=pk)
 
 
 @login_required

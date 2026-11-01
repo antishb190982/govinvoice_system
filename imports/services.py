@@ -94,6 +94,31 @@ def validate_row(row, user, default_provider, template=None):
     if account:
         data["service_account_id"] = account.pk
         data["org_unit_code"] = account.org_unit.code
+    if provider:
+        from providers.cycles import classify, unassigned_cycle
+        try:
+            row.billing_cycle = classify(provider, data.get("period_start"), data.get("period_end"),
+                                         row.batch.billing_cycle)
+            if account and not errors and data.get("issue_date") and data.get("amount_total") is not None:
+                from providers.cycles import classify_invoice
+                identity = Invoice(
+                    provider=provider, service_account=account, org_unit=account.org_unit,
+                    billing_cycle=row.billing_cycle, invoice_number=data.get("invoice_number", ""),
+                    issue_date=date.fromisoformat(data["issue_date"]),
+                    currency=data.get("currency") or provider.currency, amount_total=Decimal(data["amount_total"]),
+                    period_start=date.fromisoformat(data["period_start"]) if data.get("period_start") else None,
+                    period_end=date.fromisoformat(data["period_end"]) if data.get("period_end") else None,
+                )
+                row.billing_cycle = classify_invoice(identity)
+            data["billing_cycle_id"] = row.billing_cycle.pk
+            if row.billing_cycle.is_unassigned:
+                notes.append("Billing cycle needs assignment; overlapping cycles are never guessed.")
+        except ValidationError as exc:
+            errors.extend(exc.messages)
+            row.billing_cycle = unassigned_cycle(provider)
+        row.batch.billing_cycles.add(row.billing_cycle)
+    if notes:
+        data["warning"] = "; ".join(notes)
     row.data = data
     row.errors = errors
     row.status = ImportRow.Status.INVALID if errors else ImportRow.Status.VALID
@@ -130,7 +155,11 @@ def _mark_batch_duplicates(batch):
 
 
 @transaction.atomic
-def stage_spreadsheet(user, uploaded, provider=None, *, received_date=None, intake_source="upload"):
+def stage_spreadsheet(user, uploaded, provider=None, *, received_date=None, intake_source="upload", billing_cycle=None):
+    if billing_cycle:
+        if provider and billing_cycle.provider_id != provider.pk:
+            raise ValidationError("The billing cycle belongs to a different utility provider.")
+        provider = provider or billing_cycle.provider
     kind, digest = validate_upload(uploaded, {"xlsx", "xls", "csv"})
     template = _template_for(provider, ImportTemplate.Kind.SPREADSHEET)
     content = uploaded.read()
@@ -142,16 +171,21 @@ def stage_spreadsheet(user, uploaded, provider=None, *, received_date=None, inta
         raise ValidationError("The file contains no invoice rows.")
     if len(rows) > 5000:
         raise ValidationError("Import at most 5,000 rows at a time.")
-    batch = ImportBatch(uploaded_by=user, provider=provider, template=template, kind=kind,
+    batch = ImportBatch(uploaded_by=user, provider=provider, billing_cycle=billing_cycle, template=template, kind=kind,
                         original_name=getattr(uploaded, "intake_path", uploaded.name)[:255], sha256=digest,
                         received_date=received_date or timezone.localdate(), intake_source=intake_source)
     batch.file.save(uploaded.name, ContentFile(content), save=False)
     batch.save()
+    if provider and not batch.billing_cycle_id:
+        from providers.cycles import unassigned_cycle
+        batch.billing_cycle = unassigned_cycle(provider)
+        batch.save(update_fields=["billing_cycle"])
     for number, raw in rows:
         row = ImportRow(batch=batch, row_number=number, raw={k: (str(v) if v is not None else None) for k, v in raw.items()})
         validate_row(row, user, provider, template)
         row.save()
     _mark_batch_duplicates(batch)
+    batch.refresh_billing_cycles()
     AuditEvent.record("import.staged", obj=batch, actor=user, data={"file": batch.original_name, "sha256": digest,
                                                                      "rows": len(rows)})
     return batch
@@ -160,12 +194,13 @@ def stage_spreadsheet(user, uploaded, provider=None, *, received_date=None, inta
 DOCUMENT_KINDS = {"pdf", "png", "jpg", "tif"}
 
 
-def stage_documents(user, files, provider=None, *, received_date=None, intake_source="upload"):
+def stage_documents(user, files, provider=None, *, received_date=None, intake_source="upload", billing_cycle=None):
     """Stage PDF and image invoices. Each file becomes an OCR document and one row;
     small uploads are analysed immediately, larger ones by the background worker."""
     from django.conf import settings
 
-    batch = _stage_documents(user, files, provider, received_date=received_date, intake_source=intake_source)
+    batch = _stage_documents(user, files, provider, received_date=received_date,
+                             intake_source=intake_source, billing_cycle=billing_cycle)
     if len(files) <= settings.OCR_SYNC_MAX_FILES:
         for row in batch.rows.filter(status=ImportRow.Status.ANALYSING).select_related("ocr_document"):
             apply_ocr(row)
@@ -173,7 +208,7 @@ def stage_documents(user, files, provider=None, *, received_date=None, intake_so
 
 
 @transaction.atomic
-def _stage_documents(user, files, provider, *, received_date=None, intake_source="upload"):
+def _stage_documents(user, files, provider, *, received_date=None, intake_source="upload", billing_cycle=None):
     from ocr import services as ocr
 
     if not files:
@@ -186,19 +221,29 @@ def _stage_documents(user, files, provider, *, received_date=None, intake_source
         f.seek(0)
         checked.append((f, kind, digest, f.read()))
     first = checked[0]
-    batch = ImportBatch(uploaded_by=user, provider=provider, kind="documents",
+    if billing_cycle:
+        if provider and billing_cycle.provider_id != provider.pk:
+            raise ValidationError("The billing cycle belongs to a different utility provider.")
+        provider = provider or billing_cycle.provider
+    batch = ImportBatch(uploaded_by=user, provider=provider, billing_cycle=billing_cycle, kind="documents",
                         original_name=(first[0].name if len(files) == 1 else f"{len(files)} scanned / PDF invoices")[:255],
                         sha256=first[2], received_date=received_date or timezone.localdate(),
                         intake_source=intake_source)
     batch.file.save(first[0].name, ContentFile(first[3]), save=False)
     batch.save()
+    if provider and not batch.billing_cycle_id:
+        from providers.cycles import unassigned_cycle
+        batch.billing_cycle = unassigned_cycle(provider)
+        batch.save(update_fields=["billing_cycle"])
     for number, (f, kind, digest, content) in enumerate(checked, start=1):
         row = ImportRow(batch=batch, row_number=number,
+                        billing_cycle=batch.billing_cycle,
                         source_name=getattr(f, "intake_path", f.name)[:255], source_sha256=digest,
                         status=ImportRow.Status.ANALYSING)
         row.source_file.save(f.name, ContentFile(content), save=False)
         row.ocr_document = ocr.create_document(user, content, f.name, kind)
         row.save()
+    batch.refresh_billing_cycles()
     AuditEvent.record("import.staged", obj=batch, actor=user, data={"files": len(files), "kind": "documents"})
     return batch
 
@@ -322,6 +367,7 @@ def commit(batch, user):
         # Statements often give only the total incl. VAT and the VAT: derive the net.
         net = Decimal(d["amount_net"]) if d.get("amount_net") else (total - tax if d.get("amount_tax") else Decimal("0"))
         inv = Invoice(
+            billing_cycle=row.billing_cycle,
             service_account=account, invoice_number=d["invoice_number"],
             issue_date=date.fromisoformat(d["issue_date"]), due_date=date.fromisoformat(d["due_date"]),
             received_date=date.fromisoformat(d["received_date"]),
@@ -357,6 +403,7 @@ def commit(batch, user):
             failed += 1
             continue
         row.invoice = inv
+        row.billing_cycle = inv.billing_cycle
         row.status = ImportRow.Status.COMMITTED
         row.save()
         created.append(inv)
@@ -368,4 +415,5 @@ def commit(batch, user):
         batch.save()
     AuditEvent.record("import.committed", obj=batch, actor=user,
                       data={"created": len(created), "failed": failed, "awaiting_confirmation": unconfirmed})
+    batch.refresh_billing_cycles()
     return created, failed

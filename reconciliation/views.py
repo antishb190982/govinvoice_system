@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse
@@ -10,7 +11,7 @@ from invoices.models import Invoice
 from org.access import has_role, scope, user_has_any_role
 from org.models import Role
 from reconciliation import services
-from reconciliation.forms import AssignmentForm, UploadForm
+from reconciliation.forms import AssignmentForm, CycleAssignmentForm, UploadForm
 from reconciliation.models import Statement, StatementRow
 
 
@@ -64,7 +65,24 @@ def statement_detail(request, pk):
     return render(request, "reconciliation/statement.html", {
         "statement": statement, "counts": counts, "page": paginate(request, rows, 40),
         "can_manage": has_role(request.user, statement.org_unit, services.MANAGERS),
+        "cycle_form": CycleAssignmentForm(provider=statement.provider),
     })
+
+
+@login_required
+@require_POST
+def statement_cycle(request, pk):
+    statement = get_object_or_404(scope(Statement.objects.all(), request.user, services.MANAGERS), pk=pk)
+    form = CycleAssignmentForm(request.POST, provider=statement.provider)
+    if form.is_valid():
+        try:
+            services.assign_statement_cycle(statement, request.user, form.cleaned_data["billing_cycle"])
+            messages.success(request, "Cycle assigned and original file rechecked. No invoice was approved or paid.")
+        except ValidationError as exc:
+            messages.error(request, " ".join(exc.messages))
+    else:
+        messages.error(request, "Choose a confirmed cycle belonging to this provider.")
+    return redirect(statement)
 
 
 @login_required

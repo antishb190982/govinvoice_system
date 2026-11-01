@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% load static gov %}{% block title %}Service account register{% endblock %}
 {% block head %}<link rel="stylesheet" href="{% static 'css/operations.css' %}">{% endblock %}
 {% block content %}
+<div class="actions"><a class="btn" href="{% url 'providers:cycles' %}{% if filter_values.provider %}?provider={{ filter_values.provider }}{% endif %}">Billing cycle calendar</a></div>
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:list' %}">Providers</a> / Account register</div><h1>Service account register</h1>
 <p>Every utility account in your units, with its status, service and responsible owner. Accounts that are not active may still receive final bills, but those bills are held from approval and payment.</p></div>
 <div class="actions">{% if can.admin %}<a class="btn btn-primary" href="{% url 'providers:account_create' %}">Register account</a>{% endif %}</div></div>

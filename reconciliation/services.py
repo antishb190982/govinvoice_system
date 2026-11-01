@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import OperationalError, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.utils import timezone
 
 from core.models import AuditEvent
@@ -40,15 +40,22 @@ def fingerprint(invoice):
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
 
-def latest_statement(unit, provider_id, currency):
-    return Statement.objects.filter(is_active=True, org_unit_id__in=unit.ancestor_ids,
-                                     provider_id=provider_id, currency=currency).order_by("-statement_date", "-pk").first()
+def cycle_filter(cycle):
+    if cycle and not cycle.is_unassigned:
+        return Q(billing_cycle=cycle)
+    return Q(billing_cycle__isnull=True) | Q(billing_cycle__code="UNASSIGNED")
+
+
+def latest_statement(unit, provider_id, currency, billing_cycle=None):
+    return Statement.objects.filter(cycle_filter(billing_cycle), is_active=True,
+        org_unit_id__in=unit.ancestor_ids, provider_id=provider_id,
+        currency=currency).order_by("-statement_date", "-pk").first()
 
 
 def report(invoice, lock=False):
     if lock:
         lock_provider(invoice.provider_id)
-    statement = latest_statement(invoice.org_unit, invoice.provider_id, invoice.currency)
+    statement = latest_statement(invoice.org_unit, invoice.provider_id, invoice.currency, invoice.billing_cycle)
     result = {"valid": False, "statement": statement, "row": None}
     if not statement:
         return {**result, "reason": "No current provider statement covers this invoice's unit and currency."}
@@ -80,18 +87,30 @@ def require_reconciled(invoice, lock=True):
 
 
 @transaction.atomic
-def recheck(row, user, auto_route=False):
-    if not has_role(user, row.assigned_unit, MANAGERS + [Role.CLERK]):
+def recheck(row, user, auto_route=False, auto_invoice=None):
+    def permitted(value):
+        if auto_invoice is not None:
+            return (
+                has_role(user, auto_invoice.org_unit, MANAGERS + [Role.CLERK])
+                and auto_invoice.provider_id == value.statement.provider_id
+                and auto_invoice.org_unit.path.startswith(value.assigned_unit.path)
+                and auto_invoice.org_unit.path.startswith(value.statement.org_unit.path)
+            )
+        return has_role(user, value.assigned_unit, MANAGERS + [Role.CLERK])
+
+    if not permitted(row):
         raise PermissionDenied
     lock_provider(row.statement.provider_id)
     row = StatementRow.objects.select_for_update().select_related("statement", "assigned_unit").get(pk=row.pk)
-    if not has_role(user, row.assigned_unit, MANAGERS + [Role.CLERK]):
+    if not permitted(row):
         raise PermissionDenied
     reason, candidate = row.parse_error, None
     duplicates = row.statement.rows.filter(invoice_number__iexact=row.invoice_number).exclude(pk=row.pk).exists()
     candidates = Invoice.objects.filter(provider=row.statement.provider,
         invoice_number__iexact=row.invoice_number, org_unit__path__startswith=row.assigned_unit.path
     ).select_related("service_account", "org_unit", "provider")
+    if auto_invoice is not None:
+        candidates = candidates.filter(pk=auto_invoice.pk)
     matches = list(candidates[:2])
     if not reason and duplicates:
         reason = "Duplicate invoice reference in this statement. Upload a corrected statement; neither duplicate is eligible."
@@ -102,7 +121,7 @@ def recheck(row, user, auto_route=False):
         if auto_route:
             row.assigned_unit = candidate.org_unit
     current = latest_statement(candidate.org_unit if candidate else row.assigned_unit,
-                               row.statement.provider_id, row.statement.currency)
+                               row.statement.provider_id, row.statement.currency, row.statement.billing_cycle)
     superseded = not row.statement.is_active or (current and current.pk != row.statement_id)
     closed_ledger_gap = row.is_ledger_only and candidate and candidate.status in [Invoice.Status.PAID, Invoice.Status.CANCELLED]
     superseded = superseded or closed_ledger_gap
@@ -117,6 +136,15 @@ def recheck(row, user, auto_route=False):
             reason = "Invoice issue date is later than the provider statement date."
         elif candidate.amount_total != row.amount:
             reason = f"Amount mismatch: statement {row.amount}; recorded invoice {candidate.amount_total}."
+        else:
+            if (not candidate.billing_cycle or candidate.billing_cycle.is_unassigned) and row.statement.billing_cycle:
+                from providers.cycles import classify_invoice
+                classify_invoice(candidate)
+                Invoice.objects.filter(pk=candidate.pk).update(billing_cycle=candidate.billing_cycle)
+        if not reason and candidate.billing_cycle_id != row.statement.billing_cycle_id and (
+                (candidate.billing_cycle and not candidate.billing_cycle.is_unassigned) or
+                (row.statement.billing_cycle and not row.statement.billing_cycle.is_unassigned)):
+            reason = "Billing cycle differs. Confirm the correct cycle before reconciling."
     row.invoice = candidate
     row.status = StatementRow.Status.SUPERSEDED if superseded else \
         StatementRow.Status.UNSORTED if reason else StatementRow.Status.MATCHED
@@ -126,12 +154,13 @@ def recheck(row, user, auto_route=False):
     row.checked_by, row.checked_at = user, timezone.now()
     row.save()
     AuditEvent.record("reconciliation.checked", obj=row, actor=user, org_unit_id=row.assigned_unit_id,
-                      data={"state": row.status, "reason": row.reason, "invoice": candidate.pk if candidate else None})
+                      data={"state": row.status, "reason": row.reason, "invoice": candidate.pk if candidate else None,
+                            "automatic": auto_invoice is not None, "billing_cycle": row.statement.billing_cycle_id})
     return row
 
 
 @transaction.atomic
-def upload_statement(user, provider, org_unit, currency, statement_date, document):
+def upload_statement(user, provider, org_unit, currency, statement_date, document, billing_cycle=None):
     if not has_role(user, org_unit, MANAGERS):
         raise PermissionDenied
     if statement_date > timezone.localdate():
@@ -139,25 +168,32 @@ def upload_statement(user, provider, org_unit, currency, statement_date, documen
     data = document.read(10 * 1024 * 1024 + 1)
     parsed = parse_statement(data, document.name, currency)
     lock_provider(provider.pk)
-    existing = Statement.objects.filter(provider=provider, org_unit=org_unit, currency=currency, is_active=True)
+    from providers.cycles import unassigned_cycle
+    billing_cycle = billing_cycle or unassigned_cycle(provider)
+    if billing_cycle.provider_id != provider.pk:
+        raise ValidationError("The billing cycle belongs to a different utility provider.")
+    existing = Statement.objects.filter(cycle_filter(billing_cycle), provider=provider,
+        org_unit=org_unit, currency=currency, is_active=True)
     if existing.filter(statement_date__gt=statement_date).exists():
         raise ValidationError("An older statement cannot replace a newer current statement for this unit.")
-    Statement.objects.filter(provider=provider, currency=currency, is_active=True,
+    Statement.objects.filter(cycle_filter(billing_cycle), provider=provider, currency=currency, is_active=True,
         org_unit__path__startswith=org_unit.path, statement_date__lte=statement_date).update(is_active=False)
     statement = Statement.objects.create(provider=provider, org_unit=org_unit, currency=currency,
-        statement_date=statement_date, filename=document.name[:255], sha256=hashlib.sha256(data).hexdigest(), uploaded_by=user)
+        billing_cycle=billing_cycle, statement_date=statement_date,
+        filename=document.name[:255], sha256=hashlib.sha256(data).hexdigest(), uploaded_by=user)
     from django.core.files.base import ContentFile
     statement.document.save(document.name, ContentFile(data))
     for values in parsed:
         StatementRow.objects.create(statement=statement, assigned_unit=org_unit, **values)
     for row in statement.rows.select_related("statement", "assigned_unit"):
         recheck(row, user, auto_route=True)
-    for invoice in Invoice.objects.filter(provider=provider, currency=currency,
+    for invoice in Invoice.objects.filter(cycle_filter(billing_cycle), provider=provider, currency=currency,
             org_unit__path__startswith=org_unit.path, status__in=Invoice.OPEN).select_related(
                 "org_unit", "provider", "service_account"):
         ensure_missing_line(invoice, statement)
     AuditEvent.record("reconciliation.statement_uploaded", obj=statement, actor=user, org_unit_id=org_unit.pk,
-                      data={"rows": len(parsed), "sha256": statement.sha256, "currency": currency})
+                      data={"rows": len(parsed), "sha256": statement.sha256, "currency": currency,
+                            "billing_cycle": billing_cycle.pk})
     return statement
 
 
@@ -213,14 +249,61 @@ def ensure_missing_line(invoice, statement):
         reason="Recorded pending invoice is absent from the provider statement. It is not reconciled.")
 
 
-def invoice_saved(invoice):
+def invoice_saved(invoice, user=None):
     lock_provider(invoice.provider_id)
     invoice.reconciliation_rows.filter(status=StatementRow.Status.MATCHED).exclude(
         fingerprint=fingerprint(invoice)).update(status=StatementRow.Status.UNSORTED, fingerprint="",
                                                 reason="Invoice details changed; recheck against the provider statement.")
-    statement = latest_statement(invoice.org_unit, invoice.provider_id, invoice.currency)
+    invoice.reconciliation_rows.filter(status=StatementRow.Status.MATCHED).exclude(
+        statement__in=Statement.objects.filter(cycle_filter(invoice.billing_cycle))).update(
+            status=StatementRow.Status.UNSORTED, fingerprint="",
+            reason="Invoice billing cycle changed; recheck against the current file for that cycle.")
+    statement = latest_statement(invoice.org_unit, invoice.provider_id, invoice.currency, invoice.billing_cycle)
     if statement:
+        actor = user or invoice.created_by
+        if (invoice.billing_cycle and not invoice.billing_cycle.is_unassigned and
+                has_role(actor, invoice.org_unit, MANAGERS + [Role.CLERK])):
+            for row in statement.rows.filter(
+                    invoice_number__iexact=invoice.invoice_number, is_ledger_only=False,
+                    assigned_unit_id__in=invoice.org_unit.ancestor_ids):
+                recheck(row, actor, auto_route=True, auto_invoice=invoice)
         ensure_missing_line(invoice, statement)
+
+
+@transaction.atomic
+def assign_statement_cycle(statement, user, billing_cycle):
+    """Re-use a retained source; do not require another upload or alter bank evidence."""
+    if not has_role(user, statement.org_unit, MANAGERS):
+        raise PermissionDenied
+    lock_provider(statement.provider_id)
+    statement = Statement.objects.select_for_update().get(pk=statement.pk)
+    if billing_cycle.provider_id != statement.provider_id or billing_cycle.is_unassigned:
+        raise ValidationError("Choose a confirmed billing cycle for this provider.")
+    if PaymentEvidence.objects.filter(row__statement=statement).exists():
+        raise ValidationError("This file is retained payment evidence. Its cycle cannot be changed.")
+    if statement.billing_cycle and not statement.billing_cycle.is_unassigned:
+        raise ValidationError("This file already has a confirmed cycle. Upload a corrected file instead.")
+    newer = Statement.objects.filter(
+        billing_cycle=billing_cycle, provider=statement.provider, currency=statement.currency,
+        is_active=True, org_unit_id__in=statement.org_unit.ancestor_ids,
+    ).exclude(pk=statement.pk).filter(
+        Q(statement_date__gt=statement.statement_date)
+        | Q(statement_date=statement.statement_date, pk__gt=statement.pk))
+    if newer.exists():
+        raise ValidationError("A newer file already covers this cycle. Use that file for reconciliation.")
+    Statement.objects.filter(
+        billing_cycle=billing_cycle, provider=statement.provider, currency=statement.currency,
+        is_active=True, org_unit__path__startswith=statement.org_unit.path,
+        statement_date__lte=statement.statement_date,
+    ).exclude(pk=statement.pk).update(is_active=False)
+    statement.billing_cycle, statement.is_active = billing_cycle, True
+    statement.save(update_fields=["billing_cycle", "is_active"])
+    for row in statement.rows.all():
+        recheck(row, user, auto_route=True)
+    AuditEvent.record("reconciliation.cycle_assigned", obj=statement, actor=user,
+                      org_unit_id=statement.org_unit_id, data={"billing_cycle": billing_cycle.pk,
+                                                              "source_sha256": statement.sha256})
+    return statement
 
 
 def check_instruction(instruction, released=False):

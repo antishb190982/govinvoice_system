@@ -14,6 +14,7 @@ urlpatterns = [
          registration.registration_source, name="registration_source"),
     path("template.csv", views.template_csv, name="template"),
     path("<int:pk>/", views.batch_detail, name="batch"),
+    path("<int:pk>/cycle/", views.batch_cycle, name="cycle"),
     path("<int:pk>/rows/<int:row_pk>/", views.batch_row, name="row"),
     path("<int:pk>/commit/", views.batch_commit, name="commit"),
     path("<int:pk>/recheck/", views.batch_recheck, name="recheck"),

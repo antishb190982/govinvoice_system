@@ -99,14 +99,14 @@ def expand_uploads(files):
 
 
 @transaction.atomic
-def stage_uploads(user, files, provider=None, *, received_date=None, intake_source="upload"):
+def stage_uploads(user, files, provider=None, *, received_date=None, intake_source="upload", billing_cycle=None):
     expanded, skipped = expand_uploads(files)
     # Validate every file's content before creating batches, not just extensions.
     documents, sheets = [], []
     for file in expanded:
         kind, _ = validate_upload(file, services.DOCUMENT_KINDS | {"xlsx", "xls", "csv"})
         (documents if kind in services.DOCUMENT_KINDS else sheets).append(file)
-    kwargs = {"received_date": received_date, "intake_source": intake_source}
+    kwargs = {"received_date": received_date, "intake_source": intake_source, "billing_cycle": billing_cycle}
     batches = [services.stage_documents(user, documents, provider, **kwargs)] if documents else []
     for sheet in sheets:
         batches.append(services.stage_spreadsheet(user, sheet, provider, **kwargs))

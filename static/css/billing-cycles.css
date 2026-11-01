@@ -1,0 +1,57 @@
+/* Provider billing cycles: calendar, totals, detail lists. */
+.bc-toolbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; justify-content: space-between; }
+.bc-filter { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+.bc-filter > div { min-width: 180px; }
+.bc-filter input[type=month] { font: inherit; color: var(--ink); background: var(--surface); border: 1.5px solid var(--line-strong); border-radius: 12px; padding: 8px 12px; min-height: 40px; }
+.bc-filter .bc-filter-actions { min-width: 0; }
+.bc-monthnav { display: flex; align-items: center; gap: 10px; }
+.bc-monthnav strong { min-width: 120px; text-align: center; }
+
+.bc-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 18px 0; }
+.bc-total { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--info); border-radius: 14px; padding: 12px 16px; color: var(--ink); box-shadow: var(--shadow); }
+a.bc-total:hover { text-decoration: none; border-color: var(--royal); }
+.bc-total span { font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+.bc-total strong { font-size: 1.45rem; font-variant-numeric: tabular-nums; }
+.bc-total.is-ok { border-left-color: var(--ok); }
+.bc-total.is-warn { border-left-color: var(--warn); }
+.bc-total.is-danger { border-left-color: var(--danger); }
+
+.bc-legend { display: flex; gap: 6px; flex-wrap: wrap; margin: 0; font-size: .74rem; }
+.bc-key { padding: 1px 8px; border-radius: 999px; font-weight: 600; }
+.bc-cal { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.bc-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.bc-row + .bc-row { border-top: 1px solid var(--line); }
+.bc-dow { background: var(--surface-2); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 8px; }
+.bc-cell { min-height: 96px; padding: 6px; border-left: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.bc-cell:first-child { border-left: 0; }
+.bc-cell.is-out { background: var(--surface-2); }
+.bc-cell.is-out .bc-day { color: var(--muted); opacity: .6; }
+.bc-day { font-size: .78rem; font-weight: 600; color: var(--ink-2); }
+.bc-dayname { display: none; }
+.bc-entry { border: 1px solid var(--line); border-left: 3px solid var(--royal); border-radius: 8px; padding: 4px 6px; background: var(--surface); min-width: 0; }
+.bc-entry.is-overdue { border-left-color: var(--danger); }
+.bc-name { display: block; font-weight: 600; font-size: .78rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-prov { display: block; font-size: .68rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc-counts { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.bc-c { font-size: .7rem; font-weight: 600; padding: 1px 6px; border-radius: 999px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+a.bc-c:hover { text-decoration: none; outline: 1.5px solid currentColor; }
+.is-r { background: var(--info-soft); color: var(--info); }
+.is-p { background: var(--ok-soft); color: var(--ok); }
+.is-q { background: var(--warn-soft); color: var(--warn); }
+.is-o { background: var(--danger-soft); color: var(--danger); }
+
+.bc-list { list-style: none; margin: 0; padding: 0; }
+.bc-list li { display: flex; flex-direction: column; padding: 8px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.bc-list li:last-child { border-bottom: 0; }
+.bc-note { margin-top: 14px; color: var(--muted); font-size: .82rem; }
+.bc-form-card { max-width: 900px; }
+
+@media (max-width: 860px) {
+  .bc-head { display: none; }
+  .bc-row { grid-template-columns: minmax(0, 1fr); }
+  .bc-cell { border-left: 0; min-height: 0; }
+  .bc-cell + .bc-cell { border-top: 1px solid var(--line); }
+  .bc-cell.is-empty, .bc-cell.is-out { display: none; }
+  .bc-dayname { display: inline; }
+  .bc-monthnav { width: 100%; justify-content: space-between; }
+}

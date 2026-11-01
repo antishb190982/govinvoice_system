@@ -3,12 +3,16 @@ from django.utils import timezone
 
 from accounts.models import User
 from org.access import units_for, users_with_role
-from providers.models import Provider
+from providers.models import BillingCycle, Provider
 from reconciliation.services import MANAGERS
 from org.models import Role
 
 
 class UploadForm(forms.Form):
+    billing_cycle = forms.ModelChoiceField(
+        queryset=BillingCycle.objects.exclude(code="UNASSIGNED").select_related("provider"),
+        required=False, empty_label="Awaiting cycle assignment",
+        help_text="Select the named provider cycle. Other cycles' files will remain active.")
     provider = forms.ModelChoiceField(queryset=Provider.objects.all())
     org_unit = forms.ModelChoiceField(queryset=None, label="Statement covers unit and its children")
     currency = forms.RegexField(regex=r"^[A-Z]{3}$", max_length=3, initial="MUR",
@@ -26,6 +30,15 @@ class UploadForm(forms.Form):
         if value > timezone.localdate():
             raise forms.ValidationError("A provider statement cannot be dated in the future.")
         return value
+
+
+class CycleAssignmentForm(forms.Form):
+    billing_cycle = forms.ModelChoiceField(queryset=BillingCycle.objects.none(), label="Confirmed billing cycle")
+
+    def __init__(self, *args, provider, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["billing_cycle"].queryset = BillingCycle.objects.filter(
+            provider=provider).exclude(code="UNASSIGNED")
 
 
 class AssignmentForm(forms.Form):

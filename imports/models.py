@@ -43,6 +43,9 @@ class ImportBatch(models.Model):
 
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
     provider = models.ForeignKey(Provider, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    billing_cycle = models.ForeignKey("providers.BillingCycle", null=True, blank=True,
+                                     on_delete=models.PROTECT, related_name="+")
+    billing_cycles = models.ManyToManyField("providers.BillingCycle", blank=True, related_name="uploads")
     template = models.ForeignKey(ImportTemplate, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     kind = models.CharField(max_length=12)
     original_name = models.CharField(max_length=255)
@@ -62,6 +65,12 @@ class ImportBatch(models.Model):
     def __str__(self):
         return f"Import #{self.pk} {self.original_name}"
 
+    def refresh_billing_cycles(self):
+        ids = set(self.rows.exclude(billing_cycle__isnull=True).values_list("billing_cycle_id", flat=True))
+        if not ids and self.billing_cycle_id:
+            ids.add(self.billing_cycle_id)
+        self.billing_cycles.set(ids)
+
 
 class ImportRow(models.Model):
     class Status(models.TextChoices):
@@ -72,6 +81,8 @@ class ImportRow(models.Model):
         SKIPPED = "skipped", "Skipped"
 
     batch = models.ForeignKey(ImportBatch, on_delete=models.CASCADE, related_name="rows")
+    billing_cycle = models.ForeignKey("providers.BillingCycle", null=True, blank=True,
+                                     on_delete=models.PROTECT, related_name="import_rows")
     row_number = models.PositiveIntegerField()
     source_name = models.CharField(max_length=255, blank=True)
     source_file = models.FileField(upload_to=private_upload_path("imports"), blank=True)

@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% load static %}{% block title %}New billing cycle{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/billing-cycles.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:cycles' %}">Billing cycles</a> / New</div><h1>New billing cycle</h1>
+<p>Name a provider billing period. Cycles for the same provider may overlap; each named cycle is tracked separately.</p></div></div>
+<div class="card bc-form-card"><form method="post" novalidate>{% csrf_token %}{% include "includes/form_errors.html" %}
+<div class="form-grid">{{ form.as_div }}</div>
+<p class="bc-note">Creating a cycle only groups records for tracking. It does not approve, pay or reconcile any invoice.</p>
+<div class="form-actions"><a class="btn" href="{% url 'providers:cycles' %}">Cancel</a><button class="btn btn-primary" type="submit">Create cycle</button></div></form></div>
+{% endblock %}

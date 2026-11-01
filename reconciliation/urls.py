@@ -14,6 +14,7 @@ urlpatterns = [
     path("upload/", views.upload, name="upload"),
     path("template.csv", views.template, name="template"),
     path("statements/<int:pk>/", views.statement_detail, name="statement"),
+    path("statements/<int:pk>/cycle/", views.statement_cycle, name="statement_cycle"),
     path("statements/<int:pk>/download/", views.download, name="download"),
     path("rows/<int:pk>/", views.row_detail, name="row"),
 ]

@@ -1,0 +1,57 @@
+{% extends "base.html" %}{% load static %}{% block title %}Billing cycles{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/billing-cycles.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:list' %}">Providers</a> / Billing cycles</div><h1>Billing cycles</h1>
+<p>Records received per named provider cycle for {{ month|date:"F Y" }}. Select any count to open the matching invoices.</p></div>
+<div class="actions">{% if can_manage %}<a class="btn btn-primary" href="{% url 'providers:cycle_create' %}">New cycle</a>{% endif %}</div></div>
+
+<section class="card bc-toolbar" aria-label="Calendar filters">
+<form method="get" class="bc-filter">
+<div><label for="bc-provider">Provider</label><select id="bc-provider" name="provider"><option value="">All providers</option>{% for p in providers %}<option value="{{ p.pk }}"{% if selected_provider == p.pk|stringformat:"s" %} selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>
+<div><label for="bc-month">Month</label><input id="bc-month" type="month" name="month" value="{{ month|date:'Y-m' }}"></div>
+<div class="bc-filter-actions"><button class="btn btn-primary" type="submit">Show</button></div>
+</form>
+<nav class="bc-monthnav" aria-label="Change month">
+<a class="btn btn-sm" href="?month={{ previous_month }}{% if selected_provider %}&amp;provider={{ selected_provider }}{% endif %}" rel="prev">Previous</a>
+<strong>{{ month|date:"F Y" }}</strong>
+<a class="btn btn-sm" href="?month={{ next_month }}{% if selected_provider %}&amp;provider={{ selected_provider }}{% endif %}" rel="next">Next</a>
+</nav>
+</section>
+
+<section class="bc-totals" aria-label="Month totals">
+<div class="bc-total"><span>Received</span><strong>{{ totals.received|default:0 }}</strong></div>
+<div class="bc-total is-ok"><span>Processed (paid)</span><strong>{{ totals.processed|default:0 }}</strong></div>
+<div class="bc-total is-warn"><span>Pending</span><strong>{{ totals.pending|default:0 }}</strong></div>
+<div class="bc-total is-danger"><span>Overdue</span><strong>{{ totals.overdue|default:0 }}</strong></div>
+</section>
+
+<section class="card bc-cal-card" aria-labelledby="bc-cal-title">
+<div class="card-head"><h2 id="bc-cal-title">Calendar</h2><p class="bc-legend"><span class="bc-key is-r">R received</span><span class="bc-key is-p">P processed</span><span class="bc-key is-q">Q pending</span></p></div>
+<div class="bc-cal" role="table" aria-label="Billing cycles for {{ month|date:'F Y' }}">
+<div class="bc-row bc-head" role="row">{% for d in "MTWTFSS" %}<div role="columnheader" class="bc-dow">{% cycle "Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun" %}</div>{% endfor %}</div>
+{% for week in weeks %}<div class="bc-row" role="row">
+{% for cell in week %}<div role="cell" class="bc-cell{% if not cell.in_month %} is-out{% endif %}{% if not cell.entries %} is-empty{% endif %}">
+<span class="bc-day"><span class="bc-dayname">{{ cell.date|date:"D" }} </span>{{ cell.day }}</span>
+{% for e in cell.entries %}<div class="bc-entry{% if e.overdue %} is-overdue{% endif %}">
+<a class="bc-name" href="{{ e.url }}" title="{{ e.cycle.provider }} - {{ e.cycle.name }}">{{ e.cycle.name }}</a>
+<small class="bc-prov">{{ e.cycle.provider }}{% if e.cycle.code %} · {{ e.cycle.code }}{% endif %}</small>
+<span class="bc-counts">
+<a class="bc-c is-r" href="{{ e.url }}" aria-label="{{ e.received }} received in {{ e.cycle.name }}">R {{ e.received }}</a>
+<a class="bc-c is-p" href="{{ e.processed_url }}" aria-label="{{ e.processed }} processed (paid) in {{ e.cycle.name }}">P {{ e.processed }}</a>
+<a class="bc-c is-q" href="{{ e.pending_url }}" aria-label="{{ e.pending }} pending in {{ e.cycle.name }}">Q {{ e.pending }}</a>
+{% if e.overdue %}<span class="bc-c is-o">{{ e.overdue }} overdue</span>{% endif %}
+</span></div>{% endfor %}
+</div>{% endfor %}
+</div>{% empty %}<p class="empty">No calendar data for this month.</p>{% endfor %}
+</div></section>
+
+<section class="card" aria-labelledby="bc-un-title">
+<div class="card-head"><h2 id="bc-un-title">Awaiting a confirmed cycle</h2><span class="badge badge-warn">{{ unassigned|length }}</span></div>
+<p class="muted">Records that could not be placed on a dated cycle. They are kept apart from the calendar until a cycle is confirmed.</p>
+<div class="table-wrap"><table><thead><tr><th>Cycle</th><th>Provider</th><th class="num">Received</th><th class="num">Processed</th><th class="num">Pending</th><th class="num">Cancelled</th><th class="num">Overdue</th><th class="num">Files</th></tr></thead><tbody>
+{% for e in unassigned %}<tr{% if e.overdue %} class="row-danger"{% endif %}><td><a href="{{ e.url }}">{{ e.cycle.name }}</a></td><td>{{ e.cycle.provider }}</td>
+<td class="num"><a href="{{ e.url }}">{{ e.received }}</a></td><td class="num"><a href="{{ e.processed_url }}">{{ e.processed }}</a></td><td class="num"><a href="{{ e.pending_url }}">{{ e.pending }}</a></td>
+<td class="num">{{ e.cancelled }}</td><td class="num">{{ e.overdue }}</td><td class="num">{{ e.files_count }}</td></tr>
+{% empty %}<tr><td colspan="8" class="empty">Every record is assigned to a cycle.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endblock %}

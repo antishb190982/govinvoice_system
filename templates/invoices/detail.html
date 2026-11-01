@@ -6,6 +6,7 @@
 <h1>{{ invoice.provider.name }} · {{ invoice.amount_total|money:invoice.currency }}</h1>
 <p>{% status_badge invoice %} Invoice {{ invoice.invoice_number }} · due <strong>{{ invoice.due_date|date:"d M Y" }}</strong>{% with d=invoice.due_date|days_until %}{% if invoice.is_unpaid %} ({% if d < 0 %}overdue{% elif d == 0 %}today{% else %}in {{ d }} days{% endif %}){% endif %}{% endwith %}</p></div>
 <div class="actions">
+  {% if invoice.billing_cycle %}<a class="btn" href="{{ invoice.billing_cycle.get_absolute_url }}">{{ invoice.billing_cycle.name }}</a>{% endif %}
   <a class="btn" href="{% url 'workflow:process' invoice.pk %}">Process map</a>
   <a class="btn" href="{% url 'reconciliation:index' %}?q={{ invoice.reference|urlencode }}&amp;state=all">Reconcile</a>
   {% if approval_evidence %}<a class="btn btn-primary" href="{% url 'invoices:approved_copy' invoice.pk %}">{% icon "file" %} Download stamped invoice PDF</a>{% endif %}

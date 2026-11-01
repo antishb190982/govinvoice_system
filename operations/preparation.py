@@ -156,7 +156,7 @@ def prepare(request, pk):
                 apply_folder_paths(folder, d["folder_paths"])
                 with transaction.atomic():
                     batches, skipped = stage_uploads(request.user, d["files"] + folder,
-                        prep.provider, received_date=d["received_date"])
+                        prep.provider, received_date=d["received_date"], billing_cycle=d["billing_cycle"])
                     prep.imports.add(*batches)
                     AuditEvent.record("batch.preparation_intake_confirmed", obj=prep, actor=request.user,
                         org_unit_id=prep.org_unit_id, data={

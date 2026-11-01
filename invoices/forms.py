@@ -17,7 +17,7 @@ class InvoiceForm(forms.ModelForm):
 
     class Meta:
         model = Invoice
-        fields = ["service_account", "invoice_number", "issue_date", "received_date", "due_date", "period_start", "period_end",
+        fields = ["service_account", "billing_cycle", "invoice_number", "issue_date", "received_date", "due_date", "period_start", "period_end",
                   "currency", "amount_net", "amount_tax", "amount_total", "surcharge_amount", "surcharge_description", "arrears", "previous_reading", "current_reading",
                   "consumption", "notes"]
         widgets = {"issue_date": DATE, "received_date": DATE, "due_date": DATE, "period_start": DATE, "period_end": DATE,
@@ -38,6 +38,12 @@ class InvoiceForm(forms.ModelForm):
         self.fields["service_account"].label_from_instance = \
             lambda a: f"{a.provider.short_code} · {a.account_number} · {a.premises or a.description} ({a.org_unit.code})"
         self.fields["currency"].required = False
+        self.fields["billing_cycle"].help_text = (
+            "Auto-detect from the period or a processed provider file. "
+            "Choose explicitly when this provider has overlapping cycles.")
+        self.fields["billing_cycle"].empty_label = "Automatic — unresolved cycles wait for assignment"
+        from providers.models import BillingCycle
+        self.fields["billing_cycle"].queryset = BillingCycle.objects.exclude(code="UNASSIGNED").select_related("provider")
         self.fields["currency"].help_text = "Defaults to the provider's currency."
         self.fields["invoice_number"].help_text = "A provider invoice number cannot be recorded twice, including case or surrounding-space variations."
         self.fields["period_start"].help_text = "Enter both period dates to also reject duplicate account/period/amount combinations."

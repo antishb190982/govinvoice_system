@@ -3,6 +3,7 @@
 <div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:list' %}">Providers</a></div><h1>{{ provider.name }}</h1><p>{{ provider.get_utility_type_display }} · {{ provider.short_code }}</p></div>
 <div class="actions">{% if can_edit %}<a class="btn" href="{% url 'providers:edit' provider.pk %}">Edit</a><a class="btn" href="{% url 'providers:bank_change' provider.pk %}">Change bank details</a>{% endif %}{% if can_add_account %}<a class="btn btn-primary" href="{% url 'providers:account_create' %}?provider={{ provider.pk }}">Add service account</a>{% endif %}</div></div>
 <div class="grid cols-2">
+<div class="card"><h2>Billing cycles</h2><p>Distinct provider cycles can overlap within the same period.</p><a class="btn" href="{% url 'providers:cycles' %}?provider={{ provider.pk }}">Open provider cycle calendar</a></div>
 <div class="card"><h2>Details</h2><dl class="props"><dt>Tax number</dt><dd>{{ provider.tax_number|default:"—" }}</dd><dt>Contact</dt><dd>{{ provider.contact_email|default:"" }} {{ provider.contact_phone }}</dd>
 <dt>Payment terms</dt><dd>{{ provider.payment_terms_days }} days · {{ provider.currency }}</dd>
 <dt>Beneficiary</dt><dd>{{ provider.bank_account_name|default:"—" }}<br>{{ provider.bank_name }} {{ provider.bank_bic }}<br><span class="mono">{% if can_edit %}{{ provider.bank_iban|default:"—" }}{% else %}{{ provider.masked_iban|default:"—" }}{% endif %}</span></dd></dl></div>

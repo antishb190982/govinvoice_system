@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% load static %}{% block title %}{{ cycle.name }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/billing-cycles.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'providers:cycles' %}">Billing cycles</a> / {{ cycle.provider }}</div>
+<h1>{{ cycle.name }}</h1>
+<p>{{ cycle.provider }}{% if cycle.code %} · <span class="mono">{{ cycle.code }}</span>{% endif %} · {% if cycle.is_unassigned %}Awaiting a confirmed cycle{% else %}{{ cycle.period_start|date:"d M Y" }} to {{ cycle.period_end|date:"d M Y" }}{% endif %}</p></div>
+<div class="actions"><a class="btn" href="{% url 'providers:cycles' %}">Back to calendar</a>{% if can_manage %}<a class="btn btn-primary" href="{% url 'providers:cycle_create' %}">New cycle</a>{% endif %}</div></div>
+
+{% if cycle.is_unassigned %}<div class="callout warn"><strong>Unassigned records</strong>These records have not been matched to a dated cycle yet.</div>{% endif %}
+<div class="callout info"><strong>Audit note</strong>Automatic reconciliation checks the account, invoice number, amount, currency and cycle against a current provider file. It never approves or pays an invoice; approval and payment follow the normal workflow.</div>
+
+<section class="bc-totals" aria-label="Cycle counts">
+<a class="bc-total" href="?status=all"><span>Received</span><strong>{{ entry.received }}</strong></a>
+<a class="bc-total is-ok" href="?status=processed"><span>Processed (paid)</span><strong>{{ entry.processed }}</strong></a>
+<a class="bc-total is-warn" href="?status=pending"><span>Pending</span><strong>{{ entry.pending }}</strong></a>
+<a class="bc-total" href="?status=cancelled"><span>Cancelled</span><strong>{{ entry.cancelled }}</strong></a>
+<div class="bc-total is-danger"><span>Overdue</span><strong>{{ entry.overdue }}</strong></div>
+<div class="bc-total"><span>Files</span><strong>{{ entry.files_count }}</strong></div>
+</section>
+
+<div class="split">
+<section class="card" aria-labelledby="bc-inv">
+<div class="card-head"><h2 id="bc-inv">Invoices</h2></div>
+<nav class="tabs" aria-label="Invoice status">
+<a href="?status=all"{% if status == 'all' or not status %} class="active" aria-current="page"{% endif %}>All</a>
+<a href="?status=processed"{% if status == 'processed' %} class="active" aria-current="page"{% endif %}>Processed (paid)</a>
+<a href="?status=pending"{% if status == 'pending' %} class="active" aria-current="page"{% endif %}>Pending</a>
+<a href="?status=cancelled"{% if status == 'cancelled' %} class="active" aria-current="page"{% endif %}>Cancelled</a></nav>
+<div class="table-wrap"><table><thead><tr><th>Reference</th><th>Account</th><th>Unit</th><th>Due</th><th class="num">Amount</th><th>Status</th></tr></thead><tbody>
+{% for i in invoices %}<tr><td><a href="{{ i.get_absolute_url }}">{{ i.reference }}</a>{% if i.invoice_number %}<br><small class="muted">{{ i.invoice_number }}</small>{% endif %}</td>
+<td>{{ i.service_account|default:"—" }}</td><td>{{ i.org_unit|default:"—" }}</td><td class="nowrap">{{ i.due_date|date:"d M Y"|default:"—" }}</td>
+<td class="num">{{ i.amount_total }} {{ i.currency }}</td><td><span class="badge badge-neutral">{{ i.get_status_display }}</span></td></tr>
+{% empty %}<tr><td colspan="6" class="empty">No invoices in this view.</td></tr>{% endfor %}
+</tbody></table></div>{% include "includes/pagination.html" %}</section>
+
+<div class="stack">
+<section class="card"><h2>Cycle</h2><dl class="props"><dt>Provider</dt><dd>{{ cycle.provider }}</dd><dt>Code</dt><dd>{{ cycle.code|default:"—" }}</dd>
+<dt>Period start</dt><dd>{{ cycle.period_start|date:"d M Y"|default:"—" }}</dd><dt>Period end</dt><dd>{{ cycle.period_end|date:"d M Y"|default:"—" }}</dd></dl></section>
+<section class="card"><h2>Provider statements</h2><ul class="bc-list">
+{% for s in statements %}<li><a href="{{ s.get_absolute_url }}">{{ s.filename }}</a><small>{{ s.statement_date|date:"d M Y" }}{% if not s.is_active %} · superseded{% endif %}</small></li>
+{% empty %}<li class="muted">No statements linked.</li>{% endfor %}</ul></section>
+<section class="card"><h2>Uploads</h2><ul class="bc-list">
+{% for u in uploads %}<li><a href="{% url 'imports:batch' u.pk %}">{{ u.original_name }}</a><small>{{ u.status }}</small></li>
+{% empty %}<li class="muted">No uploads visible to you.</li>{% endfor %}</ul></section>
+</div></div>
+{% endblock %}

@@ -141,6 +141,8 @@ def save_invoice(invoice, user, audit_action=None, changed=None):
     # This also protects case/space variants across different service accounts.
     Provider.objects.select_for_update().get(pk=invoice.service_account.provider_id)
     prepare(invoice)
+    from providers.cycles import classify_invoice
+    classify_invoice(invoice)
     if creating:
         invoice.reference = Counter.next("INV")
         invoice.created_by = user
@@ -177,7 +179,7 @@ def save_invoice(invoice, user, audit_action=None, changed=None):
             "amount": str(invoice.surcharge_amount), "description": invoice.surcharge_description,
             "included_in_original_total": True})
     from reconciliation.services import invoice_saved
-    invoice_saved(invoice)
+    invoice_saved(invoice, user=user)
     AuditEvent.record(audit_action or ("invoice.created" if creating else "invoice.updated"), obj=invoice,
                       actor=user, data={"reference": invoice.reference, "amount": invoice.amount_total,
                                         "flags": invoice.flags, "fields": changed or []})

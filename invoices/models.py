@@ -44,6 +44,8 @@ class Invoice(models.Model):
 
     reference = models.CharField(max_length=32, unique=True, editable=False)
     provider = models.ForeignKey(Provider, on_delete=models.PROTECT, related_name="invoices")
+    billing_cycle = models.ForeignKey("providers.BillingCycle", null=True, blank=True,
+                                     on_delete=models.PROTECT, related_name="invoices")
     service_account = models.ForeignKey(ServiceAccount, on_delete=models.PROTECT, related_name="invoices")
     # Copied from the service account at intake so history survives transfers.
     org_unit = models.ForeignKey(OrgUnit, on_delete=models.PROTECT, related_name="invoices")

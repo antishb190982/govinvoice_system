@@ -7,6 +7,8 @@ from core.files import private_upload_path
 
 class Statement(models.Model):
     provider = models.ForeignKey("providers.Provider", on_delete=models.PROTECT)
+    billing_cycle = models.ForeignKey("providers.BillingCycle", null=True, blank=True,
+                                     on_delete=models.PROTECT, related_name="statements")
     org_unit = models.ForeignKey("org.OrgUnit", on_delete=models.PROTECT)
     currency = models.CharField(max_length=3)
     statement_date = models.DateField()

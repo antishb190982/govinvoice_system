@@ -1,5 +1,9 @@
 {% extends "base.html" %}{% load gov %}{% block title %}Import #{{ batch.pk }}{% endblock %}{% block head %}{% if counts.analysing %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 {% block content %}
+<div class="card"><h2>Billing cycles</h2><p>One file may contain several cycles; each invoice keeps its own cycle.</p>
+{% for cycle in batch.billing_cycles.all %}<a class="badge" href="{{ cycle.get_absolute_url }}">{{ cycle }}</a>{% empty %}<span class="muted">Awaiting provider identification / cycle assignment.</span>{% endfor %}
+{% if batch.status == "staged" and can_assign_cycle %}<form method="post" action="{% url 'imports:cycle' batch.pk %}">{% csrf_token %}<label for="intake-cycle">Assign a common cycle to this staged file</label><select id="intake-cycle" name="billing_cycle" required><option value="">Choose only if all rows belong to this cycle</option>{% for cycle in cycle_options %}<option value="{{ cycle.pk }}">{{ cycle }}</option>{% endfor %}</select><div class="form-actions"><button class="btn" type="submit">Assign cycle and recheck</button></div></form>{% endif %}
+</div>
 <section class="card" aria-label="Continue the processing journey">
 <div class="card-head"><div><strong>Receive → Check → Prepare batch</strong>
 <p class="muted">Review extracted details here once. The same invoice records and original documents carry into the batch; do not upload them again.</p></div>

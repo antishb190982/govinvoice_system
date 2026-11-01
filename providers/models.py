@@ -67,6 +67,41 @@ class Provider(models.Model):
         return CONSUMPTION_UNITS.get(self.utility_type, "")
 
 
+class BillingCycle(models.Model):
+    """Named provider periods, deliberately not unique on their dates."""
+
+    provider = models.ForeignKey(Provider, on_delete=models.PROTECT, related_name="billing_cycles")
+    code = models.CharField(max_length=80)
+    name = models.CharField(max_length=160)
+    period_start = models.DateField(null=True, blank=True)
+    period_end = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["period_end", "provider__name", "code"]
+        constraints = [
+            models.UniqueConstraint(fields=["provider", "code"], name="unique_provider_cycle_code"),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(code="UNASSIGNED", period_start__isnull=True, period_end__isnull=True)
+                    | (~models.Q(code="UNASSIGNED") & models.Q(
+                        period_start__isnull=False, period_end__isnull=False,
+                        period_end__gte=models.F("period_start")))
+                ), name="valid_billing_cycle_dates"),
+        ]
+
+    @property
+    def is_unassigned(self):
+        return self.code == "UNASSIGNED"
+
+    def __str__(self):
+        return f"{self.provider.short_code} · {self.name} ({self.code})"
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse("providers:cycle", args=[self.pk])
+
+
 class ServiceAccount(models.Model):
     """A provider account or meter, owned by the org unit that consumes it."""
 

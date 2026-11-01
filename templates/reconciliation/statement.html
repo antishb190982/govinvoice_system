@@ -14,8 +14,13 @@
 </div>
 <div class="card"><h2>Source</h2><dl class="props">
 <dt>File</dt><dd>{{ statement.filename|default:"—" }}</dd>
+<dt>Billing cycle</dt><dd>{% if statement.billing_cycle %}<a href="{{ statement.billing_cycle.get_absolute_url }}">{{ statement.billing_cycle }}</a>{% else %}Awaiting cycle assignment{% endif %}</dd>
 <dt>SHA-256</dt><dd class="raw">{{ statement.sha256|default:"—" }}</dd>
 <dt>Uploaded</dt><dd>{{ statement.uploaded_by }} · {{ statement.created_at|date:"d M Y H:i" }}</dd></dl></div>
+{% if can_manage %}{% if not statement.billing_cycle or statement.billing_cycle.is_unassigned %}
+<div class="card mt"><h2>Assign the retained file to a cycle</h2><p>Reuse this source without uploading it again. Separate cycles retain separate current files. Retained payment evidence cannot be reassigned.</p>
+<form method="post" action="{% url 'reconciliation:statement_cycle' statement.pk %}">{% csrf_token %}<div class="form-stack">{{ cycle_form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Assign cycle and recheck</button><a class="btn" href="{% url 'providers:cycles' %}">Cycle calendar</a></div></form></div>
+{% endif %}{% endif %}
 <div class="card"><h2>Lines</h2>
 {% if page.object_list %}<div class="scroll"><div class="table-wrap"><table><thead><tr><th>Line</th><th>Account</th><th>Invoice</th><th class="num">Amount</th><th>Result</th><th>Reason</th><th>Responsible</th></tr></thead><tbody>
 {% for r in page.object_list %}<tr class="{% if r.status == 'unsorted' %}row-danger{% elif r.status == 'superseded' %}row-muted{% endif %}">
