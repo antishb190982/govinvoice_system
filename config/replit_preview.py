@@ -10,6 +10,11 @@ if PRODUCTION:  # noqa: F405
     raise ImproperlyConfigured("Use config.settings, not the demo preview settings, in production.")
 
 DEBUG = False
+# Preview keeps production-like error handling but must serve current source
+# assets, not a stale collection left by an earlier build or seeded workspace.
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
+WHITENOISE_MAX_AGE = 0
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver", ".replit.dev"]
 CSRF_TRUSTED_ORIGINS = ["https://*.replit.dev"]
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

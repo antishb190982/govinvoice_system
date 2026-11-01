@@ -6,8 +6,9 @@
 <div class="actions">
 {% if si.status == "executed" and can.bank %}<a class="btn" href="{% url 'reconciliation:bank_index' %}?status=all&amp;q={{ si.reference|urlencode }}">Bank reconciliation</a>{% endif %}
 {% if si.pdf %}<a class="btn" href="{% url 'settlements:pdf' si.pk %}">Signed PDF</a>{% endif %}
-{% if si.status in "authorised sent executed" %}<a class="btn" href="{% url 'settlements:export' si.pk 'xml' %}">ISO 20022 (pain.001)</a><a class="btn" href="{% url 'settlements:export' si.pk 'csv' %}">CSV</a>{% endif %}
+{% if can_export and si.status in "authorised sent executed" %}<a class="btn" href="{% url 'settlements:export' si.pk 'csv' %}">Invoice entry schedule · CSV</a><a class="btn" href="{% url 'settlements:export' si.pk 'xml' %}">XML reference example</a>{% endif %}
 </div></div>
+<div class="callout"><strong>Bank file layout pending</strong>Each invoice has its own entry and reference. Current CSV/XML exports are reference schedules, not certified bank upload files. The bank-specific layout and final same-file bank/provider delivery will be enabled once the specification is supplied. File sharing does not confirm payment.</div>
 {% if si.batch %}<div class="callout"><strong>Processing batch <a href="{{ si.batch.get_absolute_url }}">{{ si.batch.reference }}</a></strong>This instruction pays one provider ({{ si.batch.provider.name }}) for the whole batch.</div>{% endif %}
 {% if si.group_reference %}<div class="callout"><strong>Settlement group {{ si.group_reference }}</strong>{{ batch_links|length }} approved batch{{ batch_links|length|pluralize }} combined in this instruction. Membership and amounts are retained after cancellation or execution; all stages are recorded in the audit history.</div>
 <div class="card" id="group-batches"><h2>Member batches · {{ si.group_reference }}</h2><div class="table-wrap"><table><thead><tr><th>Processing batch</th><th>Provider</th><th>Ministry</th><th>Invoices grouped</th><th>Current stage</th><th class="num">Grouped payable</th></tr></thead><tbody>
@@ -19,8 +20,8 @@
 {% for line in lines %}<tr><td><strong>{{ line.provider.name }}</strong><br><small>{{ line.provider.get_utility_type_display }} · {{ line.end_to_end_id }}</small></td>
 <td>{{ line.beneficiary_name }}<br><small class="mono">{{ line.beneficiary_iban }} {{ line.beneficiary_bic }}</small></td><td>{{ line.invoice_count }}</td><td>{{ line.earliest_due|date:"d M Y" }}</td><td class="num">{{ line.amount|money }}</td></tr>{% endfor %}
 </tbody><tfoot><tr><td colspan="4">Total</td><td class="num">{{ si.total_amount|money:si.currency }}</td></tr></tfoot></table></div></div>
-<div class="card"><details class="disclosure"><summary>Invoices included</summary><div class="table-wrap mt"><table><thead><tr><th>Invoice</th><th>Provider no.</th><th>Unit</th><th>Due</th><th class="num">Amount</th></tr></thead><tbody>
-{% for line in lines %}{% for item in line.items.all %}<tr><td><a href="{{ item.invoice.get_absolute_url }}">{{ item.invoice.reference }}</a></td><td>{{ item.invoice.invoice_number }}</td><td>{{ item.invoice.org_unit.code }}</td><td>{{ item.invoice.due_date|date:"d M Y" }}</td><td class="num">{{ item.amount|money }}</td></tr>{% endfor %}{% endfor %}
+<div class="card"><details class="disclosure"><summary>Individual invoice entries</summary><div class="table-wrap mt"><table><thead><tr><th>Invoice / provider no.</th><th>Entry reference</th><th>Account / batch</th><th>Unit</th><th>Due</th><th class="num">Amount</th></tr></thead><tbody>
+{% for line in lines %}{% for item in line.items.all %}<tr><td><a href="{{ item.invoice.get_absolute_url }}">{{ item.invoice.reference }}</a><br><small>{{ item.invoice.invoice_number }}</small></td><td><code>{{ item.entry_reference }}</code></td><td>{{ item.invoice.service_account.account_number }}<br>{% if item.batch %}<a href="{{ item.batch.get_absolute_url }}">{{ item.batch.reference }}</a>{% else %}Legacy entry{% endif %}</td><td>{{ item.invoice.org_unit.code }}</td><td>{{ item.invoice.due_date|date:"d M Y" }}</td><td class="num">{{ item.amount|money:si.currency }}</td></tr>{% endfor %}{% endfor %}
 </tbody></table></div></details></div>
 </div><div class="stack">
 <div class="card"><h2>Next step</h2>
@@ -37,11 +38,22 @@
   <form method="post" action="{% url 'settlements:action' si.pk 'reject' %}" class="mt">{% csrf_token %}<label for="comment">Return to preparer</label><textarea id="comment" name="comment" rows="2" placeholder="Reason"></textarea><div class="form-actions"><button class="btn btn-danger btn-sm" type="submit">Return</button></div></form>
   {% else %}<p class="muted">Waiting for a payment authoriser (not the preparer).</p>{% endif %}
 {% elif si.status == 'authorised' or si.status == 'sent' %}
-  <p>Send the ISO 20022 file (or the signed PDF) to the bank / treasury, then record the execution.</p>
-  {% if si.status == 'authorised' %}<form method="post" action="{% url 'settlements:action' si.pk 'sent' %}">{% csrf_token %}<button class="btn" type="submit">Mark as sent</button></form>{% endif %}
+  <p>Bank-format generation is pending the bank specification. Record a bank submission only if it actually occurred outside GovBills. Record execution separately after bank confirmation.</p>
+  {% if si.status == 'authorised' and can_export %}<form method="post" action="{% url 'settlements:action' si.pk 'sent' %}" data-confirm="Confirm the instruction was actually submitted to the bank outside GovBills. This does not confirm payment.">{% csrf_token %}<button class="btn" type="submit">Record external bank submission</button></form>{% endif %}
   <form method="post" action="{% url 'settlements:action' si.pk 'executed' %}" class="mt">{% csrf_token %}<div class="form-stack">{{ executed_form.as_div }}</div><div class="form-actions"><button class="btn btn-primary" type="submit">Record payment executed</button></div></form>
 {% elif si.status == 'executed' %}<div class="callout ok"><strong>Paid</strong>Value date {{ si.executed_at|date:"d M Y" }} · bank reference {{ si.bank_reference }}</div>
 {% else %}<p class="muted">Cancelled. {{ si.rejection_comment }}</p>{% endif %}
+</div>
+<div class="card"><h2>Provider settlement advice</h2>
+<p class="muted">Bank submission → provider advice → bank execution → bank reconciliation. Before execution, advice means “submitted to bank”, not “paid”.</p>
+{% if retained_file %}<p>{{ retained_file.entry_count }} invoice entries · retained {{ retained_file.created_at|date:"d M Y H:i" }}<br><small>SHA-256 <code class="text-wrap-anywhere">{{ retained_file.sha256 }}</code></small></p>{% endif %}
+{% if si.status == 'sent' or si.status == 'executed' %}
+{% if can_export and single_provider %}<a class="btn" href="{% url 'settlements:export' si.pk 'provider' %}">Download exact retained CSV copy</a>
+<details class="disclosure mt"><summary>Record delivery outside GovBills</summary><p class="muted">Attach the downloaded reference schedule to your email or secure portal message. This records delivery evidence only; it does not send an email.</p>
+<form method="post" action="{% url 'settlements:action' si.pk 'provider_sent' %}">{% csrf_token %}<div class="form-stack">{{ provider_form.as_div }}</div><div class="form-actions"><button class="btn" type="submit">Record provider delivery</button></div></form></details>
+{% elif not single_provider %}<p>Legacy multi-provider instructions cannot be shared as one provider attachment.</p>{% endif %}
+{% else %}<p>Available after bank submission has been recorded.</p>{% endif %}
+{% for delivery in provider_deliveries %}<div class="mt"><strong>External delivery recorded</strong><br>{{ delivery.data.recipient }} · {{ delivery.actor_label }}<br><small>{{ delivery.occurred_at|date:"d M Y H:i" }} · receipt {{ delivery.data.delivery_reference }}<br>{% if delivery.data.advice == 'submitted_to_bank_not_paid' %}Submitted to bank; payment not yet confirmed.{% else %}Execution had been recorded when this advice was sent.{% endif %}</small></div>{% endfor %}
 </div>
 <div class="card"><h2>Signatures</h2>{% for s in signings %}<div class="sigbox valid"><strong>{{ s.role|capfirst }}</strong> by {{ s.user }}<br><small>{{ s.signed_at|date:"d M Y H:i" }} · cert {{ s.identity.serial_number|slice:":12" }}…<br>PDF SHA-256 {{ s.pdf_sha256|slice:":24" }}…</small></div>{% empty %}<p class="muted">Not signed yet.</p>{% endfor %}
 {% if si.pdf %}<p class="mt"><small>Anyone can check the PDF on the <a href="{% url 'signatures:verify' %}">verification page</a> or in Adobe Reader after trusting the CA certificate.</small></p>{% endif %}</div>

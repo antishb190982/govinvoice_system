@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Demo setup{% endblock %}
+{% block content %}
+{% include "integrations/_head.html" %}
+{% include "integrations/_tabs.html" %}
+<div class="card">
+  <div class="card-head"><h2>Load demo setup</h2><span class="badge badge-warn">Demonstration data</span></div>
+  <p>Use this action when the published instance is being used as a demo. It adds missing setup records without resetting existing data.</p>
+  <ul>
+    <li>Sample ministry and department hierarchy for the Prime Minister's Office, Health, Education and Finance.</li>
+    <li>Utility providers: {% for code, name, utility in providers %}{{ name }}{% if not forloop.last %}, {% endif %}{% endfor %}.</li>
+    <li>Sample service accounts with numbers beginning <strong>DEMO-</strong>.</li>
+    <li>A standard approval policy only if the government root does not already have one.</li>
+  </ul>
+  <div class="callout warn"><strong>Not an official government directory.</strong> Names and account allocations are demonstration examples. No users, passwords, bank details, invoices, signatures or settlements are created or changed. Provider bank details and staff assignments still need configuration before financial journeys can be demonstrated.</div>
+  <p>Repeated runs skip existing records. Ambiguous matches stop the entire load; no partial data is kept. Every successful run is recorded in the audit trail.</p>
+  <form method="post" class="mt">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="actions"><button type="submit" class="btn btn-primary">Load demo setup</button><a class="btn" href="{% url 'console:overview' %}">Back to administration</a></div>
+  </form>
+</div>
+{% endblock %}

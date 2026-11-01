@@ -193,7 +193,10 @@ def test_approval_inbox_groups_members_under_one_batch(client, tree, people, pro
     assert response.status_code == 200
     assert len(response.context["batch_rows"]) == 1
     assert response.context["batch_rows"][0]["invoice_count"] == 2
-    assert first.reference.encode() not in response.content
+    # Bell notifications can legitimately name invoices; the decision listing
+    # itself must contain batches rather than individual-invoice actions.
+    listing = response.content.split(b"<tbody>", 1)[1].split(b"</tbody>", 1)[0]
+    assert first.reference.encode() not in listing
     assert response.context["batch_rows"][0]["batch"] == batch
     detail = client.get(reverse("workflow:batch_review", args=[batch.pk]))
     assert detail.status_code == 200

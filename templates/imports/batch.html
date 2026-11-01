@@ -1,5 +1,11 @@
 {% extends "base.html" %}{% load gov %}{% block title %}Import #{{ batch.pk }}{% endblock %}{% block head %}{% if counts.analysing %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
 {% block content %}
+<section class="card" aria-label="Continue the processing journey">
+<div class="card-head"><div><strong>Receive → Check → Prepare batch</strong>
+<p class="muted">Review extracted details here once. The same invoice records and original documents carry into the batch; do not upload them again.</p></div>
+{% if preparation %}<a class="btn btn-primary" href="{{ preparation.get_absolute_url }}?step=select">Continue batch preparation</a>
+{% elif batch.status != "discarded" %}<a class="btn" href="{% url 'operations:prepare_new' %}?intake={{ batch.pk }}">Prepare a batch from these records</a>{% endif %}</div>
+</section>
 <div class="page-head{% if batch.registration_mode %} registration-head{% endif %}"><div><div class="crumbs"><a href="{% url 'imports:list' %}">Imports</a> / #{{ batch.pk }}</div><h1>{{ batch.original_name }}</h1>
 <p>{% status_badge batch %} {{ counts.valid }} ready{% if review_needed %} ({{ review_needed }} awaiting your confirmation){% endif %} · {{ counts.invalid }} with errors{% if counts.analysing %} · {{ counts.analysing }} being analysed…{% endif %}{% if counts.committed %} · {{ counts.committed }} imported{% endif %}</p></div>
 {% if batch.status == 'staged' %}<div class="actions">

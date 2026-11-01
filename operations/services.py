@@ -70,10 +70,13 @@ def create_batch(user, org_unit, name, invoice_ids):
         raise ValidationError("Select valid invoices for this batch.")
     if any(not i.org_unit.path.startswith(org_unit.path) for i in invoices):
         raise PermissionDenied("Every invoice must be inside your selected unit.")
+    if any(i.service_account.org_unit_id != i.org_unit_id or
+           i.service_account.provider_id != i.provider_id for i in invoices):
+        raise ValidationError("Invoice ownership and provider must match its allocated service account.")
     ministries = {ministry_for(i.org_unit).pk for i in invoices}
     if len(ministries) != 1 or len({i.provider_id for i in invoices}) != 1 or len({i.currency for i in invoices}) != 1:
         raise ValidationError("A batch must contain one ministry, one utility provider and one currency.")
-    if any(i.status in [Invoice.Status.PAID, Invoice.Status.CANCELLED,
+    if any(i.status in [Invoice.Status.PAID, "closed_zero", Invoice.Status.CANCELLED,
                          Invoice.Status.SCHEDULED] for i in invoices):
         raise ValidationError("Paid, closed, cancelled or already scheduled invoices cannot enter a new batch.")
     if BatchMember.objects.filter(invoice__in=invoices, active=True).exists():
@@ -134,7 +137,14 @@ def start_batch(batch, user):
     for invoice in invoices:
         if invoice.status == "paid" and payable(invoice) == 0:
             continue
+        if (invoice.provider_id != batch.provider_id or invoice.currency != batch.currency or
+                not invoice.org_unit.path.startswith(batch.org_unit.path) or
+                invoice.service_account.org_unit_id != invoice.org_unit_id or
+                invoice.service_account.provider_id != invoice.provider_id):
+            raise ValidationError("Batch allocation changed. Correct the invoice before submission.")
         require_clear(invoice)
+        from reconciliation.services import require_reconciled
+        require_reconciled(invoice)
         if invoice.status in [Invoice.Status.DRAFT, Invoice.Status.RETURNED, Invoice.Status.DISPUTED]:
             submit(invoice, user)
             submitted.append(invoice.reference)

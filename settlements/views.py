@@ -48,6 +48,12 @@ class ExecutedForm(forms.Form):
     value_date = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"), initial=timezone.localdate)
 
 
+class ProviderDeliveryForm(forms.Form):
+    recipient = forms.EmailField(label="Provider recipient email", max_length=254)
+    delivery_reference = forms.CharField(label="Email message ID or secure portal receipt", max_length=120)
+    confirmed = forms.BooleanField(label="I sent this exact retained attachment to the provider outside GovBills.")
+
+
 def _errors(exc):
     return " ".join(getattr(exc, "messages", [str(exc)]))
 
@@ -121,16 +127,30 @@ def instruction_new(request):
 
 
 @login_required
-def instruction_detail(request, pk):
+def instruction_detail(request, pk, provider_form=None):
     si = _get(request, pk)
     user = request.user
-    lines = si.lines.select_related("provider").prefetch_related("items__invoice__org_unit")
+    from settlements.remittance import entry_reference
+    lines = list(si.lines.select_related("provider").prefetch_related(
+        "items__invoice__org_unit", "items__invoice__service_account", "items__batch",
+    ))
+    for line in lines:
+        for item in line.items.all():
+            item.entry_reference = entry_reference(item)
     return render(request, "settlements/detail.html", {
         "si": si, "lines": lines, "signings": si.signings.select_related("user", "identity"),
         "pin_form": PinForm(), "executed_form": ExecutedForm(),
         "can_prepare": has_role(user, si.org_unit, [Role.FINANCE]),
         "can_authorise": has_role(user, si.org_unit, [Role.AUTHORISER]) and user.pk != si.prepared_by_id,
         "identity": active_identity(user),
+        "can_export": has_role(user, si.org_unit, [Role.FINANCE, Role.AUTHORISER]),
+        "single_provider": len(lines) == 1,
+        "provider_form": provider_form if provider_form is not None else ProviderDeliveryForm(
+            initial={"recipient": lines[0].provider.contact_email if len(lines) == 1 else ""}),
+        "retained_file": si.exports.filter(format_key="invoice-schedule-v1").first(),
+        "provider_deliveries": AuditEvent.objects.filter(
+            object_type="settlements.settlementinstruction", object_id=str(si.pk),
+            action="settlement.provider_delivery_recorded").order_by("-sequence")[:5],
         "history": AuditEvent.objects.filter(object_type="settlements.settlementinstruction",
                                              object_id=str(si.pk)).order_by("sequence"),
         "batch_links": si.batch_links.select_related("batch__provider", "batch__ministry"),
@@ -161,7 +181,15 @@ def instruction_action(request, pk, action):
             messages.success(request, "Instruction cancelled; its invoices are available again.")
         elif action == "sent":
             services.mark_sent(si, user)
-            messages.success(request, "Marked as sent to the bank / treasury.")
+            messages.success(request, "External bank submission recorded. Download the retained schedule for the provider.")
+        elif action == "provider_sent":
+            from settlements.remittance import record_provider_delivery
+            form = ProviderDeliveryForm(request.POST)
+            if not form.is_valid():
+                return instruction_detail(request, pk, provider_form=form)
+            record_provider_delivery(si, user, form.cleaned_data["recipient"],
+                                     form.cleaned_data["delivery_reference"])
+            messages.success(request, "External provider delivery recorded. No email was sent by GovBills.")
         elif action == "executed":
             form = ExecutedForm(request.POST)
             if form.is_valid():
@@ -188,17 +216,33 @@ def instruction_pdf(request, pk):
 @login_required
 def instruction_export(request, pk, fmt):
     si = _get(request, pk)
+    if fmt not in ("xml", "csv", "provider"):
+        raise Http404
     if si.status not in (SettlementInstruction.Status.AUTHORISED, SettlementInstruction.Status.SENT,
                          SettlementInstruction.Status.EXECUTED):
         raise PermissionDenied("Only authorised instructions can be exported.")
     if not has_role(request.user, si.org_unit, [Role.FINANCE, Role.AUTHORISER]):
         raise PermissionDenied
-    AuditEvent.record("settlement.exported", obj=si, data={"format": fmt})
-    if fmt == "xml":
-        response = HttpResponse(services.pain001(si), content_type="application/xml")
-        response["Content-Disposition"] = f'attachment; filename="{si.reference}-pain001.xml"'
+    try:
+        if fmt == "xml":
+            response = HttpResponse(services.pain001(si), content_type="application/xml")
+            response["Content-Disposition"] = f'attachment; filename="{si.reference}-reference-pain001.xml"'
+            AuditEvent.record("settlement.exported", obj=si, actor=request.user,
+                              data={"format": "reference-xml", "bank_layout": "pending"})
+        else:
+            from settlements.remittance import retained_bytes, retained_export
+            if fmt == "provider" and (si.status not in ("sent", "executed") or si.lines.count() != 1):
+                raise PermissionDenied("Provider copies require bank submission and a single provider.")
+            artifact = retained_export(si, request.user)
+            response = HttpResponse(retained_bytes(artifact), content_type="text/csv; charset=utf-8")
+            response["Content-Disposition"] = f'attachment; filename="{si.reference}-invoice-entries.csv"'
+            AuditEvent.record("settlement.exported", obj=si, actor=request.user, data={
+                "format": artifact.format_key, "copy_for": "provider" if fmt == "provider" else "bank_reference",
+                "export_id": artifact.pk, "sha256": artifact.sha256, "entries": artifact.entry_count,
+            })
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
         return response
-    return csv_response(f"{si.reference}.csv",
-                        ["End-to-end ID", "Beneficiary", "IBAN", "BIC", "Currency", "Amount", "Invoices", "Pay by"],
-                        ([li.end_to_end_id, li.beneficiary_name, li.beneficiary_iban, li.beneficiary_bic, si.currency,
-                          li.amount, li.invoice_count, li.earliest_due] for li in si.lines.all()))
+    except ValidationError as exc:
+        messages.error(request, _errors(exc))
+        return redirect(si)

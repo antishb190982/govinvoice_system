@@ -1,0 +1,115 @@
+{
+  "title": "GovBills role-based video manual",
+  "language": "English",
+  "notice": "Walkthroughs with AI-generated English narration and captions, using current demo screens, not recordings of live approvals or bank transfers. Reference screens are captured with a demo administrator; your menus and available actions depend on your assigned roles and ministry.",
+  "roles": [
+    {
+      "slug": "clerk",
+      "title": "Invoice clerk",
+      "summary": "Receive utility records, check extracted details and prepare a controlled batch.",
+      "handoff": "Submit a reconciled batch to the independent verification and approval team.",
+      "chapters": [
+        {"screen": "my-work", "title": "Start with My Work", "instruction": "Open My Work to see assigned tasks, returned work and overdue items. Check your ministry and utility provider. My Space stores personal shortcuts; it does not create another copy of an invoice or task.", "action": "My Work → tasks and overdue work"},
+        {"screen": "intake", "title": "Upload records once", "instruction": "Use Upload Utility Records for files, a folder or ZIP. Confirm the selection before processing. Authorised mailbox arrivals also enter staged review when configured. Reuse the provider template, check extracted details and ask the unit administrator to resolve missing accounts.", "action": "Upload Utility Records → review extracted details"},
+        {"screen": "preparation", "title": "Prepare one provider batch", "instruction": "Start batch preparation with one ministry, provider and currency. Select existing detected invoices rather than uploading them again. Check dates, totals, surcharges and source documents. Missing or conflicting records need correction, not another invoice entry.", "action": "Batches → Preparation → select existing invoices"},
+        {"screen": "batch", "title": "Resolve blockers and hand over", "instruction": "Read the batch readiness panel and follow links to blocking invoices. Provider-list reconciliation and supporting evidence are required. Submit only when the whole batch is ready. Submission requests independent approval; it does not approve invoices or release money.", "action": "Batch readiness → resolve issues → submit"}
+      ]
+    },
+    {
+      "slug": "verifier",
+      "title": "Verifier",
+      "summary": "Check the complete batch and its invoice evidence before approval.",
+      "handoff": "Pass the checked batch to the next approval role, or return it with a clear reason.",
+      "chapters": [
+        {"screen": "my-work", "title": "Find your assigned review", "instruction": "Start in My Work or Approvals and open a batch assigned to your workflow role. Check the ministry, utility provider, invoice count and amount. Only work within your authorised scope; another ministry's records are not part of your queue.", "action": "My Work or Approvals → assigned batch"},
+        {"screen": "approvals", "title": "Review the entire batch", "instruction": "Approval work is batch-based. Open the batch review and compare every member with its source evidence. Check account allocation, bill period, due dates, totals and surcharge handling. A summary count alone is not evidence that the invoice details are correct.", "action": "Approvals → Review batch → invoice evidence"},
+        {"screen": "batch", "title": "Handle a mismatch explicitly", "instruction": "Use the batch issues and invoice links to investigate missing documents or reconciliation mismatches. Record a useful explanation when returning work. Do not re-enter the invoice or edit an approved snapshot to make a mismatch disappear; use the controlled correction route.", "action": "Batch → issues and supporting documents"},
+        {"screen": "workflow", "title": "Record the authorised decision", "instruction": "Read the proposed batch decision and confirm its scope before submitting. Sign only if your configured step requires it. You must not decide an invoice you recorded or submitted, and independent workflow steps cannot be combined into one person's approval.", "action": "Batch review → decision → next workflow role"}
+      ]
+    },
+    {
+      "slug": "approver",
+      "title": "Approver",
+      "summary": "Make an independent batch decision supported by reconciliation and evidence.",
+      "handoff": "Send fully approved batches to finance without bypassing payment controls.",
+      "chapters": [
+        {"screen": "approvals", "title": "Open the batch approval queue", "instruction": "Open Approvals and select an assigned batch. Review its ministry, provider, invoice count, amount and next deadline. The decision applies to the batch, not an isolated invoice selected outside the approval package.", "action": "Approvals → assigned batch"},
+        {"screen": "batch", "title": "Check evidence and exceptions", "instruction": "Inspect the batch invoices, reconciliation evidence, authorised adjustments and any outstanding dispute. Open supporting invoice records when needed. A readiness check helps navigation but never replaces your independent review or the server's final validation.", "action": "Batch → invoices, issues and evidence"},
+        {"screen": "workflow", "title": "Decide and sign when required", "instruction": "Choose the appropriate batch decision and record a clear comment. Required signing steps use your own signing credential. Never use another officer's account or sign a step you are not eligible to decide. Returned work must follow correction and reapproval controls.", "action": "Batch review → decision and required signature"},
+        {"screen": "batch", "title": "Inspect the handoff and record", "instruction": "Check the batch journey and history to see the next responsible role. Review the operational stamped invoice copy where available. A stamp records captured review and approval evidence; missing settlement information remains missing until finance records it. Approval is not payment.", "action": "Batch → journey, history and invoice copy"}
+      ]
+    },
+    {
+      "slug": "finance",
+      "title": "Finance officer",
+      "summary": "Reconcile provider lists, group approved batches and track settlement outcomes.",
+      "handoff": "Request independent payment authorisation, then track bank and provider handoffs.",
+      "chapters": [
+        {"screen": "reconciliation", "title": "Match the provider listing", "instruction": "Open Provider reconciliation and import the provider's pending-invoice XLS or CSV. Match the account, invoice reference, currency and amount. Investigate Unsorted mismatches with a responsible owner. Reconciliation is required before both approval and settlement.", "action": "Provider reconciliation → match or resolve"},
+        {"screen": "settlements", "title": "Group eligible approved batches", "instruction": "Open Settlements and group eligible approved batches for one provider and currency, respecting ministry boundaries. Original batch identities and audit histories remain intact. Review the payable total and authorised adjustments; no partial or unreconciled release should be disguised as a complete batch.", "action": "Settlements → group approved batches"},
+        {"screen": "settlements", "title": "Prepare the bank handoff", "instruction": "Prepare the settlement instruction and request independent authorisation. The bank handoff must retain invoice-level entries and references. The final bank layout still needs the supplied bank specification; a demonstration export must not be treated as a certified payment file.", "action": "Settlement instruction → authorisation → bank handoff"},
+        {"screen": "bank", "title": "Confirm and reconcile payment", "instruction": "Record the actual bank outcome and inspect Bank reconciliation for matched debits or discrepancies. Track provider settlement advice separately. Creating or sending a file is not confirmed payment. Keep failed or uncertain submissions visible and retain evidence before closing the settlement.", "action": "Bank reconciliation → match and investigate"}
+      ]
+    },
+    {
+      "slug": "authoriser",
+      "title": "Payment authoriser",
+      "summary": "Independently authorise eligible settlement instructions.",
+      "handoff": "Return an authorised instruction to finance; bank execution remains a separate event.",
+      "chapters": [
+        {"screen": "my-work", "title": "Find payment authorisation work", "instruction": "Use My Work and Settlements to find instructions awaiting your authorisation. Confirm that the instruction belongs to your authorised ministry and payment role. Do not create a replacement instruction because the original is waiting for another officer.", "action": "My Work → settlement authorisations"},
+        {"screen": "settlements", "title": "Review the instruction package", "instruction": "Inspect the provider, currency, member batches, invoice references, total and supporting approval evidence. Confirm reconciliation remains current and review changes or holds. Use the existing invoice and batch records; do not capture their amounts again in a parallel worksheet.", "action": "Settlement instruction → members and evidence"},
+        {"screen": "batch", "title": "Preserve separation of duties", "instruction": "Review the batch history and the people who prepared and approved it. Use your own authorised signing credential only when all checks are satisfied. Missing evidence must be returned for resolution, never bypassed because a due date is close.", "action": "Review history → independently authorise"},
+        {"screen": "bank", "title": "Understand what happens next", "instruction": "After authorisation, finance handles the bank submission and records the outcome. Authorisation is permission to proceed, not proof that funds moved. Bank reconciliation and provider advice have separate evidence and statuses. Uncertain or failed transfers remain exceptions until investigated.", "action": "Finance handoff → bank outcome → reconciliation"}
+      ]
+    },
+    {
+      "slug": "unit_admin",
+      "title": "Unit administrator",
+      "summary": "Maintain ministry account allocation and help staff resolve blocked processing.",
+      "handoff": "Return corrected master data and assigned exceptions to the responsible processors.",
+      "chapters": [
+        {"screen": "accounts", "title": "Maintain allocated service accounts", "instruction": "Open Service accounts and filter by ministry, provider, service, account status and invoicing status. Confirm the account number, service purpose and responsible owner. Use the existing register; registering another copy of the same provider account is not a correction.", "action": "Service accounts → filter and inspect"},
+        {"screen": "accounts", "title": "Resolve missing or inactive accounts", "instruction": "Register genuinely missing accounts for the correct ministry. Review on-hold, disputed, suspended or decommissioned services before processing resumes. Do not transfer an account or historical invoices between ministries merely because an uploaded document was assigned incorrectly.", "action": "Registration → correct allocation and lifecycle"},
+        {"screen": "my-work", "title": "Support the processing team", "instruction": "Use assigned work and overdue views to find unresolved exceptions. Allocate responsibility and explain what needs correcting. Personal schedules organise work but never approve or pay bills automatically. Reuse the same invoice and preparation records when staff return to the task.", "action": "My Work → overdue work and assigned exceptions"},
+        {"screen": "timeliness", "title": "Monitor delays fairly", "instruction": "Review ministry timeliness and surcharge reports. Distinguish provider issue dates, receipt dates, internal processing delays and payment outcomes before attributing a surcharge. Follow the authorised user and workflow administration routes available to your role; do not grant yourself wider financial access.", "action": "Reports → ministry timeliness and surcharges"}
+      ]
+    },
+    {
+      "slug": "auditor",
+      "title": "Auditor",
+      "summary": "Trace evidence from receipt through approval, settlement and bank matching.",
+      "handoff": "Report findings through authorised channels without changing financial execution.",
+      "chapters": [
+        {"screen": "overview", "title": "Choose the audit scope", "instruction": "Select the authorised ministry, provider and reporting period. Drill from summary figures to their underlying records. Keep currencies separate and distinguish operational overdue work from approved payable liabilities. A draft invoice is not automatically an approved debt.", "action": "Overview → scope and drill-through"},
+        {"screen": "batch", "title": "Trace the batch evidence", "instruction": "Open a batch and inspect source invoice links, membership, processing owners, decisions and lifecycle history. Settlement grouping must retain the member batches. Compare the operational stamped copy with original documents and signed evidence; a visual stamp is not a substitute for signature verification.", "action": "Batch → invoices, documents and history"},
+        {"screen": "audit", "title": "Inspect changes and separation", "instruction": "Use the Audit trail to follow who recorded, submitted, reviewed, approved and authorised each stage. Check timestamps, returned work, disputes and authorised adjustments. Post-payment waivers or refunds must preserve the original payment history rather than rewriting it.", "action": "Audit trail → events and supporting records"},
+        {"screen": "bank", "title": "Verify settlement closure", "instruction": "Trace the settlement instruction, bank submission reference, actual payment outcome and statement match. Review provider advice and unresolved differences separately. Audit access does not permit you to authorise payments or silently repair the evidence you are inspecting.", "action": "Settlement evidence → bank match → findings"}
+      ]
+    },
+    {
+      "slug": "viewer",
+      "title": "Viewer",
+      "summary": "Understand status and reports without performing processing or financial actions.",
+      "handoff": "Refer questions or exceptions to the responsible assigned team.",
+      "chapters": [
+        {"screen": "overview", "title": "Read your authorised overview", "instruction": "Start with the Overview for your ministry and role. The provider filter limits the records shown. Summary figures should drill into the matching records. Menus visible in these administrator reference screens may not be available to a read-only viewer.", "action": "Overview → ministry and provider filters"},
+        {"screen": "workspace", "title": "Understand the batch folders", "instruction": "Use Batches to distinguish Preparation, Work in progress, Rejected and Completed. A folder is a navigation view, not a separate copy of the invoices. Open a batch to understand its current status and the team responsible for the next stage.", "action": "Batches → folder → batch record"},
+        {"screen": "batch", "title": "Read the current stage", "instruction": "Inspect the batch journey, available invoice links and history within your permissions. A blocking issue explains why work cannot progress. Ready for approval, approved, authorised and paid are different states; never treat a submitted bank file as proof of payment.", "action": "Batch → current stage and history"},
+        {"screen": "overview", "title": "Escalate without changing records", "instruction": "Send the batch or invoice reference to the responsible team when you spot a problem. Viewer access does not grant permission to upload, correct, approve, sign or pay records. Ask an administrator for legitimate access changes rather than borrowing another user's account.", "action": "Identify responsible team → share record reference"}
+      ]
+    },
+    {
+      "slug": "sysadmin",
+      "title": "System administrator",
+      "summary": "Configure access, workflows and gateways without bypassing financial governance.",
+      "handoff": "Provide a controlled environment for ministry staff and independent financial roles.",
+      "chapters": [
+        {"screen": "admin", "title": "Check system readiness", "instruction": "Open Admin console and review system health and configuration. Confirm the environment is a demonstration or approved live deployment before setup changes. Keep credentials, signing material and integration secrets outside training files and exports. Configuration does not establish that payments or notifications were delivered.", "action": "Administration → Admin console"},
+        {"screen": "users", "title": "Assign minimum necessary access", "instruction": "Use Users and roles to create individual accounts and assign ministry-scoped responsibilities. Set or reset passwords only through authorised controls. Staff must use their own authentication and signing setup. Administrator access is not permission to ignore independent approval and payment duties.", "action": "Users and roles → individual scoped access"},
+        {"screen": "workflow", "title": "Configure controlled workflows", "instruction": "Maintain workflow policies, required roles, deadlines and signing steps. Ensure eligible independent officers exist for every stage. Test changes using demonstration records. Preserve approval evidence and required revalidation; do not alter policy just to push a blocked live batch through.", "action": "Workflow configuration → roles, steps and controls"},
+        {"screen": "gateways", "title": "Configure trusted intake and delivery", "instruction": "In Gateway centre, map dedicated incoming mailboxes and exact authorised senders to utility providers. Configure and test outgoing channels separately. Unconfigured Outlook, SMS or bank integrations are not live automation. Keep OCR templates shared by provider and retain audit evidence for administrative changes.", "action": "Gateway centre → authorised intake and delivery"}
+      ]
+    }
+  ]
+}

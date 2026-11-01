@@ -33,8 +33,10 @@
   </div>
   <nav class="side-nav" aria-label="Sections">
   <p class="side-group">My workspace</p>
-  <a class="side-link{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' or not app %} is-active{% endif %}" href="{% url 'core:dashboard' %}?clear_provider=1"{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' %} aria-current="page"{% endif %}>{% icon "home" %}<span>Operations overview</span></a>
+  <a class="side-link{% if app == 'core' and url == 'my_work' %} is-active{% endif %}" href="{% url 'core:my_work' %}?clear_provider=1">{% icon "check" %}<span>My Work</span></a>
+  <a class="side-link{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' or not app %} is-active{% endif %}" href="{% url 'core:dashboard' %}?clear_provider=1"{% if app == 'core' and url == 'dashboard' or app == 'core' and url == 'control_centre' %} aria-current="page"{% endif %}>{% icon "home" %}<span>Overview</span></a>
   <a class="side-link{% if app == 'core' and url == 'my_space' or app == 'core' and url == 'my_work' or app == 'core' and 'work_schedule' in url or app == 'core' and 'space_folder' in url %} is-active{% endif %}" href="{% url 'core:my_space' %}?clear_provider=1"{% if app == 'core' and url == 'my_space' or app == 'core' and url == 'my_work' %} aria-current="page"{% endif %}>{% icon "check" %}<span>My space</span></a>
+  <a class="side-link{% if app == 'core' and url == 'training' or app == 'core' and url == 'training_detail' %} is-active{% endif %}" href="{% url 'core:training' %}"{% if app == 'core' and url == 'training' or app == 'core' and url == 'training_detail' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Video manuals</span></a>
   {% if pinned_space_folders %}<div class="side-folders" aria-label="Pinned My Space folders">
     {% for folder in pinned_space_folders %}<a class="side-sublink pinned-space-link" href="{{ folder.url }}" title="{{ folder.description }}"><span>{{ folder.label }}</span></a>{% endfor %}
   </div>{% endif %}
@@ -65,6 +67,7 @@
   <a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'reconciliation' or app == 'reconciliation' and '/bank/' not in request.path %} is-active{% endif %}" href="{% url 'core:section_overview' section='reconciliation' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'reconciliation' or app == 'reconciliation' and '/bank/' not in request.path %} aria-current="page"{% endif %}>{% icon "check" %}<span>Provider reconciliation</span></a>
   {% if can.bank %}<a class="side-link{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'bank' or app == 'reconciliation' and '/bank/' in request.path %} is-active{% endif %}" href="{% url 'core:section_overview' section='bank' %}?clear_provider=1"{% if url == 'section_overview' and request.resolver_match.kwargs.section == 'bank' or app == 'reconciliation' and '/bank/' in request.path %} aria-current="page"{% endif %}>{% icon "bank" %}<span>Bank reconciliation</span></a>{% endif %}
   <a class="side-link{% if url == 'surcharges' or url == 'surcharge' %} is-active{% endif %}" href="{% url 'invoices:surcharges' %}?clear_provider=1"{% if url == 'surcharges' or url == 'surcharge' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Surcharge monitor</span></a>
+  <details class="side-more"{% if url == "ministry_timeliness" or url == "analytics" or url == "sla" or url == "policies" or url == "policy" or url == "policy_new" or url == "policy_edit" or app == "org" or app == "signatures" or app == "accounts" and url != "profile" or url == "audit" or app == "console" %} open{% endif %}><summary class="side-group">Reports &amp; administration</summary>
   <p class="side-group">Reports</p>
   <a class="side-link{% if url == 'ministry_timeliness' %} is-active{% endif %}" href="{% url 'core:ministry_timeliness' %}?clear_provider=1">{% icon "clock" %}<span>Ministry timeliness</span></a>
   <a class="side-link{% if url == 'analytics' or url == 'section_overview' and request.resolver_match.kwargs.section == 'analytics' %} is-active{% endif %}" href="{% url 'core:section_overview' section='analytics' %}?clear_provider=1"{% if url == 'analytics' %} aria-current="page"{% endif %}>{% icon "chart" %}<span>Historical dashboards</span></a>
@@ -77,6 +80,7 @@
   {% if can.audit %}<a class="side-link{% if url == 'audit' %} is-active{% endif %}" href="{% url 'core:audit' %}"{% if url == 'audit' %} aria-current="page"{% endif %}>{% icon "file" %}<span>Audit trail</span></a>{% endif %}
   {% if can.sysadmin %}<a class="side-link{% if app == 'console' and url != 'gateways' %} is-active{% endif %}" href="{% url 'console:overview' %}"{% if app == 'console' and url != 'gateways' %} aria-current="page"{% endif %}>{% icon "settings" %}<span>Admin console</span></a>
   <a class="side-link{% if app == 'console' and url == 'gateways' %} is-active{% endif %}" href="{% url 'console:gateways' %}"{% if app == 'console' and url == 'gateways' %} aria-current="page"{% endif %}>{% icon "bell" %}<span>Gateway centre</span></a>{% endif %}
+  </details>
   </nav>
   <a class="sidebar-identity" href="{% url 'accounts:profile' %}">
     <span class="workspace-avatar" aria-hidden="true">{{ request.user.full_name|first|upper }}</span>

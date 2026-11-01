@@ -53,7 +53,7 @@
   <div class="form-actions"><button class="btn btn-primary" type="submit">Save ownership</button></div>
 </form>{% endif %}
 <h3 class="sub-h">Ownership history</h3>
-{% if case_events %}<ul class="case-history" style="list-style:none;padding-left:.9rem;border-left:2px solid var(--line)">{% for e in case_events %}<li style="margin-bottom:.6rem"><strong>{{ e.actor_label }}</strong> <small class="muted">{{ e.occurred_at|date:"d M Y H:i" }}</small><br>
+{% if case_events %}<ul class="case-history bank-case-history">{% for e in case_events %}<li><strong>{{ e.actor_label }}</strong> <small class="muted">{{ e.occurred_at|date:"d M Y H:i" }}</small><br>
   <small>{% if e.data.owner_label %}Owner: {{ e.data.owner_label }}{% endif %}{% if e.data.due_date %} · Due {{ e.data.due_date }}{% endif %}</small>{% if e.data.note %}<p>{{ e.data.note }}</p>{% endif %}</li>{% endfor %}</ul>
 {% else %}<p class="empty">No ownership changes recorded yet.</p>{% endif %}
 </div>{% endif %}

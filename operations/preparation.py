@@ -48,9 +48,31 @@ def candidates(prep):
 
 
 @login_required
+@transaction.atomic
 def prepare_new(request):
     require_any_role(request.user, PROCESSORS)
     initial = request.GET.copy()
+    intake_id = request.POST.get("source_intake") if request.method == "POST" else request.GET.get("intake")
+    source_intake = None
+    if intake_id:
+        from imports.models import ImportBatch
+        intakes = ImportBatch.objects.exclude(status=ImportBatch.Status.DISCARDED)
+        if request.method == "POST":
+            intakes = intakes.select_for_update()
+        source_intake = get_object_or_404(
+            intakes,
+            pk=intake_id, uploaded_by=request.user)
+        existing = source_intake.preparations.filter(
+            prepared_by=request.user, completed_batch__isnull=True).first()
+        if existing:
+            return redirect(existing)
+        if source_intake.provider_id:
+            initial.setdefault("provider", source_intake.provider_id)
+        first_invoice = source_intake.rows.filter(invoice__isnull=False).select_related(
+            "invoice__org_unit").first()
+        if first_invoice:
+            initial.setdefault("org_unit", ministry_for(first_invoice.invoice.org_unit).pk)
+            initial.setdefault("currency", first_invoice.invoice.currency)
     source_id = request.POST.get("source_invoice") if request.method == "POST" else request.GET.get("invoice")
     source_invoice = None
     if source_id:
@@ -74,23 +96,27 @@ def prepare_new(request):
         else:
             prep = BatchPreparation.objects.create(name=d["name"], org_unit=d["org_unit"],
                 provider=d["provider"], currency=d["currency"], prepared_by=request.user)
+            if source_intake:
+                prep.imports.add(source_intake)
             if source_invoice and candidates(prep).filter(pk=source_invoice.pk).exists():
                 prep.selected_invoice_ids = [source_invoice.pk]
                 prep.save(update_fields=["selected_invoice_ids"])
             AuditEvent.record("batch.preparation_started", obj=prep, actor=request.user,
                 org_unit_id=prep.org_unit_id, data={"provider": prep.provider_id})
-            return redirect(f"{prep.get_absolute_url()}?step={'confirm' if prep.selected_invoice_ids else 'source'}")
+            next_step = "confirm" if prep.selected_invoice_ids else (
+                "select" if source_intake and source_intake.status == "committed" else "source")
+            return redirect(f"{prep.get_absolute_url()}?step={next_step}")
     return render(request, "operations/prepare_setup.html", {"form": form,
-        "source_invoice": source_invoice})
+        "source_invoice": source_invoice, "source_intake": source_intake})
 
 
 @transaction.atomic
 def complete(prep, user):
     prep = BatchPreparation.objects.select_for_update().get(pk=prep.pk)
-    if prep.completed_batch_id:
-        return prep.completed_batch
     if prep.prepared_by_id != user.pk or not has_role(user, prep.org_unit, PROCESSORS):
         raise PermissionDenied
+    if prep.completed_batch_id:
+        return prep.completed_batch
     ids = prep.selected_invoice_ids
     if not ids or set(candidates(prep).filter(pk__in=ids).values_list("pk", flat=True)) != set(ids):
         raise ValidationError("Some invoices changed or entered another batch. Return to invoice selection.")
@@ -114,6 +140,9 @@ def prepare(request, pk):
                         initial={"provider": prep.provider_id})
     upload.fields["provider"].queryset = upload.fields["provider"].queryset.filter(pk=prep.provider_id)
     upload.fields["provider"].required = True
+    # Reuse the saved preparation context, never ask the user to capture it twice.
+    upload.fields["provider"].disabled = True
+    upload.fields["provider"].widget = forms.HiddenInput()
     selection = candidates(prep)
     error = None
     if request.method == "POST":

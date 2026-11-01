@@ -5,6 +5,17 @@ from urllib.parse import parse_qs, unquote, urlsplit
 from django.core.exceptions import ImproperlyConfigured
 
 
+def require_development_schema_context(environment, deployment_marker):
+    """Permit schema preparation only outside a published deployment.
+
+    REPLIT_DEPLOYMENT is Replit's documented published-runtime indicator.
+    REPLIT_ENVIRONMENT is not a reliable workspace/deployment discriminator.
+    Fail closed for every nonempty deployment marker and nondevelopment mode.
+    """
+    if environment != "development" or deployment_marker:
+        raise ImproperlyConfigured("This schema-preparation command is development-only.")
+
+
 def postgres_config(url):
     try:
         parsed = urlsplit(url or "")

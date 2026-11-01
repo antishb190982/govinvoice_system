@@ -1,3 +1,6 @@
+/* Progressive navigation uses external styles to respect the portal CSP. */
+.side-more > summary { cursor: pointer; list-style: revert; }
+.side-more[open] > summary { margin-bottom: 2px; }
 /* Approved GovBills workspace. Loaded last, including after page-specific styles.
    Existing routes, forms, role guards, financial values and evidence remain authoritative. */
 :root, :root[data-theme], :root:not([data-theme="light"]) {

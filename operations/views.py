@@ -55,7 +55,8 @@ def batch_new(request):
 def batch(request, pk):
     item = get_object_or_404(scope(InvoiceBatch.objects.select_related("ministry", "provider", "org_unit"),
                                    request.user), pk=pk)
-    members = list(item.members.select_related("invoice__org_unit", "invoice__provider").order_by("invoice__due_date"))
+    members = list(item.members.select_related("invoice__org_unit", "invoice__provider",
+        "invoice__service_account", "invoice__service_account__org_unit").order_by("invoice__due_date"))
     for member in members:
         member.payable = services.payable(member.invoice)
         member.on_hold = member.invoice.status != "paid" and (
@@ -92,7 +93,9 @@ def batch(request, pk):
         except ValidationError as exc:
             error = " ".join(exc.messages)
     from workflow.journey import batch_journey
+    from operations.readiness import batch_readiness
     return render(request, "operations/batch.html", {
+        "readiness": batch_readiness(item, members, request.user),
         "batch_journey": batch_journey(item, request.user, request.GET),
         "batch": item, "members": members, "error": error,
         "gross_total": sum((m.invoice.amount_total for m in members if m.active), Decimal("0")),

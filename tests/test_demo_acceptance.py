@@ -41,6 +41,8 @@ def test_seeded_demo_login_permissions_and_signed_payment(settings):
     # Capture seeder output because it includes a generated demo API token.
     with redirect_stdout(io.StringIO()):
         call_command("seed_demo", months=0, stdout=io.StringIO())
+    assert not Invoice.objects.filter(issue_date__gt=timezone.localdate()).exists()
+    assert not Invoice.objects.filter(created_at__gt=timezone.now()).exists()
 
     users = {name: User.objects.get(username=name) for name, *_ in USERS}
     sessions = {}

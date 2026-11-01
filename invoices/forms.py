@@ -39,6 +39,9 @@ class InvoiceForm(forms.ModelForm):
             lambda a: f"{a.provider.short_code} · {a.account_number} · {a.premises or a.description} ({a.org_unit.code})"
         self.fields["currency"].required = False
         self.fields["currency"].help_text = "Defaults to the provider's currency."
+        self.fields["invoice_number"].help_text = "A provider invoice number cannot be recorded twice, including case or surrounding-space variations."
+        self.fields["period_start"].help_text = "Enter both period dates to also reject duplicate account/period/amount combinations."
+        self.fields["amount_total"].help_text = "The same provider, account, billing period, currency and billed total cannot be entered again under a different invoice number."
         self.fields["amount_net"].required = False
         self.fields["amount_tax"].required = False
 

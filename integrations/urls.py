@@ -12,6 +12,7 @@ console_patterns = ([
     path("incoming/messages/<int:pk>/retry/", inbound_admin.retry, name="incoming_retry"),
     path("incoming/messages/<int:pk>/source/", inbound_admin.download, name="incoming_download"),
     path("", console.overview, name="overview"),
+    path("demo-setup/", console.demo_setup, name="demo_setup"),
     path("gateways/", console.gateways, name="gateways"),
     path("settings/", console.settings_view, name="settings"),
     path("settings/<slug:group>/", console.settings_view, name="settings_group"),

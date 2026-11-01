@@ -120,3 +120,27 @@ class SettlementEvent(models.Model):
 
     class Meta:
         ordering = ["signed_at"]
+
+
+class SettlementExport(models.Model):
+    """Retained file bytes shared by the bank/provider handoff; never regenerated."""
+
+    instruction = models.ForeignKey(SettlementInstruction, on_delete=models.PROTECT, related_name="exports")
+    format_key = models.CharField(max_length=48, default="invoice-schedule-v1")
+    file = models.FileField(upload_to=private_upload_path("settlement-exports"))
+    sha256 = models.CharField(max_length=64)
+    entry_count = models.PositiveIntegerField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["instruction", "format_key"], name="unique_settlement_export_format"),
+        ]
+
+    def save(self, *args, **kwargs):
+        from django.core.exceptions import ValidationError
+
+        if not self._state.adding:
+            raise ValidationError("Retained settlement exports cannot be edited. Create a new format version.")
+        return super().save(*args, **kwargs)

@@ -32,6 +32,28 @@ def call(client, token, path, method="get", **kwargs):
     return getattr(client, method)(path, HTTP_AUTHORIZATION=f"Bearer {token}", **kwargs)
 
 
+def test_api_rejects_duplicate_account_period_amount(client, api_client_factory, make_invoice, account):
+    from datetime import timedelta
+    from django.utils import timezone
+    from invoices.models import Invoice
+
+    today = timezone.localdate()
+    start, end = today - timedelta(days=32), today - timedelta(days=3)
+    make_invoice(number="ORIGINAL-API", period_start=start, period_end=end)
+    _, token = api_client_factory(scopes=("invoices:read", "invoices:write"))
+    body = {
+        "provider": account.provider.short_code, "account_number": account.account_number,
+        "invoice_number": "DIFFERENT-API-REFERENCE", "issue_date": str(today - timedelta(days=2)),
+        "due_date": str(today + timedelta(days=30)), "period_start": str(start),
+        "period_end": str(end), "currency": "MUR", "amount_total": "1000.000",
+    }
+    response = call(client, token, "/api/v1/invoices", "post",
+                    data=json.dumps(body), content_type="application/json")
+    assert response.status_code == 422
+    assert "Duplicate bill rejected" in response.content.decode()
+    assert Invoice.objects.count() == 1
+
+
 def test_api_auth_scope_and_logging(client, api_client_factory, make_invoice):
     make_invoice()
     c, token = api_client_factory()

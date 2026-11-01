@@ -44,13 +44,20 @@ def index(request):
     q = request.GET.get("q", "").strip()[:120]
     status = request.GET.get("status", "exception")
     if q:
+        matching_instructions = scope(SettlementInstruction.objects.all(), request.user, bank.READERS).filter(
+            Q(reference__icontains=q) | Q(batch__reference__icontains=q) |
+            Q(batch_links__batch__reference__icontains=q) |
+            Q(lines__items__batch__reference__icontains=q)
+        ).values("pk")
         rows = rows.filter(Q(transaction_id__icontains=q) | Q(settlement_reference__icontains=q) |
-                           Q(bank_reference__icontains=q) | Q(statement__account_label__icontains=q))
+                           Q(bank_reference__icontains=q) | Q(statement__account_label__icontains=q) |
+                           Q(instruction_id__in=matching_instructions) |
+                           Q(allocations__line__instruction_id__in=matching_instructions)).distinct()
     if status in BankRow.Status.values:
         rows = rows.filter(status=status)
     executed = scope(SettlementInstruction.objects.filter(status="executed"), request.user, bank.READERS)
     if q:
-        executed = executed.filter(reference__icontains=q)
+        executed = executed.filter(pk__in=matching_instructions)
     pending = executed.order_by().annotate(
         line_count=Count("lines", distinct=True), matched_count=Count(
             "lines", filter=Q(lines__bank_allocation__row__status="matched"), distinct=True)

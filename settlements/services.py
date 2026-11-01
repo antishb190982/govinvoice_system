@@ -277,11 +277,18 @@ def mark_sent(instruction, user):
         raise PermissionDenied
     from reconciliation.services import check_instruction
     check_instruction(instruction)
+    from settlements.remittance import retained_bytes, retained_export
+    export = retained_export(instruction, user)
+    retained_bytes(export)
     instruction.reconciliation_evidence.update(released_at=timezone.now())
     instruction.status = SettlementInstruction.Status.SENT
     instruction.sent_at = timezone.now()
     instruction.save()
-    AuditEvent.record("settlement.sent", obj=instruction, actor=user)
+    AuditEvent.record("settlement.sent", obj=instruction, actor=user, data={
+        "schedule_export_id": export.pk, "schedule_sha256": export.sha256,
+        "invoice_entries": export.entry_count, "bank_layout": "pending",
+        "delivery_method": "recorded_external",
+    })
 
 
 @transaction.atomic
@@ -331,20 +338,21 @@ def pain001(instruction):
             node.text = str(text)
         return node
 
-    lines = list(instruction.lines.select_related("provider").prefetch_related("items__invoice"))
+    from settlements.remittance import entry_reference, invoice_entries
+    entries = invoice_entries(instruction)
     root = ET.Element(f"{{{ns}}}Document")
     cst = el(root, "CstmrCdtTrfInitn")
     hdr = el(cst, "GrpHdr")
     el(hdr, "MsgId", f"{instruction.reference}-{uuid.uuid4().hex[:8]}"[:35])
     el(hdr, "CreDtTm", timezone.localtime().replace(microsecond=0).isoformat())
-    el(hdr, "NbOfTxs", len(lines))
+    el(hdr, "NbOfTxs", len(entries))
     el(hdr, "CtrlSum", _amount(instruction.total_amount, instruction.currency))
     el(el(hdr, "InitgPty"), "Nm", instruction.payer_name[:140])
 
     pmt = el(cst, "PmtInf")
     el(pmt, "PmtInfId", instruction.reference)
     el(pmt, "PmtMtd", "TRF")
-    el(pmt, "NbOfTxs", len(lines))
+    el(pmt, "NbOfTxs", len(entries))
     el(pmt, "CtrlSum", _amount(instruction.total_amount, instruction.currency))
     el(el(pmt, "ReqdExctnDt"), "Dt", instruction.requested_execution_date.isoformat())
     el(el(pmt, "Dbtr"), "Nm", instruction.payer_name[:140])
@@ -353,17 +361,17 @@ def pain001(instruction):
     if instruction.payer_bic:
         el(agent, "BICFI", instruction.payer_bic)
     el(pmt, "ChrgBr", "SLEV")
-    for line in lines:
+    for item in entries:
+        line = item.line
         tx = el(pmt, "CdtTrfTxInf")
-        el(el(tx, "PmtId"), "EndToEndId", line.end_to_end_id)
-        amt = el(el(tx, "Amt"), "InstdAmt", _amount(line.amount, instruction.currency))
+        el(el(tx, "PmtId"), "EndToEndId", entry_reference(item))
+        amt = el(el(tx, "Amt"), "InstdAmt", _amount(item.amount, instruction.currency))
         amt.set("Ccy", instruction.currency)
         if line.beneficiary_bic:
             el(el(el(tx, "CdtrAgt"), "FinInstnId"), "BICFI", line.beneficiary_bic)
         el(el(tx, "Cdtr"), "Nm", line.beneficiary_name[:140])
         el(el(el(tx, "CdtrAcct"), "Id"), "IBAN", (line.beneficiary_iban or "").replace(" ", ""))
-        refs = ", ".join(item.invoice.invoice_number for item in line.items.all())
-        el(el(tx, "RmtInf"), "Ustrd", f"{instruction.reference}: {refs}"[:140])
+        el(el(tx, "RmtInf"), "Ustrd", f"{item.invoice.invoice_number} | {item.invoice.reference}")
     ET.indent(root)
     return b'<?xml version="1.0" encoding="UTF-8"?>\n' + ET.tostring(root, encoding="utf-8")
 

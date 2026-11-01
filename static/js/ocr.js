@@ -4,9 +4,9 @@
   var SVGNS = "http://www.w3.org/2000/svg";
 
   function highlight(field, on) {
-    document.querySelectorAll('rect.zone[data-field="' + field + '"]').forEach(function (r) {
+    document.querySelectorAll('rect.zone[data-field="' + field + '"], .ocr-review-page text.zone-tag[data-field="' + field + '"]').forEach(function (r) {
       r.classList.toggle("hl", on);
-      if (on && r.scrollIntoView) r.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (on && r.tagName.toLowerCase() === "rect" && r.scrollIntoView) r.scrollIntoView({ block: "center", behavior: "smooth" });
     });
   }
 

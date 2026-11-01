@@ -1,0 +1,36 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}Video manuals{% endblock %}
+{% block body_class %}training-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/training.css' %}">{% endblock %}
+{% block content %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'core:my_space' %}">My space</a> / Help</div>
+<h1>Video manuals</h1>
+<p>Short role-based walkthroughs of GovBills. Each manual has a written checklist and full transcript, so you can follow along even without playing the video.</p></div></div>
+
+{% if notice %}<aside class="tr-notice" aria-label="About these videos"><strong>About these videos</strong><p>{{ notice }}</p></aside>{% endif %}
+
+<form method="get" class="tr-filter card" aria-label="Filter video manuals by role">
+  <div class="field"><label for="tr-role">Show manuals for</label>
+  <select id="tr-role" name="role">
+    <option value="">All roles</option>
+    {% for r in roles %}<option value="{{ r.slug }}"{% if r.slug == selected_role %} selected{% endif %}>{{ r.title }}</option>{% endfor %}
+  </select></div>
+  <div class="tr-filter-actions"><button class="btn btn-primary btn-sm" type="submit">Apply</button>
+  {% if selected_role %}<a class="btn btn-sm" href="{% url 'core:training' %}">Show all roles</a>{% endif %}</div>
+</form>
+
+<section aria-labelledby="tr-list-h">
+<h2 id="tr-list-h" class="tr-section-h">{% if selected_role %}Filtered manuals{% else %}All role manuals{% endif %} <span class="muted">({{ manuals|length }})</span></h2>
+{% if manuals %}<ol class="tr-grid" role="list">
+{% for m in manuals %}<li class="tr-card{% if m.recommended %} is-recommended{% endif %}">
+  <div class="tr-card-top"><span class="tr-index" aria-hidden="true">{{ forloop.counter|stringformat:"02d" }}</span>
+  {% if m.recommended %}<span class="badge badge-info">Recommended for your role</span>{% endif %}</div>
+  <h3><a href="{% url 'core:training_detail' role=m.slug %}">{{ m.title }}</a></h3>
+  <p>{{ m.summary }}</p>
+  <p class="tr-handoff"><span>Handoff</span> {{ m.handoff }}</p>
+  <ol class="tr-mini-chapters">{% for c in m.chapters %}<li>{{ c.title }}</li>{% endfor %}</ol>
+  <div class="tr-card-foot"><span class="muted">{{ m.chapters|length }} chapters{% if m.duration_seconds %} · about {% widthratio m.duration_seconds 60 1 %} min{% endif %} · {% if m.narrated %}voice and captions{% else %}captioned{% endif %}</span>
+  <a class="btn btn-sm" href="{% url 'core:training_detail' role=m.slug %}" aria-label="Open {{ m.title }} manual">Open manual</a></div>
+</li>{% endfor %}
+</ol>{% else %}<div class="card tr-empty"><strong>No manuals match this role.</strong><p><a href="{% url 'core:training' %}">Browse all roles</a></p></div>{% endif %}
+</section>
+{% endblock %}

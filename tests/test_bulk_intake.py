@@ -116,8 +116,11 @@ def test_folder_post_and_priority_screen(client, people, provider, account):
     commit(batch, people["clerk"])
     urgent = client.get(reverse("invoices:list"), {"priority": "urgent"})
     assert urgent.status_code == 200 and b"BULK-1" in urgent.content
+    assert any(invoice.invoice_number == "BULK-1" for invoice in urgent.context["page"])
     normal = client.get(reverse("invoices:list"), {"priority": "normal"})
-    assert b"BULK-1" not in normal.content
+    # The global overdue notification may still mention it; the filtered
+    # register itself must not contain an urgent invoice.
+    assert all(invoice.invoice_number != "BULK-1" for invoice in normal.context["page"])
 
 
 @pytest.mark.django_db

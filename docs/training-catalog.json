@@ -1,0 +1,665 @@
+{
+  "schema": 1,
+  "generated_at": "2026-11-01T09:37:46.331578+00:00",
+  "notice": "Walkthroughs with AI-generated English narration and captions, using current demo screens, not recordings of live approvals or bank transfers. Reference screens are captured with a demo administrator; your menus and available actions depend on your assigned roles and ministry.",
+  "language": "English",
+  "manuals": [
+    {
+      "slug": "clerk",
+      "title": "Invoice clerk",
+      "summary": "Receive utility records, check extracted details and prepare a controlled batch.",
+      "handoff": "Submit a reconciled batch to the independent verification and approval team.",
+      "duration_seconds": 86,
+      "chapters": [
+        {
+          "screen": "my-work",
+          "title": "Start with My Work",
+          "instruction": "Open My Work to see assigned tasks, returned work and overdue items. Check your ministry and utility provider. My Space stores personal shortcuts; it does not create another copy of an invoice or task.",
+          "action": "My Work → tasks and overdue work",
+          "start_seconds": 0,
+          "source_route": "/my-work/",
+          "captured_at": "2026-11-01T09:24:35.555Z"
+        },
+        {
+          "screen": "intake",
+          "title": "Upload records once",
+          "instruction": "Use Upload Utility Records for files, a folder or ZIP. Confirm the selection before processing. Authorised mailbox arrivals also enter staged review when configured. Reuse the provider template, check extracted details and ask the unit administrator to resolve missing accounts.",
+          "action": "Upload Utility Records → review extracted details",
+          "start_seconds": 18,
+          "source_route": "/imports/",
+          "captured_at": "2026-11-01T09:24:36.832Z"
+        },
+        {
+          "screen": "preparation",
+          "title": "Prepare one provider batch",
+          "instruction": "Start batch preparation with one ministry, provider and currency. Select existing detected invoices rather than uploading them again. Check dates, totals, surcharges and source documents. Missing or conflicting records need correction, not another invoice entry.",
+          "action": "Batches → Preparation → select existing invoices",
+          "start_seconds": 42,
+          "source_route": "/operations/prepare/",
+          "captured_at": "2026-11-01T09:24:38.047Z"
+        },
+        {
+          "screen": "batch",
+          "title": "Resolve blockers and hand over",
+          "instruction": "Read the batch readiness panel and follow links to blocking invoices. Provider-list reconciliation and supporting evidence are required. Submit only when the whole batch is ready. Submission requests independent approval; it does not approve invoices or release money.",
+          "action": "Batch readiness → resolve issues → submit",
+          "start_seconds": 64,
+          "source_route": "/operations/batches/10/",
+          "captured_at": "2026-11-01T09:24:39.330Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/clerk/c85a57aef247-manual.mp4",
+          "size": 1462368,
+          "sha256": "c85a57aef2472bb5816b925ea9fa8b77758c953109642f72323ed117a1d388c5",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/clerk/5b0e6c84822d-manual.webm",
+          "size": 1142643,
+          "sha256": "5b0e6c84822d3a9ccc924f5f79f252679392dce64f51421cf60a9c353a636108",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/clerk/a07bc572a71f-captions.vtt",
+          "size": 1249,
+          "sha256": "a07bc572a71f02d3596b550e30dffb40670f9eead1fcab708b480c74bffa238c",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/clerk/8aa872cd6ce8-poster.jpg",
+          "size": 184956,
+          "sha256": "8aa872cd6ce8dfde0e92bd5a9996d0074c637577301b73fd1b163fcaa804bc35",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "verifier",
+      "title": "Verifier",
+      "summary": "Check the complete batch and its invoice evidence before approval.",
+      "handoff": "Pass the checked batch to the next approval role, or return it with a clear reason.",
+      "duration_seconds": 86,
+      "chapters": [
+        {
+          "screen": "my-work",
+          "title": "Find your assigned review",
+          "instruction": "Start in My Work or Approvals and open a batch assigned to your workflow role. Check the ministry, utility provider, invoice count and amount. Only work within your authorised scope; another ministry's records are not part of your queue.",
+          "action": "My Work or Approvals → assigned batch",
+          "start_seconds": 0,
+          "source_route": "/my-work/",
+          "captured_at": "2026-11-01T09:24:35.555Z"
+        },
+        {
+          "screen": "approvals",
+          "title": "Review the entire batch",
+          "instruction": "Approval work is batch-based. Open the batch review and compare every member with its source evidence. Check account allocation, bill period, due dates, totals and surcharge handling. A summary count alone is not evidence that the invoice details are correct.",
+          "action": "Approvals → Review batch → invoice evidence",
+          "start_seconds": 20,
+          "source_route": "/approvals/",
+          "captured_at": "2026-11-01T09:24:40.525Z"
+        },
+        {
+          "screen": "batch",
+          "title": "Handle a mismatch explicitly",
+          "instruction": "Use the batch issues and invoice links to investigate missing documents or reconciliation mismatches. Record a useful explanation when returning work. Do not re-enter the invoice or edit an approved snapshot to make a mismatch disappear; use the controlled correction route.",
+          "action": "Batch → issues and supporting documents",
+          "start_seconds": 41,
+          "source_route": "/operations/batches/10/",
+          "captured_at": "2026-11-01T09:24:39.330Z"
+        },
+        {
+          "screen": "workflow",
+          "title": "Record the authorised decision",
+          "instruction": "Read the proposed batch decision and confirm its scope before submitting. Sign only if your configured step requires it. You must not decide an invoice you recorded or submitted, and independent workflow steps cannot be combined into one person's approval.",
+          "action": "Batch review → decision → next workflow role",
+          "start_seconds": 64,
+          "source_route": "/approvals/policies/",
+          "captured_at": "2026-11-01T09:24:41.743Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/verifier/2eaf4354662e-manual.mp4",
+          "size": 1416760,
+          "sha256": "2eaf4354662e845cbcd26ea9cf128601ff84cd96aa28ad1c4c2807358ef6000f",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/verifier/72594408c8b9-manual.webm",
+          "size": 1104431,
+          "sha256": "72594408c8b9c51d9dcff63905ed637b070149099b7df9056d7e7f4ba124b3cc",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/verifier/75e8ca006ca5-captions.vtt",
+          "size": 1279,
+          "sha256": "75e8ca006ca5f08aff00630fe354f7a3a637aa47816f89f87e78e58ecb221f79",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/verifier/eef68b51cec3-poster.jpg",
+          "size": 191731,
+          "sha256": "eef68b51cec3b2e19ceb221ada2f17dcd30fef8d6a331ccc28d839b106507de1",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "approver",
+      "title": "Approver",
+      "summary": "Make an independent batch decision supported by reconciliation and evidence.",
+      "handoff": "Send fully approved batches to finance without bypassing payment controls.",
+      "duration_seconds": 82,
+      "chapters": [
+        {
+          "screen": "approvals",
+          "title": "Open the batch approval queue",
+          "instruction": "Open Approvals and select an assigned batch. Review its ministry, provider, invoice count, amount and next deadline. The decision applies to the batch, not an isolated invoice selected outside the approval package.",
+          "action": "Approvals → assigned batch",
+          "start_seconds": 0,
+          "source_route": "/approvals/",
+          "captured_at": "2026-11-01T09:24:40.525Z"
+        },
+        {
+          "screen": "batch",
+          "title": "Check evidence and exceptions",
+          "instruction": "Inspect the batch invoices, reconciliation evidence, authorised adjustments and any outstanding dispute. Open supporting invoice records when needed. A readiness check helps navigation but never replaces your independent review or the server's final validation.",
+          "action": "Batch → invoices, issues and evidence",
+          "start_seconds": 19,
+          "source_route": "/operations/batches/10/",
+          "captured_at": "2026-11-01T09:24:39.330Z"
+        },
+        {
+          "screen": "workflow",
+          "title": "Decide and sign when required",
+          "instruction": "Choose the appropriate batch decision and record a clear comment. Required signing steps use your own signing credential. Never use another officer's account or sign a step you are not eligible to decide. Returned work must follow correction and reapproval controls.",
+          "action": "Batch review → decision and required signature",
+          "start_seconds": 41,
+          "source_route": "/approvals/policies/",
+          "captured_at": "2026-11-01T09:24:41.743Z"
+        },
+        {
+          "screen": "batch",
+          "title": "Inspect the handoff and record",
+          "instruction": "Check the batch journey and history to see the next responsible role. Review the operational stamped invoice copy where available. A stamp records captured review and approval evidence; missing settlement information remains missing until finance records it. Approval is not payment.",
+          "action": "Batch → journey, history and invoice copy",
+          "start_seconds": 62,
+          "source_route": "/operations/batches/10/",
+          "captured_at": "2026-11-01T09:24:39.330Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/approver/85ed3340309b-manual.mp4",
+          "size": 1372133,
+          "sha256": "85ed3340309bdc146af64915b7e6c4d8bcf68bda4ce2f3b42b77421a2770045c",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/approver/787f1bdea716-manual.webm",
+          "size": 1137900,
+          "sha256": "787f1bdea716b34e7906534ef7d328cc8c5ffc761084c2e9f7be87be42b2a2ea",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/approver/04bb675067f6-captions.vtt",
+          "size": 1288,
+          "sha256": "04bb675067f6f89c706e48cd700f9825f3c61dddb12340b12c865f2c388236a6",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/approver/c57ca7c8d5ea-poster.jpg",
+          "size": 145385,
+          "sha256": "c57ca7c8d5ea2c654cbdba875b46aa3e69d73942347e47f59b448ef55180af48",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "finance",
+      "title": "Finance officer",
+      "summary": "Reconcile provider lists, group approved batches and track settlement outcomes.",
+      "handoff": "Request independent payment authorisation, then track bank and provider handoffs.",
+      "duration_seconds": 92,
+      "chapters": [
+        {
+          "screen": "reconciliation",
+          "title": "Match the provider listing",
+          "instruction": "Open Provider reconciliation and import the provider's pending-invoice XLS or CSV. Match the account, invoice reference, currency and amount. Investigate Unsorted mismatches with a responsible owner. Reconciliation is required before both approval and settlement.",
+          "action": "Provider reconciliation → match or resolve",
+          "start_seconds": 0,
+          "source_route": "/reconciliation/",
+          "captured_at": "2026-11-01T09:24:43.133Z"
+        },
+        {
+          "screen": "settlements",
+          "title": "Group eligible approved batches",
+          "instruction": "Open Settlements and group eligible approved batches for one provider and currency, respecting ministry boundaries. Original batch identities and audit histories remain intact. Review the payable total and authorised adjustments; no partial or unreconciled release should be disguised as a complete batch.",
+          "action": "Settlements → group approved batches",
+          "start_seconds": 23,
+          "source_route": "/settlements/",
+          "captured_at": "2026-11-01T09:24:44.315Z"
+        },
+        {
+          "screen": "settlements",
+          "title": "Prepare the bank handoff",
+          "instruction": "Prepare the settlement instruction and request independent authorisation. The bank handoff must retain invoice-level entries and references. The final bank layout still needs the supplied bank specification; a demonstration export must not be treated as a certified payment file.",
+          "action": "Settlement instruction → authorisation → bank handoff",
+          "start_seconds": 47,
+          "source_route": "/settlements/",
+          "captured_at": "2026-11-01T09:24:44.315Z"
+        },
+        {
+          "screen": "bank",
+          "title": "Confirm and reconcile payment",
+          "instruction": "Record the actual bank outcome and inspect Bank reconciliation for matched debits or discrepancies. Track provider settlement advice separately. Creating or sending a file is not confirmed payment. Keep failed or uncertain submissions visible and retain evidence before closing the settlement.",
+          "action": "Bank reconciliation → match and investigate",
+          "start_seconds": 69,
+          "source_route": "/reconciliation/bank/",
+          "captured_at": "2026-11-01T09:24:46.217Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/finance/dbbcbc8d6d9c-manual.mp4",
+          "size": 1511869,
+          "sha256": "dbbcbc8d6d9c634351804981c57dd85b1fbbbb1be4ea6a736cb56ee6a632eb79",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/finance/f02658e027f0-manual.webm",
+          "size": 1244847,
+          "sha256": "f02658e027f048408e6c4f2963e25238d74604ca46122a706f6962d652c592ef",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/finance/857f6782b441-captions.vtt",
+          "size": 1397,
+          "sha256": "857f6782b441038f4cdb8e2e92ffa7a01b186b214a79be66cfba34c068f1a049",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/finance/5d8c9036f798-poster.jpg",
+          "size": 216699,
+          "sha256": "5d8c9036f79806ed165474a8cef7d064b49d46bf008e6c76a064bcdda35c780f",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "authoriser",
+      "title": "Payment authoriser",
+      "summary": "Independently authorise eligible settlement instructions.",
+      "handoff": "Return an authorised instruction to finance; bank execution remains a separate event.",
+      "duration_seconds": 89,
+      "chapters": [
+        {
+          "screen": "my-work",
+          "title": "Find payment authorisation work",
+          "instruction": "Use My Work and Settlements to find instructions awaiting your authorisation. Confirm that the instruction belongs to your authorised ministry and payment role. Do not create a replacement instruction because the original is waiting for another officer.",
+          "action": "My Work → settlement authorisations",
+          "start_seconds": 0,
+          "source_route": "/my-work/",
+          "captured_at": "2026-11-01T09:24:35.555Z"
+        },
+        {
+          "screen": "settlements",
+          "title": "Review the instruction package",
+          "instruction": "Inspect the provider, currency, member batches, invoice references, total and supporting approval evidence. Confirm reconciliation remains current and review changes or holds. Use the existing invoice and batch records; do not capture their amounts again in a parallel worksheet.",
+          "action": "Settlement instruction → members and evidence",
+          "start_seconds": 21,
+          "source_route": "/settlements/",
+          "captured_at": "2026-11-01T09:24:44.315Z"
+        },
+        {
+          "screen": "batch",
+          "title": "Preserve separation of duties",
+          "instruction": "Review the batch history and the people who prepared and approved it. Use your own authorised signing credential only when all checks are satisfied. Missing evidence must be returned for resolution, never bypassed because a due date is close.",
+          "action": "Review history → independently authorise",
+          "start_seconds": 45,
+          "source_route": "/operations/batches/10/",
+          "captured_at": "2026-11-01T09:24:39.330Z"
+        },
+        {
+          "screen": "bank",
+          "title": "Understand what happens next",
+          "instruction": "After authorisation, finance handles the bank submission and records the outcome. Authorisation is permission to proceed, not proof that funds moved. Bank reconciliation and provider advice have separate evidence and statuses. Uncertain or failed transfers remain exceptions until investigated.",
+          "action": "Finance handoff → bank outcome → reconciliation",
+          "start_seconds": 66,
+          "source_route": "/reconciliation/bank/",
+          "captured_at": "2026-11-01T09:24:46.217Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/authoriser/322e73eda0e5-manual.mp4",
+          "size": 1509723,
+          "sha256": "322e73eda0e594eab92d8f9f052e461061eb5e6bf42fae59d01735a2a6889336",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/authoriser/b50e90617442-manual.webm",
+          "size": 1252251,
+          "sha256": "b50e906174425cf0d96a570e92bf982f85a8ea781302bae15fef0a763bee4329",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/authoriser/32b9c0020900-captions.vtt",
+          "size": 1333,
+          "sha256": "32b9c0020900c7a34a98ca48e976432e1da40cb713ea10d65b1dabbbb1976f6d",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/authoriser/4abae0f99f0c-poster.jpg",
+          "size": 198063,
+          "sha256": "4abae0f99f0ccbd4c517877504bce161aabbed9f6586ea4a83717370321a642c",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "unit_admin",
+      "title": "Unit administrator",
+      "summary": "Maintain ministry account allocation and help staff resolve blocked processing.",
+      "handoff": "Return corrected master data and assigned exceptions to the responsible processors.",
+      "duration_seconds": 96,
+      "chapters": [
+        {
+          "screen": "accounts",
+          "title": "Maintain allocated service accounts",
+          "instruction": "Open Service accounts and filter by ministry, provider, service, account status and invoicing status. Confirm the account number, service purpose and responsible owner. Use the existing register; registering another copy of the same provider account is not a correction.",
+          "action": "Service accounts → filter and inspect",
+          "start_seconds": 0,
+          "source_route": "/providers/accounts/",
+          "captured_at": "2026-11-01T09:24:47.656Z"
+        },
+        {
+          "screen": "accounts",
+          "title": "Resolve missing or inactive accounts",
+          "instruction": "Register genuinely missing accounts for the correct ministry. Review on-hold, disputed, suspended or decommissioned services before processing resumes. Do not transfer an account or historical invoices between ministries merely because an uploaded document was assigned incorrectly.",
+          "action": "Registration → correct allocation and lifecycle",
+          "start_seconds": 24,
+          "source_route": "/providers/accounts/",
+          "captured_at": "2026-11-01T09:24:47.656Z"
+        },
+        {
+          "screen": "my-work",
+          "title": "Support the processing team",
+          "instruction": "Use assigned work and overdue views to find unresolved exceptions. Allocate responsibility and explain what needs correcting. Personal schedules organise work but never approve or pay bills automatically. Reuse the same invoice and preparation records when staff return to the task.",
+          "action": "My Work → overdue work and assigned exceptions",
+          "start_seconds": 48,
+          "source_route": "/my-work/",
+          "captured_at": "2026-11-01T09:24:35.555Z"
+        },
+        {
+          "screen": "timeliness",
+          "title": "Monitor delays fairly",
+          "instruction": "Review ministry timeliness and surcharge reports. Distinguish provider issue dates, receipt dates, internal processing delays and payment outcomes before attributing a surcharge. Follow the authorised user and workflow administration routes available to your role; do not grant yourself wider financial access.",
+          "action": "Reports → ministry timeliness and surcharges",
+          "start_seconds": 72,
+          "source_route": "/reports/ministry-timeliness/",
+          "captured_at": "2026-11-01T09:24:49.138Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/unit_admin/086a4fe303ee-manual.mp4",
+          "size": 1513025,
+          "sha256": "086a4fe303eec7f2c8304665d53e9f73dc91a4dcf4c1c6cefa5e4438640da93a",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/unit_admin/539121967265-manual.webm",
+          "size": 1243319,
+          "sha256": "5391219672655ea08429793a5dcb0b2c683ea1e86bdeaca5d4f190d7d61de883",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/unit_admin/23401c4b299c-captions.vtt",
+          "size": 1410,
+          "sha256": "23401c4b299ca5c631e6df911cd45455ff0197bcd7991c5f7a8b7b39167f5ab4",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/unit_admin/7a6be561acac-poster.jpg",
+          "size": 199577,
+          "sha256": "7a6be561acac4738e1d0f0980e0c92ec7de7542bc1c62a29c2d5fbbab02e8a69",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "auditor",
+      "title": "Auditor",
+      "summary": "Trace evidence from receipt through approval, settlement and bank matching.",
+      "handoff": "Report findings through authorised channels without changing financial execution.",
+      "duration_seconds": 90,
+      "chapters": [
+        {
+          "screen": "overview",
+          "title": "Choose the audit scope",
+          "instruction": "Select the authorised ministry, provider and reporting period. Drill from summary figures to their underlying records. Keep currencies separate and distinguish operational overdue work from approved payable liabilities. A draft invoice is not automatically an approved debt.",
+          "action": "Overview → scope and drill-through",
+          "start_seconds": 0,
+          "source_route": "/dashboard/",
+          "captured_at": "2026-11-01T09:24:50.391Z"
+        },
+        {
+          "screen": "batch",
+          "title": "Trace the batch evidence",
+          "instruction": "Open a batch and inspect source invoice links, membership, processing owners, decisions and lifecycle history. Settlement grouping must retain the member batches. Compare the operational stamped copy with original documents and signed evidence; a visual stamp is not a substitute for signature verification.",
+          "action": "Batch → invoices, documents and history",
+          "start_seconds": 22,
+          "source_route": "/operations/batches/10/",
+          "captured_at": "2026-11-01T09:24:39.330Z"
+        },
+        {
+          "screen": "audit",
+          "title": "Inspect changes and separation",
+          "instruction": "Use the Audit trail to follow who recorded, submitted, reviewed, approved and authorised each stage. Check timestamps, returned work, disputes and authorised adjustments. Post-payment waivers or refunds must preserve the original payment history rather than rewriting it.",
+          "action": "Audit trail → events and supporting records",
+          "start_seconds": 47,
+          "source_route": "/audit/",
+          "captured_at": "2026-11-01T09:24:51.746Z"
+        },
+        {
+          "screen": "bank",
+          "title": "Verify settlement closure",
+          "instruction": "Trace the settlement instruction, bank submission reference, actual payment outcome and statement match. Review provider advice and unresolved differences separately. Audit access does not permit you to authorise payments or silently repair the evidence you are inspecting.",
+          "action": "Settlement evidence → bank match → findings",
+          "start_seconds": 70,
+          "source_route": "/reconciliation/bank/",
+          "captured_at": "2026-11-01T09:24:46.217Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/auditor/ad3bba020992-manual.mp4",
+          "size": 1528316,
+          "sha256": "ad3bba0209928e6c13df9df90e95f21632817a4b91bdea293077747865357e38",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/auditor/da1a8173cbdd-manual.webm",
+          "size": 1263931,
+          "sha256": "da1a8173cbdd1f82d50794c6d5031824cb7ca36bb373c29b06e16c9a24f84c88",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/auditor/76f85f378ac6-captions.vtt",
+          "size": 1373,
+          "sha256": "76f85f378ac6411a68b83f8122c28c8610abfb64083d57249b701cd6cc59048d",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/auditor/1d9c99ad1504-poster.jpg",
+          "size": 196669,
+          "sha256": "1d9c99ad15048d52c59deb621698a13fc695bd3233f1d55993a7b62a4be35e17",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "viewer",
+      "title": "Viewer",
+      "summary": "Understand status and reports without performing processing or financial actions.",
+      "handoff": "Refer questions or exceptions to the responsible assigned team.",
+      "duration_seconds": 86,
+      "chapters": [
+        {
+          "screen": "overview",
+          "title": "Read your authorised overview",
+          "instruction": "Start with the Overview for your ministry and role. The provider filter limits the records shown. Summary figures should drill into the matching records. Menus visible in these administrator reference screens may not be available to a read-only viewer.",
+          "action": "Overview → ministry and provider filters",
+          "start_seconds": 0,
+          "source_route": "/dashboard/",
+          "captured_at": "2026-11-01T09:24:50.391Z"
+        },
+        {
+          "screen": "workspace",
+          "title": "Understand the batch folders",
+          "instruction": "Use Batches to distinguish Preparation, Work in progress, Rejected and Completed. A folder is a navigation view, not a separate copy of the invoices. Open a batch to understand its current status and the team responsible for the next stage.",
+          "action": "Batches → folder → batch record",
+          "start_seconds": 21,
+          "source_route": "/operations/my-batches/?folder=all",
+          "captured_at": "2026-11-01T09:24:53.146Z"
+        },
+        {
+          "screen": "batch",
+          "title": "Read the current stage",
+          "instruction": "Inspect the batch journey, available invoice links and history within your permissions. A blocking issue explains why work cannot progress. Ready for approval, approved, authorised and paid are different states; never treat a submitted bank file as proof of payment.",
+          "action": "Batch → current stage and history",
+          "start_seconds": 41,
+          "source_route": "/operations/batches/10/",
+          "captured_at": "2026-11-01T09:24:39.330Z"
+        },
+        {
+          "screen": "overview",
+          "title": "Escalate without changing records",
+          "instruction": "Send the batch or invoice reference to the responsible team when you spot a problem. Viewer access does not grant permission to upload, correct, approve, sign or pay records. Ask an administrator for legitimate access changes rather than borrowing another user's account.",
+          "action": "Identify responsible team → share record reference",
+          "start_seconds": 63,
+          "source_route": "/dashboard/",
+          "captured_at": "2026-11-01T09:24:50.391Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/viewer/879242e9b508-manual.mp4",
+          "size": 1463573,
+          "sha256": "879242e9b508934ec6d55c545ef7cbb1c95365fb5106f89e44752931c68c4b69",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/viewer/e1215acefa26-manual.webm",
+          "size": 1165783,
+          "sha256": "e1215acefa26f632f7c8bcf748fad0ab1c5c74d7b45615bdfa968bf462dddf63",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/viewer/d5050a10e3b8-captions.vtt",
+          "size": 1288,
+          "sha256": "d5050a10e3b8e828e3cfe3563b902f86f6868854e49a50642e63614236f869cc",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/viewer/982089035e6c-poster.jpg",
+          "size": 195476,
+          "sha256": "982089035e6cb80cf5bfc366218ab111edf8a721ec12bd0f6514b7007ab43ab7",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    },
+    {
+      "slug": "sysadmin",
+      "title": "System administrator",
+      "summary": "Configure access, workflows and gateways without bypassing financial governance.",
+      "handoff": "Provide a controlled environment for ministry staff and independent financial roles.",
+      "duration_seconds": 100,
+      "chapters": [
+        {
+          "screen": "admin",
+          "title": "Check system readiness",
+          "instruction": "Open Admin console and review system health and configuration. Confirm the environment is a demonstration or approved live deployment before setup changes. Keep credentials, signing material and integration secrets outside training files and exports. Configuration does not establish that payments or notifications were delivered.",
+          "action": "Administration → Admin console",
+          "start_seconds": 0,
+          "source_route": "/console/",
+          "captured_at": "2026-11-01T09:25:00.565Z"
+        },
+        {
+          "screen": "users",
+          "title": "Assign minimum necessary access",
+          "instruction": "Use Users and roles to create individual accounts and assign ministry-scoped responsibilities. Set or reset passwords only through authorised controls. Staff must use their own authentication and signing setup. Administrator access is not permission to ignore independent approval and payment duties.",
+          "action": "Users and roles → individual scoped access",
+          "start_seconds": 26,
+          "source_route": "/accounts/users/",
+          "captured_at": "2026-11-01T09:25:01.756Z"
+        },
+        {
+          "screen": "workflow",
+          "title": "Configure controlled workflows",
+          "instruction": "Maintain workflow policies, required roles, deadlines and signing steps. Ensure eligible independent officers exist for every stage. Test changes using demonstration records. Preserve approval evidence and required revalidation; do not alter policy just to push a blocked live batch through.",
+          "action": "Workflow configuration → roles, steps and controls",
+          "start_seconds": 50,
+          "source_route": "/approvals/policies/",
+          "captured_at": "2026-11-01T09:24:41.743Z"
+        },
+        {
+          "screen": "gateways",
+          "title": "Configure trusted intake and delivery",
+          "instruction": "In Gateway centre, map dedicated incoming mailboxes and exact authorised senders to utility providers. Configure and test outgoing channels separately. Unconfigured Outlook, SMS or bank integrations are not live automation. Keep OCR templates shared by provider and retain audit evidence for administrative changes.",
+          "action": "Gateway centre → authorised intake and delivery",
+          "start_seconds": 74,
+          "source_route": "/console/gateways/",
+          "captured_at": "2026-11-01T09:25:02.977Z"
+        }
+      ],
+      "assets": {
+        "video": {
+          "name": "training/2026-11-01/sysadmin/45f49e95650d-manual.mp4",
+          "size": 1604602,
+          "sha256": "45f49e95650dc7296703e6260e08bcc304ade874127c343080d6c6db22684944",
+          "content_type": "video/mp4"
+        },
+        "webm": {
+          "name": "training/2026-11-01/sysadmin/c3111bb02df1-manual.webm",
+          "size": 1324260,
+          "sha256": "c3111bb02df169a2dc48dfee28b58d25251c5243c38241bb7f5a8e71c5fada92",
+          "content_type": "video/webm"
+        },
+        "captions": {
+          "name": "training/2026-11-01/sysadmin/c27bca4430d3-captions.vtt",
+          "size": 1503,
+          "sha256": "c27bca4430d38a466f8305a75a42dc7833cce63a270164dff7fed45236a8c68c",
+          "content_type": "text/vtt"
+        },
+        "poster": {
+          "name": "training/2026-11-01/sysadmin/e120855ad0e3-poster.jpg",
+          "size": 202645,
+          "sha256": "e120855ad0e33a29515e3ee509327ce1f03d2f375b0a14c694efb21778267899",
+          "content_type": "image/jpeg"
+        }
+      },
+      "narrated": true,
+      "narration_notice": "AI-generated English narration"
+    }
+  ]
+}

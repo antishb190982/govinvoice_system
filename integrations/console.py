@@ -15,7 +15,7 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.text import slugify
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 
 from accounts.models import User
 from core.models import AuditEvent, Holiday
@@ -149,6 +149,36 @@ def overview(request):
 
 
 # --- Settings -------------------------------------------------------------------------------
+
+class DemoSetupForm(forms.Form):
+    confirm_demo = forms.BooleanField(
+        label="I confirm this instance is being used for demonstrations and I want to add demo reference data.",
+        required=True,
+    )
+
+
+@sysadmin_required
+@require_http_methods(["GET", "POST"])
+def demo_setup(request):
+    from core.demo_setup import DEMO_PROVIDERS, load_demo_reference_data
+
+    form = DemoSetupForm(request.POST if request.method == "POST" else None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            created = load_demo_reference_data(request.user)
+        except ValidationError as exc:
+            form.add_error(None, " ".join(exc.messages))
+        else:
+            messages.success(request, (
+                f"Demo setup loaded: {created['units']} units, {created['providers']} providers, "
+                f"{created['accounts']} service accounts and {created['policies']} approval policies added. "
+                "Existing records and passwords were not changed."
+            ))
+            return redirect("console:demo_setup")
+    return render(request, "integrations/demo_setup.html", {
+        "form": form, "providers": DEMO_PROVIDERS, "tab": "overview",
+    })
+
 
 def _settings_form(keys, data=None):
     class SettingsForm(forms.Form):

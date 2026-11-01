@@ -4,3 +4,4 @@ __pycache__/
 var/
 .env
 *.sqlite3
+/generated-artifacts/

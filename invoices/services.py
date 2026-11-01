@@ -1,6 +1,6 @@
 """Invoice intake, validation and anomaly detection."""
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from statistics import mean, pstdev
 
 from django.conf import settings
@@ -11,6 +11,8 @@ from django.utils import timezone
 from core.models import AuditEvent, Counter
 from core.worktime import end_of_working_day, subtract_working_days
 from invoices.models import Flag, Invoice
+from invoices.duplicates import duplicate_errors
+from providers.models import Provider
 
 TOLERANCE = Decimal("0.01")
 HISTORY_SIZE = 6
@@ -32,14 +34,20 @@ def validate_business_rules(invoice):
         errors["period_end"] = "The period ends before it starts."
     if invoice.issue_date and invoice.issue_date > timezone.localdate():
         errors["issue_date"] = "The issue date is in the future."
-    if invoice.provider_id and invoice.invoice_number:
-        clash = Invoice.objects.filter(provider_id=invoice.provider_id,
-                                       invoice_number__iexact=invoice.invoice_number.strip())
-        if invoice.pk:
-            clash = clash.exclude(pk=invoice.pk)
-        if clash.exists():
-            errors["invoice_number"] = f"Invoice {invoice.invoice_number} from this provider is already recorded " \
-                                       f"({clash.first().reference})."
+    if invoice.amount_total is not None:
+        try:
+            amount = Decimal(str(invoice.amount_total))
+            if not amount.is_finite() or amount != amount.quantize(Decimal("0.001")):
+                errors["amount_total"] = "The invoice amount must be finite and use at most three decimal places."
+        except (InvalidOperation, TypeError, ValueError):
+            errors["amount_total"] = "Enter a valid invoice amount."
+    if invoice.provider_id and not errors:
+        errors.update(duplicate_errors(
+            provider=invoice.provider, invoice_number=invoice.invoice_number,
+            account=invoice.service_account, currency=invoice.currency,
+            period_start=invoice.period_start, period_end=invoice.period_end,
+            amount=invoice.amount_total, exclude_id=invoice.pk,
+        ))
     if errors:
         raise ValidationError(errors)
 
@@ -129,6 +137,9 @@ def save_invoice(invoice, user, audit_action=None, changed=None):
     creating = invoice.pk is None
     if not creating and not invoice.is_editable:
         raise ValidationError("This invoice can no longer be edited.")
+    # PostgreSQL serialises saves for this provider before checking either key.
+    # This also protects case/space variants across different service accounts.
+    Provider.objects.select_for_update().get(pk=invoice.service_account.provider_id)
     prepare(invoice)
     if creating:
         invoice.reference = Counter.next("INV")

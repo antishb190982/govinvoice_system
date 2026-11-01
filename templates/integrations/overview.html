@@ -1,6 +1,7 @@
 {% extends "base.html" %}{% load gov humanize %}{% block title %}Admin console{% endblock %}
 {% block content %}{% include "integrations/_head.html" %}{% include "integrations/_tabs.html" %}
 {% if chain %}<div class="callout {% if chain.ok %}ok{% else %}danger{% endif %}"><strong>{% if chain.ok %}Audit chain intact{% else %}Audit chain broken at entry #{{ chain.bad }}{% endif %}</strong>{{ chain.count }} entries verified.</div>{% endif %}
+<div class="card mb"><div class="card-head"><h2>Demo reference data</h2><a class="btn btn-sm" href="{% url 'console:demo_setup' %}">Load demo setup</a></div><p>Add the demo ministry hierarchy, utility providers and clearly labelled sample service accounts. Existing records, passwords and bank details are preserved.</p></div>
 <div class="grid cols-3">
   <div class="card"><div class="card-head"><h2>{% icon "settings" %} Database</h2><span class="badge badge-{% if h.db.ok %}ok{% else %}danger{% endif %}">{% if h.db.ok %}Connected{% else %}Error{% endif %}</span></div>
     <dl class="props"><dt>Engine</dt><dd>{{ h.db.version|default:h.db.vendor }}</dd><dt>Database</dt><dd class="mono">{{ h.db.name|truncatechars:40 }}</dd>

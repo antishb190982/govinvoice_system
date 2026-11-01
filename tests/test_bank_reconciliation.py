@@ -13,7 +13,8 @@ from org.models import Role
 from providers.models import Provider
 from reconciliation import bank
 from reconciliation.models import BankAllocation, BankRow, BankStatement, BankTransactionKey
-from settlements.models import SettlementInstruction, SettlementLine
+from settlements.models import SettlementBatch, SettlementInstruction, SettlementLine
+from operations.models import InvoiceBatch
 from tests.conftest import make_user
 
 pytestmark = pytest.mark.django_db
@@ -46,6 +47,25 @@ def login(client, user):
     session = client.session
     session[OTP_SESSION_KEY] = True
     session.save()
+
+
+@pytest.mark.parametrize("grouped", [False, True])
+def test_bank_search_finds_batch_and_group_membership(client, people, tree, provider, executed, grouped):
+    batch = InvoiceBatch.objects.create(
+        reference="BATCH-TEST-BANK-LOOKUP", name="TEST bank search",
+        org_unit=tree["moh"], ministry=tree["moh"], provider=provider,
+        currency="MUR", created_by=people["clerk"])
+    if grouped:
+        SettlementBatch.objects.create(instruction=executed, batch=batch, amount=1000, invoice_count=1)
+    else:
+        executed.batch = batch
+        executed.save(update_fields=["batch"])
+    row = upload(people, tree, executed, transaction_id="TEST-BATCH-LOOKUP").rows.get()
+    login(client, people["finance"])
+    response = client.get(reverse("reconciliation:bank_index"), {"status": "all", "q": batch.reference})
+    assert response.status_code == 200
+    assert [entry.pk for entry in response.context["page"]] == [row.pk]
+    assert [entry.pk for entry in response.context["executed"]] == [executed.pk]
 
 
 def test_exact_debit_links_executed_settlement_without_changing_payment(people, tree, executed):

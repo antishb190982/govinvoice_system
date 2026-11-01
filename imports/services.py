@@ -12,6 +12,7 @@ from imports import parsers
 from imports.models import ImportBatch, ImportRow, ImportTemplate
 from invoices.models import Invoice
 from invoices.services import save_invoice
+from invoices.duplicates import duplicate_errors, normalise_number, period_amount_key
 from org.access import has_role
 from org.models import Role
 from providers.models import Provider, ServiceAccount
@@ -54,9 +55,12 @@ def validate_row(row, user, default_provider, template=None):
             errors.append(f"you may not record invoices for {account.org_unit.code}")
         else:
             data["account_number"] = account.account_number
-    if provider and data.get("invoice_number") and Invoice.objects.filter(
-            provider=provider, invoice_number__iexact=data["invoice_number"]).exists():
-        errors.append(f"invoice {data['invoice_number']} is already recorded")
+    if provider:
+        errors.extend(duplicate_errors(
+            provider=provider, invoice_number=data.get("invoice_number"), account=account,
+            currency=data.get("currency"), period_start=data.get("period_start"),
+            period_end=data.get("period_end"), amount=data.get("amount_total"),
+        ).values())
     if data.get("issue_date") and data.get("due_date") and data["due_date"] < data["issue_date"]:
         errors.append("due date is before issue date")
     notes = []
@@ -98,14 +102,31 @@ def validate_row(row, user, default_provider, template=None):
 
 def _mark_batch_duplicates(batch):
     seen = {}
-    for row in batch.rows.all():
-        key = (row.data.get("provider_id"), (row.data.get("invoice_number") or "").lower())
-        if key[1] and key in seen:
-            row.errors = row.errors + [f"duplicate of row {seen[key]} in this file"]
+    provider_ids = list(batch.rows.values_list("data__provider_id", flat=True))
+    providers = {p.pk: p for p in Provider.objects.filter(pk__in=provider_ids)}
+    for row in batch.rows.order_by("row_number"):
+        if not row.include or row.status != ImportRow.Status.VALID:
+            continue
+        provider = providers.get(row.data.get("provider_id"))
+        number = normalise_number(row.data.get("invoice_number"))
+        keys = []
+        if provider and number:
+            keys.append(("number", provider.pk, number))
+        period_key = period_amount_key(
+            provider, row.data.get("account_number"), row.data.get("currency"),
+            row.data.get("period_start"), row.data.get("period_end"), row.data.get("amount_total"),
+        )
+        if period_key:
+            keys.append(("period_amount",) + period_key)
+        first = next((seen[key] for key in keys if key in seen), None)
+        if first is not None:
+            row.errors = row.errors + [f"duplicate of row {first} in this file: same provider invoice number "
+                                      "or same account, billing period, currency and amount"]
             row.status = ImportRow.Status.INVALID
             row.save(update_fields=["errors", "status"])
         else:
-            seen[key] = row.row_number
+            for key in keys:
+                seen[key] = row.row_number
 
 
 @transaction.atomic
@@ -269,6 +290,8 @@ def update_row(row, user, values):
     row.raw = raw
     validate_row(row, user, row.batch.provider, row.batch.template)
     row.save()
+    recheck(row.batch, user)
+    row.refresh_from_db()
     return row
 
 

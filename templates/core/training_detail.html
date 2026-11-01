@@ -1,0 +1,46 @@
+{% extends "base.html" %}{% load static gov %}{% block title %}{{ manual.title }} · Video manual{% endblock %}
+{% block body_class %}training-page{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'css/training.css' %}"><script src="{% static 'js/training.js' %}" defer></script>{% endblock %}
+{% block content %}
+{% url 'core:training_media' role=manual.slug kind='video' as video_url %}
+<div class="page-head"><div><div class="crumbs"><a href="{% url 'core:training' %}">Video manuals</a> / {{ manual.title }}</div>
+<h1>{{ manual.title }}{% if manual.recommended %} <span class="badge badge-info">Recommended for your role</span>{% endif %}</h1>
+<p>{{ manual.summary }}</p></div>
+<div class="actions"><a class="btn btn-sm" href="{% url 'core:training' %}">Back to all manuals</a></div></div>
+
+<div class="tr-layout">
+<section class="tr-player card" aria-labelledby="tr-video-h">
+  <h2 id="tr-video-h">{% if manual.narrated %}Narrated walkthrough{% else %}Captioned walkthrough{% endif %}</h2>
+  <p class="tr-label">{% if manual.narrated %}AI-generated English narration with captions. Use the player volume control to mute or adjust the voice.{% else %}Demo-screen walkthrough with captions.{% endif %} Reference screens use a demo administrator; your menus and actions depend on your permissions. No live approvals or bank transfers are shown.</p>
+  <div class="tr-frame">
+  <video id="tr-video" controls preload="metadata" playsinline poster="{% url 'core:training_media' role=manual.slug kind='poster' %}" aria-label="{{ manual.title }} captioned walkthrough" aria-describedby="tr-transcript-h">
+    <source src="{% url 'core:training_media' role=manual.slug kind='webm' %}" type="video/webm">
+    <source src="{{ video_url }}" type="video/mp4">
+    <track kind="captions" src="{% url 'core:training_media' role=manual.slug kind='captions' %}" srclang="en" label="English" default>
+    The transcript and checklist below are also available, or <a href="{{ video_url }}?download=1">download the video</a>.
+  </video></div>
+  <div class="tr-player-foot"><a class="btn btn-sm" href="{{ video_url }}?download=1" download>Download video (MP4)</a>
+  <span class="tr-status muted" data-training-status role="status" aria-live="polite"></span></div>
+  {% if notice %}<p class="tr-notice-inline">{{ notice }}</p>{% endif %}
+</section>
+
+<nav class="tr-chapters card" aria-labelledby="tr-ch-h">
+  <h2 id="tr-ch-h">Chapters</h2>
+  <ol>{% for c in manual.chapters %}<li><button type="button" class="tr-chapter" data-start="{{ c.start_seconds }}" aria-controls="tr-video" aria-label="Play chapter {{ forloop.counter }}: {{ c.title }}">
+    <span class="tr-ch-n" aria-hidden="true">{{ forloop.counter }}</span><span class="tr-ch-t">{{ c.title }}<small>{{ c.action }}</small></span></button></li>{% endfor %}</ol>
+  <p class="tr-handoff"><span>Handoff</span> {{ manual.handoff }}</p>
+</nav>
+</div>
+
+<section class="card tr-transcript" aria-labelledby="tr-transcript-h">
+  <h2 id="tr-transcript-h">Transcript and checklist</h2>
+  <ol class="tr-steps">{% for c in manual.chapters %}<li id="chapter-{{ forloop.counter }}">
+    <h3>{{ forloop.counter }}. {{ c.title }}</h3>
+    <p>{{ c.instruction }}</p>
+    <p class="tr-action"><span>Where</span> {{ c.action }}</p>
+  </li>{% endfor %}</ol>
+</section>
+
+{% if manuals %}<nav class="card tr-others" aria-labelledby="tr-others-h"><h2 id="tr-others-h">Browse other roles</h2>
+<ul>{% for m in manuals %}<li><a href="{% url 'core:training_detail' role=m.slug %}"{% if m.slug == manual.slug %} aria-current="page"{% endif %}>{{ m.title }}</a>{% if m.recommended %} <span class="badge badge-info">Recommended</span>{% endif %}</li>{% endfor %}</ul></nav>{% endif %}
+{% endblock %}

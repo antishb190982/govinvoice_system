@@ -158,6 +158,9 @@ def batch_row(request, pk, row_pk):
             raise PermissionDenied
         row.include = not row.include
         row.save(update_fields=["include"])
+        from imports.services import recheck as recheck_duplicate_selection
+
+        recheck_duplicate_selection(batch, request.user)
     else:
         form = RowForm(request.POST, row=row)
         if form.is_valid():
@@ -173,6 +176,11 @@ def batch_commit(request, pk):
     try:
         created, failed = services.commit(batch, request.user)
         messages.success(request, f"{len(created)} invoices imported as drafts." + (f" {failed} rows failed." if failed else ""))
+        preparation = batch.preparations.filter(
+            prepared_by=request.user, completed_batch__isnull=True).first()
+        if preparation and created and not failed and batch.status == ImportBatch.Status.COMMITTED:
+            messages.info(request, "Continue with the same invoice records. No re-upload or data re-entry is needed.")
+            return redirect(preparation.get_absolute_url() + "?step=select")
     except (ValidationError, PermissionDenied) as exc:
         messages.error(request, " ".join(getattr(exc, "messages", [str(exc)])))
     return redirect("imports:batch", pk=batch.pk)

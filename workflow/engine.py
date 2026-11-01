@@ -74,25 +74,44 @@ def _activate(task, now=None):
            dedupe_key=f"task-{task.pk}-activated")
 
 
-@transaction.atomic
-def submit(invoice, user):
-    invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+def submission_plan(invoice, user, *, lock=False):
+    """Shared, read-only preflight; mutations repeat it under transaction locks."""
     if invoice.status not in (Invoice.Status.DRAFT, Invoice.Status.RETURNED, Invoice.Status.DISPUTED):
         raise ValidationError("Only draft, returned or disputed invoices can be submitted.")
     if not has_role(user, invoice.org_unit, [Role.CLERK, Role.UNIT_ADMIN]):
         raise PermissionDenied("You cannot submit invoices for this unit.")
+    from invoices.services import validate_business_rules
     from reconciliation.services import require_reconciled
     from operations.services import require_clear
-    require_clear(invoice)
-    require_reconciled(invoice)
+    problems = []
+    for check in (validate_business_rules, require_clear):
+        try:
+            check(invoice)
+        except ValidationError as exc:
+            problems.extend(exc.messages)
+    try:
+        require_reconciled(invoice, lock=lock)
+    except ValidationError as exc:
+        problems.extend(exc.messages)
     if not invoice.document:
-        raise ValidationError("Attach the provider's invoice document before submitting.")
-    policy = select_policy(invoice, for_update=True)
+        problems.append("Attach the provider's invoice document before submitting.")
+    policy = select_policy(invoice, for_update=lock)
     if policy is None:
-        raise ValidationError("No approval policy covers this unit, utility and amount. Ask an administrator.")
-    steps = [s for s in policy.steps.order_by("order") if invoice.amount_total >= s.min_amount]
-    if not steps:
-        raise ValidationError(f"Policy “{policy.name}” has no steps for this amount.")
+        problems.append("No approval policy covers this unit, utility and amount. Ask an administrator.")
+        steps = []
+    else:
+        steps = [s for s in policy.steps.order_by("order") if invoice.amount_total >= s.min_amount]
+        if not steps:
+            problems.append(f"Policy “{policy.name}” has no steps for this amount.")
+    if problems:
+        raise ValidationError(list(dict.fromkeys(problems)))
+    return policy, steps
+
+
+@transaction.atomic
+def submit(invoice, user):
+    invoice = Invoice.objects.select_for_update().get(pk=invoice.pk)
+    policy, steps = submission_plan(invoice, user, lock=True)
 
     current_round = (invoice.approval_tasks.aggregate(r=Max("round"))["r"] or 0) + 1
     invoice.approval_tasks.filter(status__in=[ApprovalTask.Status.WAITING, ApprovalTask.Status.PENDING]) \

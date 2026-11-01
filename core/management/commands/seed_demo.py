@@ -250,7 +250,9 @@ class Command(BaseCommand):
         vat = next(v for _, code, *_rest, v in PROVIDERS if code == provider.short_code)
         tax = (net * vat).quantize(Decimal("0.01"))
         total = net + tax
-        issue = period_end + timedelta(days=random.randint(3, 8))
+        # Early in a month, last month's simulated issue date can otherwise lie
+        # in the future. Keep normal business-date validation enabled.
+        issue = min(period_end + timedelta(days=random.randint(3, 8)), timezone.localdate())
         due = issue + timedelta(days=provider.payment_terms_days)
         number = f"{provider.short_code}-{period_end:%y%m}-{acct.account_number[-4:]}"
         clerk = users["h.clerk"] if acct.org_unit.code.startswith("MOHW") else users["e.clerk"]
@@ -267,6 +269,7 @@ class Command(BaseCommand):
         save_invoice(inv, clerk)
         created = timezone.make_aware(timezone.datetime.combine(issue + timedelta(days=2), timezone.datetime.min.time())) \
             + timedelta(hours=9)
+        created = min(created, timezone.now())
         Invoice.objects.filter(pk=inv.pk).update(created_at=created)
         return inv, clerk, created
 

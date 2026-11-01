@@ -8,10 +8,14 @@ from core.space_folders import folder_form, folder_remove, folder_pin
 from core.work_schedules import schedule_action, schedule_form
 from analytics.overviews import overview
 from analytics.lateness import ministry_timeliness
+from core import training
 
 app_name = "core"
 
 urlpatterns = [
+    path("help/videos/", training.training, name="training"),
+    path("help/videos/<slug:role>/", training.training_detail, name="training_detail"),
+    path("help/videos/<slug:role>/media/<str:kind>/", training.training_media, name="training_media"),
     path("reports/ministry-timeliness/", ministry_timeliness, name="ministry_timeliness"),
     path("my-space/", my_space, name="my_space"),
     path("my-space/folders/new/", folder_form, name="space_folder_new"),
