@@ -66,6 +66,13 @@ test was rerun after every edit.
 ## Not certified by this run
 
 This is not a production security, performance or live-integration sign-off.
+The corrected batch-to-bank shortcut passed its post-restart browser check.
+Final browser confirmation of the OCR annotation change remained incomplete;
+its template/stylesheet regression checks passed. Intermittent browser
+inline-style CSP warnings were not conclusively traced to application code.
+The known authored inline styles were removed without relaxing CSP; the remaining
+browser diagnostic is not represented as resolved.
+
 The final bank-specific file layout is still pending. Live bank execution,
 external provider advice delivery, Outlook connectivity and SMS/email delivery
 were deliberately not exercised. Requested execution dates and actual bank
