@@ -12,7 +12,7 @@ from tests.conftest import PASSWORD
 @pytest.mark.parametrize("production,fixed_code,accepted", [
     (False, "123456", True),
     (False, "", False),
-    (True, "123456", True),
+    (True, "123456", False),  # production never honours a shared code
     (True, "", False),
 ])
 def test_fixed_code_requires_explicit_setting(settings, monkeypatch, production, fixed_code, accepted):

@@ -45,7 +45,10 @@ def provisioning_qr_data_uri(user, secret):
 
 
 def fixed_otp_code():
-    """Temporary shared code, explicitly configured by the deployment settings."""
+    """Temporary shared code for demo previews only. Never honoured in production:
+    a shared code would reduce two-factor sign-in to the password alone."""
+    if settings.PRODUCTION:
+        return ""
     return getattr(settings, "FIXED_OTP_CODE", "")
 
 

@@ -173,7 +173,10 @@ LANGUAGE_CODE = "en-gb"
 TIME_ZONE = env("TIME_ZONE", "Indian/Mauritius")
 USE_I18N = True
 USE_TZ = True
-USE_THOUSAND_SEPARATOR = True
+# Off on purpose: ids and amounts printed into form values, data attributes and
+# links must stay machine-readable ("1297", not "1,297"). Amounts shown to people
+# are grouped by the |money and |compact filters instead.
+USE_THOUSAND_SEPARATOR = False
 
 # --- Static & private files --------------------------------------------------
 STATIC_URL = "static/"
@@ -184,6 +187,8 @@ STORAGES = {
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage" if PRODUCTION
                     else "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+# A missing manifest entry must degrade to the plain URL, never turn every page into a 500.
+WHITENOISE_MANIFEST_STRICT = False
 # Uploaded invoices, imports and signed PDFs. Never served directly: every
 # download goes through a permission-checked view. There is deliberately no
 # MEDIA_URL route.

@@ -6,7 +6,6 @@ configure_runtime_secrets()
 
 from .settings import *  # noqa: E402,F403
 from .runtime_database import postgres_config  # noqa: E402
-from .temporary_auth import FIXED_OTP_CODE  # noqa: E402
 
 if not PRODUCTION:  # noqa: F405
     from django.core.exceptions import ImproperlyConfigured

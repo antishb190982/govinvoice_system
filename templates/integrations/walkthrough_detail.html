@@ -95,7 +95,7 @@
   <p class="muted">Roles shown are illustrative actors. These entries are not genuine sign-offs and are not written to the audit trail.</p>
   {% if s.evidence %}<div class="table-wrap"><table class="wt-table">
     <thead><tr><th>When</th><th>Event</th><th>Illustrative role</th><th>Note</th></tr></thead>
-    <tbody>{% for e in s.evidence %}<tr><td style="white-space:nowrap">{{ e.when }}</td><td>{{ e.event }}</td><td><span class="wt-role">{{ e.role }}</span></td><td>{{ e.note }}</td></tr>{% endfor %}</tbody>
+    <tbody>{% for e in s.evidence %}<tr><td class="nowrap">{{ e.when }}</td><td>{{ e.event }}</td><td><span class="wt-role">{{ e.role }}</span></td><td>{{ e.note }}</td></tr>{% endfor %}</tbody>
   </table></div>{% else %}<p class="muted">No evidence entries.</p>{% endif %}
 </div>
 {% endwith %}
