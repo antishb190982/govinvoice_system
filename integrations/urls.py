@@ -1,7 +1,7 @@
 from django.urls import path
 
 from integrations import api, console, mcp
-from integrations import inbound, inbound_admin
+from integrations import inbound, inbound_admin, walkthrough
 
 console_patterns = ([
     path("incoming/", inbound_admin.incoming, name="incoming"),
@@ -13,6 +13,11 @@ console_patterns = ([
     path("incoming/messages/<int:pk>/source/", inbound_admin.download, name="incoming_download"),
     path("", console.overview, name="overview"),
     path("demo-setup/", console.demo_setup, name="demo_setup"),
+    path("walkthrough/", walkthrough.index, name="walkthrough"),
+    path("walkthrough/<slug:reference>/", walkthrough.detail, name="walkthrough_detail"),
+    path("walkthrough/<slug:reference>/remittance.csv", walkthrough.remittance, name="walkthrough_remittance"),
+    path("walkthrough/<slug:reference>/bank-example.csv", walkthrough.bank_csv, name="walkthrough_bank"),
+    path("walkthrough/<slug:reference>/invoices/<slug:number>.pdf", walkthrough.invoice_pdf, name="walkthrough_invoice"),
     path("gateways/", console.gateways, name="gateways"),
     path("settings/", console.settings_view, name="settings"),
     path("settings/<slug:group>/", console.settings_view, name="settings_group"),

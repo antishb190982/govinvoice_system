@@ -8,5 +8,6 @@
   <a href="{% url 'console:api' %}" class="{% if tab == 'api' %}active{% endif %}">API &amp; MCP clients</a>
   <a href="{% url 'console:logs' %}" class="{% if tab == 'logs' %}active{% endif %}">Integration logs</a>
   <a href="{% url 'console:holidays' %}" class="{% if tab == 'holidays' %}active{% endif %}">Holidays</a>
+  <a href="{% url 'console:walkthrough' %}" class="{% if tab == 'walkthrough' %}active{% endif %}"{% if tab == 'walkthrough' %} aria-current="page"{% endif %}>Walkthrough</a>
   <a href="{% url 'admin:index' %}">Data administration ↗</a>
 </div></div>

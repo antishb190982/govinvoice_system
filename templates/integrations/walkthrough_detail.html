@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ scenario.reference }} · Walkthrough simulation{% endblock %}
+{% block content %}
+{% include "integrations/_head.html" with heading="Walkthrough" accent="simulation" %}
+{% include "integrations/_tabs.html" %}
+{% include "integrations/_walkthrough_style.html" %}
+{% with s=scenario %}
+<div class="card">
+  <div class="card-head"><h2>{{ s.reference }} &middot; {{ s.title }}</h2><span class="badge badge-{% if s.tone == 'success' %}ok{% else %}{{ s.tone }}{% endif %}">{{ s.stage_label }}</span></div>
+  <p>{{ s.description }}</p>
+  <dl class="wt-dl">
+    <dt>Provider</dt><dd>{{ s.provider.name }} ({{ s.provider.code }})</dd>
+    <dt>Ministry</dt><dd>{{ s.ministry.name }} ({{ s.ministry.code }})</dd>
+    <dt>Billing period</dt><dd>{{ s.period_label }}</dd>
+    <dt>Invoices</dt><dd>{{ s.invoice_count }}</dd>
+    <dt>Illustrative total</dt><dd><strong>{{ s.currency }} {{ s.total|floatformat:"2g" }}</strong></dd>
+    <dt>Simulated as of</dt><dd>{{ as_of|date:"j M Y" }}</dd>
+  </dl>
+  {% if s.attention %}<div class="callout {% if s.tone == 'danger' %}danger{% else %}warn{% endif %} mt"><strong>Presenter note:</strong> {{ s.attention }}</div>{% endif %}
+  {% if s.next_action %}<p class="mt"><strong>Next illustrative step:</strong> {{ s.next_action }}</p>{% endif %}
+  <div class="actions mt"><a class="btn" href="{% url 'console:walkthrough' %}">Back to scenarios</a>{% if s.remittance_url %}<a class="btn" href="{{ s.remittance_url }}">Sample remittance (simulation)</a>{% endif %}{% if s.bank_csv_url %}<a class="btn" href="{{ s.bank_csv_url }}">Bank statement example (simulation)</a>{% endif %}</div>
+</div>
+
+<div class="wt-grid">
+  <div class="card">
+    <div class="card-head"><h2>Journey</h2></div>
+    <ol class="wt-journey">{% for j in s.journey %}
+      <li class="wt-{{ j.state }}"><span class="wt-dot" aria-hidden="true"></span><div><strong>{{ j.label }}</strong> <span class="wt-role">{{ j.state|capfirst }}</span>{% if j.detail %}<span class="wt-sub">{{ j.detail }}</span>{% endif %}{% if j.when %}<span class="wt-sub">{{ j.when }}</span>{% endif %}</div></li>
+    {% empty %}<li><span></span><span class="muted">No journey steps in this fixture.</span></li>{% endfor %}</ol>
+  </div>
+  <div class="card">
+    <div class="card-head"><h2>Settlement</h2><span class="badge badge-neutral">No payment made</span></div>
+    {% if s.settlement %}{% with t=s.settlement %}
+    <dl class="wt-dl">
+      <dt>Reference</dt><dd>{{ t.reference }}</dd>
+      <dt>Group reference</dt><dd>{{ t.group_reference|default:"—" }}</dd>
+      <dt>Status</dt><dd>{{ t.status_label }}</dd>
+      <dt>Total</dt><dd>{{ s.currency }} {{ t.total|floatformat:"2g" }}</dd>
+      <dt>Requested</dt><dd>{{ t.requested_date|default:"—" }}</dd>
+      <dt>Value date</dt><dd>{{ t.value_date|default:"—" }}</dd>
+      <dt>Bank reference</dt><dd>{{ t.bank_reference|default:"—" }}</dd>
+      <dt>Remittance ref.</dt><dd>{{ t.remittance_reference|default:"—" }}</dd>
+    </dl>
+    {% if t.batches|length > 1 %}
+    <h3 class="mt">Batches retained in this simulated settlement group</h3>
+    <ul>{% for member in t.batches %}<li><a href="{% url 'console:walkthrough_detail' member.reference %}">{{ member.reference }}</a> · {{ s.currency }} {{ member.total|floatformat:"2g" }}</li>{% endfor %}</ul>
+    {% endif %}{% endwith %}
+    {% else %}<p class="muted">Not yet at settlement in this scenario.</p>{% endif %}
+    <div class="card-head mt"><h2>Bank match</h2><span class="badge badge-neutral">No bank connection</span></div>
+    {% if s.bank %}{% with b=s.bank %}
+    <dl class="wt-dl">
+      <dt>Status</dt><dd>{{ b.status_label }}</dd>
+      <dt>Expected</dt><dd>{% if b.expected is not None %}{{ s.currency }} {{ b.expected|floatformat:"2g" }}{% else %}—{% endif %}</dd>
+      <dt>Actual</dt><dd>{% if b.actual is not None %}{{ s.currency }} {{ b.actual|floatformat:"2g" }}{% else %}—{% endif %}</dd>
+      <dt>Variance</dt><dd>{% if b.variance is not None %}{{ s.currency }} {{ b.variance|floatformat:"2g" }}{% else %}—{% endif %}</dd>
+      <dt>Transaction ref.</dt><dd>{{ b.transaction_reference|default:"—" }}</dd>
+      <dt>Value date</dt><dd>{{ b.value_date|default:"—" }}</dd>
+      {% if b.reason %}<dt>Reason</dt><dd>{{ b.reason }}</dd>{% endif %}
+    </dl>{% endwith %}
+    {% else %}<p class="muted">No simulated bank entry for this scenario.</p>{% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Invoices</h2><span class="badge badge-warn">Fictional</span></div>
+  {% for i in s.invoices %}
+  <div class="wt-inv">
+    <div class="wt-inv-head"><h3>{{ i.number }}</h3><div class="actions"><strong>{{ i.currency }} {{ i.total|floatformat:"2g" }}</strong>{% if i.pdf_url %}<a class="btn btn-sm" href="{{ i.pdf_url }}">Sample PDF</a>{% endif %}</div></div>
+    <dl class="wt-dl">
+      <dt>Account</dt><dd>{{ i.account }}</dd>
+      <dt>Site</dt><dd>{{ i.site }}</dd>
+      <dt>Service</dt><dd>{{ i.service }}</dd>
+      <dt>Owner (illustrative)</dt><dd>{{ i.owner }}</dd>
+      <dt>Meter</dt><dd>{{ i.meter|default:"—" }}</dd>
+      <dt>Period</dt><dd>{{ i.period_start }} to {{ i.period_end }}</dd>
+      <dt>Issued / received / due</dt><dd>{{ i.issue_date }} / {{ i.received_date }} / {{ i.due_date }}</dd>
+      <dt>Readings</dt><dd>{{ i.previous_reading|default:"—" }} to {{ i.current_reading|default:"—" }} ({{ i.quantity }} {{ i.unit }})</dd>
+    </dl>
+    <div class="table-wrap mt"><table class="wt-table">
+      <thead><tr><th>Line</th><th class="wt-num">Qty</th><th class="wt-num">Unit price</th><th class="wt-num">Amount</th></tr></thead>
+      <tbody>{% for l in i.lines %}<tr><td>{{ l.description }}</td><td class="wt-num">{{ l.quantity }}</td><td class="wt-num">{{ l.unit_price }}</td><td class="wt-num">{{ l.amount|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+      <tfoot>
+        <tr><td colspan="3" class="wt-num">Net</td><td class="wt-num">{{ i.net|floatformat:"2g" }}</td></tr>
+        <tr><td colspan="3" class="wt-num">Tax</td><td class="wt-num">{{ i.tax|floatformat:"2g" }}</td></tr>
+        <tr><td colspan="3" class="wt-num">Surcharge</td><td class="wt-num">{{ i.surcharge|floatformat:"2g" }}</td></tr>
+        <tr><td colspan="3" class="wt-num"><strong>Total</strong></td><td class="wt-num"><strong>{{ i.currency }} {{ i.total|floatformat:"2g" }}</strong></td></tr>
+      </tfoot>
+    </table></div>
+  </div>
+  {% empty %}<p class="muted">No invoices in this scenario.</p>{% endfor %}
+</div>
+
+<div class="card">
+  <div class="card-head"><h2>Simulated evidence trail</h2><span class="badge badge-neutral">Not audit records</span></div>
+  <p class="muted">Roles shown are illustrative actors. These entries are not genuine sign-offs and are not written to the audit trail.</p>
+  {% if s.evidence %}<div class="table-wrap"><table class="wt-table">
+    <thead><tr><th>When</th><th>Event</th><th>Illustrative role</th><th>Note</th></tr></thead>
+    <tbody>{% for e in s.evidence %}<tr><td style="white-space:nowrap">{{ e.when }}</td><td>{{ e.event }}</td><td><span class="wt-role">{{ e.role }}</span></td><td>{{ e.note }}</td></tr>{% endfor %}</tbody>
+  </table></div>{% else %}<p class="muted">No evidence entries.</p>{% endif %}
+</div>
+{% endwith %}
+{% endblock %}

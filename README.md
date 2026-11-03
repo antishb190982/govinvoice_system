@@ -1,5 +1,13 @@
 # GovBills — Government Utility Invoice Management (Republic of Mauritius)
 
+## On-site implementation guide
+
+See [On-site deployment, code, dependencies and security](docs/on-premises-deployment.md)
+for the standalone Linux deployment runbook, dependency inventory, enforced
+controls, temporary demo exceptions and live-use acceptance checklist.
+Generate its PDF with `python scripts/build-deployment-guide.py --output generated-artifacts/GovBills-On-Site-Guide.pdf`
+in the standalone repository layout. Generated downloads are not source-controlled.
+
 GovBills is for ministries and their departments, hospitals, schools and other sites. It handles the bills from
 utility providers such as the Central Electricity Board (CEB), Central Water Authority (CWA), Mauritius Telecom,
 Emtel and the Wastewater Management Authority (WMA). With it, staff can:

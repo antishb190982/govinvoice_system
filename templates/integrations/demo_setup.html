@@ -17,7 +17,7 @@
   <form method="post" class="mt">
     {% csrf_token %}
     {{ form.as_p }}
-    <div class="actions"><button type="submit" class="btn btn-primary">Load demo setup</button><a class="btn" href="{% url 'console:overview' %}">Back to administration</a></div>
+    <div class="actions"><button type="submit" class="btn btn-primary">Load demo setup</button><a class="btn" href="{% url 'console:walkthrough' %}">Open walkthrough simulation</a><a class="btn" href="{% url 'console:overview' %}">Back to administration</a></div>
   </form>
 </div>
 {% endblock %}

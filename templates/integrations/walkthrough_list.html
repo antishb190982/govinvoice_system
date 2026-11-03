@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Walkthrough simulation{% endblock %}
+{% block content %}
+{% include "integrations/_head.html" with heading="Walkthrough" accent="simulation" %}
+{% include "integrations/_tabs.html" %}
+{% include "integrations/_walkthrough_style.html" %}
+<div class="card">
+  <div class="card-head"><h2>Bill journey scenarios</h2><span class="badge badge-warn">Simulation only</span></div>
+  <p class="muted">Read-only fixture examples as of {{ as_of|date:"j M Y" }}. Amounts in {{ currency }}. Open a scenario to present each stage from preparation to reconciliation or dispute.</p>
+  <div class="wt-kpis">
+    <div class="wt-kpi"><small>Batches</small><b>{{ summary.batches }}</b></div>
+    <div class="wt-kpi"><small>Invoices</small><b>{{ summary.invoices }}</b></div>
+    <div class="wt-kpi"><small>Illustrative total</small><b>{{ currency }} {{ summary.total|floatformat:"2g" }}</b></div>
+    <div class="wt-kpi"><small>Completed</small><b>{{ summary.completed }}</b></div>
+    <div class="wt-kpi"><small>Pending</small><b>{{ summary.pending }}</b></div>
+    <div class="wt-kpi"><small>Exceptions</small><b>{{ summary.exceptions }}</b></div>
+  </div>
+  <form method="get" class="wt-filters" aria-label="Filter scenarios">
+    <label>Provider<select name="provider"><option value="">All providers</option>{% for o in providers %}<option value="{{ o.value }}"{% if o.value == selected_provider %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select></label>
+    <label>Ministry<select name="ministry"><option value="">All ministries</option>{% for o in ministries %}<option value="{{ o.value }}"{% if o.value == selected_ministry %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select></label>
+    <label>Stage<select name="stage"><option value="">All stages</option>{% for o in stages %}<option value="{{ o.value }}"{% if o.value == selected_stage %} selected{% endif %}>{{ o.label }}</option>{% endfor %}</select></label>
+    <label>Search<input type="search" name="q" value="{{ search }}" placeholder="Reference, title or invoice"></label>
+    <div class="actions"><button class="btn btn-primary btn-sm" type="submit">Apply</button><a class="btn btn-sm" href="{% url 'console:walkthrough' %}">Reset</a></div>
+  </form>
+</div>
+<div class="card">
+  {% if scenarios %}
+  <div class="table-wrap"><table class="wt-table">
+    <thead><tr><th>Reference</th><th>Scenario</th><th>Provider</th><th>Ministry</th><th>Stage</th><th class="wt-num">Invoices</th><th class="wt-num">Total</th><th>Next step (illustrative)</th><th></th></tr></thead>
+    <tbody>{% for s in scenarios %}
+      <tr>
+        <td><strong>{{ s.reference }}</strong></td>
+        <td>{{ s.title }}{% if s.attention %}<span class="wt-sub">{{ s.attention }}</span>{% endif %}</td>
+        <td>{{ s.provider.name }}<span class="wt-sub">{{ s.provider.code }}</span></td>
+        <td>{{ s.ministry.name }}<span class="wt-sub">{{ s.ministry.code }}</span></td>
+        <td><span class="badge badge-{% if s.tone == 'success' %}ok{% else %}{{ s.tone }}{% endif %}">{{ s.stage_label }}</span></td>
+        <td class="wt-num">{{ s.invoice_count }}</td>
+        <td class="wt-num">{{ s.currency }} {{ s.total|floatformat:"2g" }}</td>
+        <td>{{ s.next_action }}</td>
+        <td><a class="btn btn-sm" href="{{ s.detail_url }}">Open</a></td>
+      </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <div class="callout info"><strong>No scenarios match these filters.</strong> <a href="{% url 'console:walkthrough' %}">Clear filters</a> to see all simulation examples.</div>
+  {% endif %}
+</div>
+{% endblock %}
